@@ -5,17 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trắc Nghiệm Đám Mây</title>
   
-  <!-- Tải React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   
-  <!-- Tải Babel để đọc code JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <!-- Tải Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Tải Firebase (Bản Compat ổn định cho trình duyệt) -->
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
@@ -37,9 +33,9 @@
 
     // ==========================================
     // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
-    // (Lấy từ trang console.firebase.google.com)
+    // (Bạn dán các mã tương ứng vào giữa 2 dấu ngoặc kép bên dưới nhé)
     // ==========================================
-    const firebaseConfig = {
+    const MY_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
   authDomain: "tracnghiem-31c44.firebaseapp.com",
   projectId: "tracnghiem-31c44",
@@ -118,14 +114,11 @@
             <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-xl mb-6">
               <h3 className="font-bold text-blue-800 mb-2">Hướng dẫn thực hiện (Chỉ 3 phút):</h3>
               <ol className="list-decimal list-inside space-y-2 text-slate-700">
-                <li>Truy cập <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-600 font-bold underline">Firebase Console</a> và tạo 1 Project miễn phí.</li>
-                <li>Bật <b>Firestore Database</b> và <b>Authentication</b> (chọn chế độ <i>Anonymous</i>).</li>
-                <li>Vào phần <b>Project Settings</b>, tạo một ứng dụng Web (biểu tượng `</>`).</li>
-                <li>Copy đoạn mã <code>firebaseConfig</code> (gồm apiKey, projectId...).</li>
-                <li>Mở file <code>index.html</code> này trên GitHub của bạn, tìm đến dòng số <b>37</b> (biến <code className="bg-slate-200 px-1 rounded text-red-500">MY_FIREBASE_CONFIG</code>) và dán cấu hình của bạn vào.</li>
+                <li>Truy cập <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-600 font-bold underline">Firebase Console</a> và lấy đoạn mã <code>firebaseConfig</code>.</li>
+                <li>Mở file <code>index.html</code> này trên GitHub của bạn, tìm đến dòng số <b>37</b> (biến <code className="bg-slate-200 px-1 rounded text-red-500">MY_FIREBASE_CONFIG</code>) và dán cấu hình của bạn vào giữa các dấu ngoặc kép.</li>
               </ol>
             </div>
-            <p className="text-sm text-slate-500 italic">Sau khi dán cấu hình, hãy tải lại trang này. Ứng dụng sẽ tự động chạy mượt mà!</p>
+            <p className="text-sm text-slate-500 italic">Sau khi dán cấu hình và lưu lại trên GitHub, hãy tải lại trang này. Ứng dụng sẽ tự động chạy mượt mà!</p>
           </div>
         </div>
       );
@@ -185,7 +178,6 @@
       // Chức năng copy siêu mạnh mẽ cho mọi thiết bị
       const copyToClipboard = async (text) => {
         try {
-          // Thử dùng API hiện đại trước
           if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
             showMessage("Đã copy mã: " + text, "success");
@@ -193,7 +185,6 @@
           }
         } catch (err) {}
         
-        // Fallback dùng textarea ẩn (Hoạt động trên Github Pages)
         const textArea = document.createElement("textarea");
         textArea.value = text;
         textArea.style.position = "fixed";
