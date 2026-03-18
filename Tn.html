@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trắc Nghiệm Đám Mây</title>
   
-  <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18",
-        "react-dom/client": "https://esm.sh/react-dom@18/client",
-        "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
-        "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
-        "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
-      }
-    }
-  </script>
+  <!-- 1. Tải React & ReactDOM (Phiên bản chạy trực tiếp) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   
+  <!-- 2. Tải Babel để đọc code JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- 3. Tải Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 4. Tải Firebase (Phiên bản Compat chống lỗi màn hình trắng ở local) -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
   
   <style>
     body { -webkit-font-smoothing: antialiased; }
@@ -32,21 +32,23 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen">
   <div id="root"></div>
 
-  <script type="text/babel" data-type="module">
-    import React, { useState, useEffect } from 'react';
-    import { createRoot } from 'react-dom/client';
-    import { initializeApp } from 'firebase/app';
-    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-    import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
+  <!-- Bắt đầu ứng dụng React -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
     // --- CẤU HÌNH FIREBASE ---
     const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { projectId: "demo" };
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy';
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy-offline';
     const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
+    const usersPath = `artifacts/${appId}/public/data/users`;
 
     // --- TIỆN ÍCH ---
     const shuffleArray = (array) => {
@@ -112,24 +114,20 @@
 
     // ================= APP CHÍNH =================
     function App() {
-      // Auth State
       const [fbUser, setFbUser] = useState(null);
-      const [currentUser, setCurrentUser] = useState(null); // { username }
+      const [currentUser, setCurrentUser] = useState(null); 
       
-      // Global State
       const [screen, setScreen] = useState('login'); 
       const [allQuizzes, setAllQuizzes] = useState([]);
       const [globalMessage, setGlobalMessage] = useState({ text: '', type: 'error' });
       const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-      // Quiz State
       const [isReadOnly, setIsReadOnly] = useState(false);
       const [currentQuizCode, setCurrentQuizCode] = useState(null);
       const [rawText, setRawText] = useState('');
       const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [] });
       const [config, setConfig] = useState({ mode: 'single', shuffle: 'none' });
       
-      // Gameplay State
       const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], flat: [] });
       const [answers, setAnswers] = useState({}); 
       const [currentIndex, setCurrentIndex] = useState(0); 
@@ -142,13 +140,12 @@
         setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
       };
 
-      // Phương pháp copy văn bản tương thích cao nhất
+      // Tối ưu hóa chức năng copy cho môi trường block clipboard
       const copyToClipboard = (text) => {
         const textArea = document.createElement("textarea");
         textArea.value = text;
         textArea.style.position = "fixed";
-        textArea.style.top = "0";
-        textArea.style.left = "0";
+        textArea.style.opacity = "0";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
@@ -156,36 +153,34 @@
           document.execCommand('copy');
           showMessage("Đã copy mã: " + text, "success");
         } catch (err) {
-          showMessage("Lỗi khi copy mã! Vui lòng copy thủ công.", "error");
+          showMessage("Thiết bị của bạn không hỗ trợ copy tự động.", "error");
         }
         document.body.removeChild(textArea);
       };
 
-      // 1. Khởi tạo Firebase Auth (Rule 3)
+      // 1. Firebase Auth Initializer
       useEffect(() => {
         const initAuth = async () => {
           try {
-            if (initialToken) await signInWithCustomToken(auth, initialToken);
-            else await signInAnonymously(auth);
+            if (initialToken) await auth.signInWithCustomToken(initialToken);
+            else await auth.signInAnonymously();
           } catch (error) {
             console.error("Lỗi xác thực hệ thống:", error);
           }
         };
         initAuth();
 
-        const unsub = onAuthStateChanged(auth, (u) => setFbUser(u));
+        const unsub = auth.onAuthStateChanged((u) => setFbUser(u));
         return () => unsub();
       }, []);
 
-      // 2. Lắng nghe dữ liệu Quizzes (Rule 2)
+      // 2. Lắng nghe dữ liệu Quizzes realtime
       useEffect(() => {
         if (!fbUser) return;
-        const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
-        const unsub = onSnapshot(qRef, (snap) => {
+        const unsub = db.collection(quizzesPath).onSnapshot((snap) => {
           const list = [];
           snap.forEach(docSnap => {
              const data = docSnap.data();
-             // Chữa cháy cho các đề cũ chưa có ngày hết hạn
              const currentExpires = data.expiresAt || (data.createdAt + 30 * 24 * 60 * 60 * 1000);
              list.push({ id: docSnap.id, ...data, expiresAt: currentExpires });
           });
@@ -194,13 +189,13 @@
         return () => unsub();
       }, [fbUser]);
 
-      // 3. Tự động dọn dẹp Đề quá hạn của user hiện tại
+      // 3. Tự động dọn dẹp Đề quá hạn
       useEffect(() => {
         if (!currentUser) return;
         const now = Date.now();
         allQuizzes.forEach(q => {
           if (q.expiresAt < now && q.owner === currentUser.username.toLowerCase()) {
-            deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', q.id))
+            db.doc(`${quizzesPath}/${q.id}`).delete()
               .catch(e => console.error("Lỗi dọn dẹp đề quá hạn: ", e));
           }
         });
@@ -209,17 +204,16 @@
       // --- LOGIC AUTH CÁ NHÂN ---
       const handleLogin = async (e) => {
         e.preventDefault();
-        if (!fbUser) return showMessage("Hệ thống đang kết nối, vui lòng thử lại sau.");
         const uname = e.target.username.value.trim();
         const pwd = e.target.password.value;
         if (!uname || !pwd) return showMessage("Vui lòng nhập đầy đủ tên và mật khẩu.");
 
         const unameLower = uname.toLowerCase();
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', unameLower);
+        const userRef = db.doc(`${usersPath}/${unameLower}`);
         
         try {
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
+          const userSnap = await userRef.get();
+          if (userSnap.exists) {
             if (userSnap.data().password === pwd) {
               setCurrentUser({ username: userSnap.data().username });
               setScreen('dashboard');
@@ -227,13 +221,13 @@
               showMessage("Sai mật khẩu!");
             }
           } else {
-            await setDoc(userRef, { username: uname, password: pwd });
+            await userRef.set({ username: uname, password: pwd });
             setCurrentUser({ username: uname });
             setScreen('dashboard');
             showMessage("Đã tạo tài khoản mới thành công!", "success");
           }
         } catch (error) {
-          showMessage("Lỗi khi đăng nhập: " + error.message);
+          showMessage("Lỗi khi đăng nhập. Hãy chắc chắn bạn có mạng: " + error.message);
         }
       };
 
@@ -314,22 +308,16 @@
         const titleLine = rawText.split('\n').find(l => l.trim().length > 0) || "Đề thi không tên";
         const title = titleLine.length > 50 ? titleLine.substring(0, 50) + "..." : titleLine;
 
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', code);
+        const docRef = db.doc(`${quizzesPath}/${code}`);
         const now = Date.now();
-        const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 ngày tính bằng milliseconds
+        const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 ngày
 
         try {
-          await setDoc(docRef, {
-            code,
-            owner: currentUser.username.toLowerCase(),
-            title,
-            parsedData,
-            rawText,
-            createdAt: now,
-            expiresAt: expiresAt
+          await docRef.set({
+            code, owner: currentUser.username.toLowerCase(), title, parsedData, rawText, createdAt: now, expiresAt: expiresAt
           });
           setCurrentQuizCode(code);
-          copyToClipboard(code); // Tự động copy mã luôn khi lưu
+          copyToClipboard(code); 
           showMessage(`Đã lưu! Mã đề của bạn là: ${code} (Đã copy sẵn)`, 'success');
         } catch (error) {
           showMessage("Lỗi khi lưu đề: " + error.message);
@@ -339,7 +327,7 @@
       // --- LOGIC XÓA VÀ GIA HẠN ĐỀ ---
       const handleDeleteQuiz = async (quizId) => {
         try {
-          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', quizId));
+          await db.doc(`${quizzesPath}/${quizId}`).delete();
           showMessage("Đã xóa đề thi thành công!", "success");
           setConfirmDeleteId(null);
         } catch (e) {
@@ -355,7 +343,7 @@
         if (newExpiresAt > maxExpiresAt) newExpiresAt = maxExpiresAt;
 
         try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', q.id), {
+          await db.doc(`${quizzesPath}/${q.id}`).update({
             expiresAt: newExpiresAt
           });
           showMessage("Đã gia hạn đề thi thành công!", "success");
@@ -539,9 +527,9 @@
                               )}
 
                               {confirmDeleteId === q.id ? (
-                                <div className="flex items-center gap-1 bg-red-50 rounded-lg p-1.5 border border-red-100">
-                                  <button onClick={() => handleDeleteQuiz(q.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600">XÓA</button>
-                                  <button onClick={() => setConfirmDeleteId(null)} className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded hover:bg-slate-300">Hủy</button>
+                                <div className="flex items-center gap-1 bg-red-50 rounded-lg p-1.5 border border-red-100 absolute bottom-5 right-5 z-10 shadow">
+                                  <button onClick={() => handleDeleteQuiz(q.id)} className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600">XÓA</button>
+                                  <button onClick={() => setConfirmDeleteId(null)} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded hover:bg-slate-300">Hủy</button>
                                 </div>
                               ) : (
                                 <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-50 rounded-lg transition" title="Xóa đề này">
@@ -917,9 +905,10 @@
       return null;
     }
 
-    const root = createRoot(document.getElementById('root'));
+    const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
 </body>
 </html>
+
 
