@@ -39,14 +39,15 @@
     // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
     // (Lấy từ trang console.firebase.google.com)
     // ==========================================
-    const MY_FIREBASE_CONFIG = {
-      apiKey: "",
-      authDomain: "",
-      projectId: "",
-      storageBucket: "",
-      messagingSenderId: "",
-      appId: ""
-    };
+    const firebaseConfig = {
+  apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
+  authDomain: "tracnghiem-31c44.firebaseapp.com",
+  projectId: "tracnghiem-31c44",
+  storageBucket: "tracnghiem-31c44.firebasestorage.app",
+  messagingSenderId: "742429088050",
+  appId: "1:742429088050:web:9ff00733cc280a1e49df2b",
+  measurementId: "G-VNXTHZV6ZH"
+};
 
     // --- KHỞI TẠO HỆ THỐNG ---
     let finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
