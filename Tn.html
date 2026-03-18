@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trắc Nghiệm Đám Mây</title>
   
-  <!-- 1. Tải React & ReactDOM (Phiên bản chạy trực tiếp) -->
+  <!-- Tải React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   
-  <!-- 2. Tải Babel để đọc code JSX -->
+  <!-- Tải Babel để đọc code JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <!-- 3. Tải Tailwind CSS -->
+  <!-- Tải Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 4. Tải Firebase (Phiên bản Compat chống lỗi màn hình trắng ở local) -->
+  <!-- Tải Firebase (Bản Compat ổn định cho trình duyệt) -->
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
@@ -32,20 +32,44 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen">
   <div id="root"></div>
 
-  <!-- Bắt đầu ứng dụng React -->
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // --- CẤU HÌNH FIREBASE ---
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { projectId: "demo" };
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy-offline';
-    const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    // ==========================================
+    // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
+    // (Lấy từ trang console.firebase.google.com)
+    // ==========================================
+    const MY_FIREBASE_CONFIG = {
+      apiKey: "",
+      authDomain: "",
+      projectId: "",
+      storageBucket: "",
+      messagingSenderId: "",
+      appId: ""
+    };
 
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
+    // --- KHỞI TẠO HỆ THỐNG ---
+    let finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
+    let auth = null;
+    let db = null;
+    let isSetupNeeded = false;
+    let appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy-github';
+
+    // Kiểm tra xem đã có API Key chưa
+    if (!finalConfig || !finalConfig.apiKey) {
+      isSetupNeeded = true;
+    } else {
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(finalConfig);
+        }
+        auth = firebase.auth();
+        db = firebase.firestore();
+      } catch(e) {
+        console.error("Lỗi khởi tạo Firebase:", e);
+        isSetupNeeded = true;
+      }
     }
-    const auth = firebase.auth();
-    const db = firebase.firestore();
 
     const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
     const usersPath = `artifacts/${appId}/public/data/users`;
@@ -81,20 +105,37 @@
       Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
     };
 
+    // --- COMPONENT HƯỚNG DẪN CÀI ĐẶT (Khi thiếu cấu hình) ---
+    function SetupScreen() {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 font-sans">
+          <div className="max-w-2xl bg-white p-8 md:p-10 rounded-3xl shadow-2xl border border-red-100 animate-fade-in">
+            <h1 className="text-3xl font-black text-red-600 mb-4">Cần Thiết Lập Cơ Sở Dữ Liệu!</h1>
+            <p className="text-slate-600 mb-6 text-lg">
+              Chào Huy! Ứng dụng đã chạy thành công trên GitHub của bạn. Tuy nhiên, để tính năng <b>Tạo tài khoản</b> và <b>Lưu đề thi</b> hoạt động, bạn cần cung cấp "chìa khóa" kết nối với cơ sở dữ liệu.
+            </p>
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-xl mb-6">
+              <h3 className="font-bold text-blue-800 mb-2">Hướng dẫn thực hiện (Chỉ 3 phút):</h3>
+              <ol className="list-decimal list-inside space-y-2 text-slate-700">
+                <li>Truy cập <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-600 font-bold underline">Firebase Console</a> và tạo 1 Project miễn phí.</li>
+                <li>Bật <b>Firestore Database</b> và <b>Authentication</b> (chọn chế độ <i>Anonymous</i>).</li>
+                <li>Vào phần <b>Project Settings</b>, tạo một ứng dụng Web (biểu tượng `</>`).</li>
+                <li>Copy đoạn mã <code>firebaseConfig</code> (gồm apiKey, projectId...).</li>
+                <li>Mở file <code>index.html</code> này trên GitHub của bạn, tìm đến dòng số <b>37</b> (biến <code className="bg-slate-200 px-1 rounded text-red-500">MY_FIREBASE_CONFIG</code>) và dán cấu hình của bạn vào.</li>
+              </ol>
+            </div>
+            <p className="text-sm text-slate-500 italic">Sau khi dán cấu hình, hãy tải lại trang này. Ứng dụng sẽ tự động chạy mượt mà!</p>
+          </div>
+        </div>
+      );
+    }
+
     // --- COMPONENT TRẢ LỜI NGẮN ---
     const ShortAnswerInput = ({ value = '', onChange, readOnly, isCorrect, showResult }) => {
       const chars = (value || '').split('');
       const boxes = [0, 1, 2, 3];
-
-      let borderColorClass = 'border-slate-300';
-      let textColorClass = 'text-slate-800';
-
-      if (showResult) {
-        borderColorClass = isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50';
-        textColorClass = isCorrect ? 'text-green-700' : 'text-red-700';
-      } else if (value) {
-        borderColorClass = 'border-blue-500 bg-blue-50';
-      }
+      let borderColorClass = showResult ? (isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : (value ? 'border-blue-500 bg-blue-50' : 'border-slate-300');
+      let textColorClass = showResult ? (isCorrect ? 'text-green-700' : 'text-red-700') : 'text-slate-800';
 
       return (
         <div className="relative inline-flex gap-2 group">
@@ -112,8 +153,8 @@
       );
     };
 
-    // ================= APP CHÍNH =================
-    function App() {
+    // ================= APP CHÍNH (Chỉ chạy khi đã có Firebase) =================
+    function MainApp() {
       const [fbUser, setFbUser] = useState(null);
       const [currentUser, setCurrentUser] = useState(null); 
       
@@ -140,11 +181,23 @@
         setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
       };
 
-      // Tối ưu hóa chức năng copy cho môi trường block clipboard
-      const copyToClipboard = (text) => {
+      // Chức năng copy siêu mạnh mẽ cho mọi thiết bị
+      const copyToClipboard = async (text) => {
+        try {
+          // Thử dùng API hiện đại trước
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            showMessage("Đã copy mã: " + text, "success");
+            return;
+          }
+        } catch (err) {}
+        
+        // Fallback dùng textarea ẩn (Hoạt động trên Github Pages)
         const textArea = document.createElement("textarea");
         textArea.value = text;
         textArea.style.position = "fixed";
+        textArea.style.top = "0";
+        textArea.style.left = "0";
         textArea.style.opacity = "0";
         document.body.appendChild(textArea);
         textArea.focus();
@@ -153,16 +206,18 @@
           document.execCommand('copy');
           showMessage("Đã copy mã: " + text, "success");
         } catch (err) {
-          showMessage("Thiết bị của bạn không hỗ trợ copy tự động.", "error");
+          showMessage("Thiết bị chặn copy tự động. Bạn hãy tự bôi đen mã nhé.", "error");
         }
         document.body.removeChild(textArea);
       };
 
       // 1. Firebase Auth Initializer
       useEffect(() => {
+        if (!auth) return;
         const initAuth = async () => {
           try {
-            if (initialToken) await auth.signInWithCustomToken(initialToken);
+            const iToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            if (iToken) await auth.signInWithCustomToken(iToken);
             else await auth.signInAnonymously();
           } catch (error) {
             console.error("Lỗi xác thực hệ thống:", error);
@@ -176,7 +231,7 @@
 
       // 2. Lắng nghe dữ liệu Quizzes realtime
       useEffect(() => {
-        if (!fbUser) return;
+        if (!fbUser || !db) return;
         const unsub = db.collection(quizzesPath).onSnapshot((snap) => {
           const list = [];
           snap.forEach(docSnap => {
@@ -191,7 +246,7 @@
 
       // 3. Tự động dọn dẹp Đề quá hạn
       useEffect(() => {
-        if (!currentUser) return;
+        if (!currentUser || !db) return;
         const now = Date.now();
         allQuizzes.forEach(q => {
           if (q.expiresAt < now && q.owner === currentUser.username.toLowerCase()) {
@@ -227,7 +282,8 @@
             showMessage("Đã tạo tài khoản mới thành công!", "success");
           }
         } catch (error) {
-          showMessage("Lỗi khi đăng nhập. Hãy chắc chắn bạn có mạng: " + error.message);
+          showMessage("Lỗi: Kiểm tra lại quyền truy cập Firestore của bạn.");
+          console.error(error);
         }
       };
 
@@ -297,7 +353,7 @@
       };
 
       const saveQuiz = async () => {
-        if (!fbUser || !currentUser) return;
+        if (!fbUser || !currentUser || !db) return;
         
         const dataStr = JSON.stringify(parsedData);
         if (dataStr.length > 900000) {
@@ -318,7 +374,6 @@
           });
           setCurrentQuizCode(code);
           copyToClipboard(code); 
-          showMessage(`Đã lưu! Mã đề của bạn là: ${code} (Đã copy sẵn)`, 'success');
         } catch (error) {
           showMessage("Lỗi khi lưu đề: " + error.message);
         }
@@ -458,16 +513,13 @@
               </div>
 
               <div className="grid md:grid-cols-3 gap-8">
-                {/* CỘT TRÁI: TẠO VÀ LÀM ĐỀ KHÁC */}
                 <div className="md:col-span-1 space-y-6">
                   <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl p-6 text-white shadow-lg">
                     <h2 className="text-xl font-bold mb-2">Làm đề chia sẻ</h2>
                     <p className="text-blue-100 text-sm mb-6">Nhập mã 6 ký tự do bạn bè gửi.</p>
                     <form onSubmit={joinQuiz} className="flex gap-2">
                       <input type="text" name="shareCode" placeholder="Mã đề" maxLength="6" className="w-full px-4 py-3 rounded-xl text-slate-800 font-bold uppercase text-center outline-none" required />
-                      <button type="submit" className="bg-white text-blue-600 px-4 rounded-xl hover:bg-slate-100 transition shadow font-bold">
-                        VÀO
-                      </button>
+                      <button type="submit" className="bg-white text-blue-600 px-4 rounded-xl hover:bg-slate-100 transition shadow font-bold">VÀO</button>
                     </form>
                   </div>
                   
@@ -477,7 +529,6 @@
                   </button>
                 </div>
 
-                {/* CỘT PHẢI: ĐỀ CỦA TÔI */}
                 <div className="md:col-span-2">
                   <h2 className="text-2xl font-bold text-slate-800 mb-6">Đề thi của bạn</h2>
                   {myQuizzes.length === 0 ? (
@@ -497,9 +548,7 @@
                               <h3 className="font-bold text-slate-800 mb-2 line-clamp-2" title={q.title}>{q.title}</h3>
                               <div className="flex justify-between items-center text-xs mb-4">
                                 <span className="text-slate-400">Tạo: {new Date(q.createdAt).toLocaleDateString('vi-VN')}</span>
-                                <span className={daysLeft <= 5 ? "text-red-500 font-bold" : "text-amber-500 font-bold"}>
-                                  Hết hạn sau {daysLeft} ngày
-                                </span>
+                                <span className={daysLeft <= 5 ? "text-red-500 font-bold" : "text-amber-500 font-bold"}>Hết hạn sau {daysLeft} ngày</span>
                               </div>
 
                               <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl mb-5 border border-slate-100">
@@ -512,18 +561,12 @@
 
                             <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                               <button onClick={() => { setParsedData(q.parsedData); setRawText(q.rawText); setIsReadOnly(false); setCurrentQuizCode(q.code); setScreen('settings'); }} 
-                                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-lg transition text-center">
-                                Xem/Sửa
-                              </button>
+                                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-lg transition text-center">Xem/Sửa</button>
 
                               {canExtend ? (
-                                <button onClick={() => handleExtendQuiz(q)} className="px-3 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-sm font-bold rounded-lg transition" title="Gia hạn thêm 7 ngày">
-                                  +7 Ngày
-                                </button>
+                                <button onClick={() => handleExtendQuiz(q)} className="px-3 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-sm font-bold rounded-lg transition" title="Gia hạn thêm 7 ngày">+7 Ngày</button>
                               ) : (
-                                <button disabled className="px-3 py-2 bg-slate-50 text-slate-300 text-sm font-bold rounded-lg cursor-not-allowed" title="Đã đạt mức gia hạn tối đa 50 ngày">
-                                  Max
-                                </button>
+                                <button disabled className="px-3 py-2 bg-slate-50 text-slate-300 text-sm font-bold rounded-lg cursor-not-allowed" title="Đã đạt mức gia hạn tối đa 50 ngày">Max</button>
                               )}
 
                               {confirmDeleteId === q.id ? (
@@ -532,9 +575,7 @@
                                   <button onClick={() => setConfirmDeleteId(null)} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded hover:bg-slate-300">Hủy</button>
                                 </div>
                               ) : (
-                                <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-50 rounded-lg transition" title="Xóa đề này">
-                                  <Icons.Trash />
-                                </button>
+                                <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-50 rounded-lg transition" title="Xóa đề này"><Icons.Trash /></button>
                               )}
                             </div>
                           </div>
@@ -582,7 +623,7 @@
         );
       }
 
-      // MÀN HÌNH CÀI ĐẶT / TỔNG QUAN
+      // MÀN HÌNH CÀI ĐẶT
       if (screen === 'settings') {
         const sections = [
           { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: parsedData.mc },
@@ -905,8 +946,13 @@
       return null;
     }
 
+    function RootApp() {
+      if (isSetupNeeded) return <SetupScreen />;
+      return <MainApp />;
+    }
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(<RootApp />);
   </script>
 </body>
 </html>
