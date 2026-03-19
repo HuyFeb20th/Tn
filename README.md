@@ -1,3 +1,3 @@
 Truy cập:
 https://huyfeb20th.github.io/Tn/Taotracnghiem
-Để vào tạo trắc nghiệm và làm bài
+để vào tạo trắc nghiệm và làm bài
