@@ -1,3 +1,4 @@
+<!--Tạo trắc nghiệm V6-->
 <!DOCTYPE html>
 <html lang="vi" class="light">
 <head>
@@ -7,14 +8,10 @@
   
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-    }
+    tailwind.config = { darkMode: 'class' }
   </script>
   
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
@@ -23,11 +20,8 @@
   
   <style>
     body { -webkit-font-smoothing: antialiased; }
-    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     textarea::-webkit-scrollbar { width: 8px; }
     textarea::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     .dark textarea::-webkit-scrollbar-thumb { background-color: #475569; }
@@ -39,7 +33,34 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
     
-    // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
+    // ============================================================
+    // 📝 KHU VỰC CHỈNH SỬA LỜI NHẬN XÉT (Huy có thể thêm/bớt ở đây)
+    // ============================================================
+    const RESULT_COMMENTS = {
+      bad: [ // Từ 0% - 49%
+        "🗣Alo Vũ à Vũ",
+        "Nhìn cái điểm xong dính c2 Điêu Thuyền mịa luôn🗿",
+        "Hết cứu🤡",
+        "Học hành đỉnh cao thực sự, đúng là 'thiên tài' có khác🐧",
+        "Thôi kiếp này coi như bỏ🙃"
+      ],
+      average: [ // Từ 50% - 84%
+        "Thôi thì cũng có nỗ lực, đồng ý cho qua 👍",
+        "Trộm vía vẫn còn thở được, ko sao, ko sao 😀",
+        "Ủa sao điểm lại ra thế này ta 🌝",
+        "Cũng tàm tạm vừa đủ qua môn rồi😛"
+      ],
+      good: [ // Từ 85% - 100%
+        "Đù vuýp🤯",
+        "Đù, học kiểu đéo gì mà điểm cháy vailon thế☠️",
+        "Làm lại mấy lần rồi mà điểm chất thế💩",
+        "Adu, nay đc gặp học bá luôn😬"
+      ]
+    };
+
+    // ==========================================
+    // 🔑 CẤU HÌNH FIREBASE
+    // ==========================================
     const MY_FIREBASE_CONFIG = {
       apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
       authDomain: "tracnghiem-31c44.firebaseapp.com",
@@ -50,15 +71,12 @@
       measurementId: "G-VNXTHZV6ZH"
     };
 
-    // GIỚI HẠN LƯU ĐỀ CHO NGƯỜI DÙNG THƯỜNG
-    const MAX_QUIZZES_PER_USER = 10;
+    const MAX_QUIZZES_PER_USER = 5;
     const ADMIN_USERNAME = "huy20022k8";
 
-    // --- KHỞI TẠO HỆ THỐNG ---
+    // KHỞI TẠO FIREBASE
     let finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
-    let auth = null;
-    let db = null;
-    let isSetupNeeded = false;
+    let auth = null, db = null, isSetupNeeded = false;
     let appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy-github';
 
     if (!finalConfig || !finalConfig.apiKey) {
@@ -68,16 +86,13 @@
         if (!firebase.apps.length) firebase.initializeApp(finalConfig);
         auth = firebase.auth();
         db = firebase.firestore();
-      } catch(e) {
-        console.error("Lỗi khởi tạo Firebase:", e);
-        isSetupNeeded = true;
-      }
+      } catch(e) { isSetupNeeded = true; }
     }
 
     const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
     const usersPath = `artifacts/${appId}/public/data/users`;
 
-    // --- TIỆN ÍCH ---
+    // TIỆN ÍCH
     const shuffleArray = (array) => {
       const newArr = [...array];
       for (let i = newArr.length - 1; i > 0; i--) {
@@ -86,17 +101,13 @@
       }
       return newArr;
     };
-
     const generateShareCode = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let result = '';
-      for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-      return result;
+      return Array.from({length: 6}).map(() => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
     };
-
     const generateId = () => Math.random().toString(36).substr(2, 9);
 
-    // --- ICONS ---
+    // ICONS
     const Icons = {
       Upload: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
       Image: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
@@ -110,29 +121,17 @@
       Sun: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
       Moon: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>,
       Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
-      EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>,
+      EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943-9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>,
       UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>,
       Edit: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>,
-      Key: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+      Key: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>,
+      Add: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
     };
-
-    // --- COMPONENT HƯỚNG DẪN SETUP ---
-    function SetupScreen() {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 font-sans">
-          <div className="max-w-2xl bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center">
-            <h1 className="text-3xl font-black text-red-600 mb-4">Chưa có kết nối Database!</h1>
-            <p className="text-slate-600 mb-4">Hãy dán đoạn mã <code>firebaseConfig</code> của bạn vào dòng số 42 trong code nhé.</p>
-          </div>
-        </div>
-      );
-    }
 
     // --- COMPONENT TRẢ LỜI NGẮN ---
     const ShortAnswerInput = ({ value = '', onChange, readOnly, isCorrect, showResult }) => {
       const chars = (value || '').split('');
       const boxes = [0, 1, 2, 3];
-      
       let borderColorClass = 'border-slate-300 dark:border-slate-600';
       let bgColorClass = 'bg-white dark:bg-slate-800';
       let textColorClass = 'text-slate-800 dark:text-slate-100';
@@ -164,25 +163,21 @@
 
     // ================= APP CHÍNH =================
     function MainApp() {
-      // User State
       const [fbUser, setFbUser] = useState(null);
       const [currentUser, setCurrentUser] = useState(null); 
-      
-      // UI State
       const [screen, setScreen] = useState('home'); 
       const [showPassword, setShowPassword] = useState(false);
       const [showUserMenu, setShowUserMenu] = useState(false);
       const [showChangePwd, setShowChangePwd] = useState(false);
       const [globalMessage, setGlobalMessage] = useState({ text: '', type: 'error' });
+      const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', subtitle: '', onConfirm: null });
       const [theme, setTheme] = useState(localStorage.getItem('quiz_theme') || 'light');
       
-      // Data State
       const [allQuizzes, setAllQuizzes] = useState([]);
       const [confirmDeleteId, setConfirmDeleteId] = useState(null);
       const [inputTab, setInputTab] = useState('mc'); 
       const [rawTexts, setRawTexts] = useState({ mc: '', tf: '', sa: '', rc: '', file: '' });
 
-      // Quiz Edit & Play State
       const [isReadOnly, setIsReadOnly] = useState(false);
       const [currentQuizCode, setCurrentQuizCode] = useState(null);
       const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [], rc: [] });
@@ -195,6 +190,7 @@
       const [isSubmitted, setIsSubmitted] = useState(false); 
       const [singleQuestionConfirmed, setSingleQuestionConfirmed] = useState(false); 
       const [score, setScore] = useState({ correct: 0, total: 0 });
+      const [resultComment, setResultComment] = useState("");
 
       // THEME EFFECT
       useEffect(() => {
@@ -204,7 +200,6 @@
       }, [theme]);
       const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
-      // MESSAGE HELPER
       const showMessage = (text, type = 'error') => {
         setGlobalMessage({ text, type });
         setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
@@ -247,24 +242,12 @@
         return () => unsub();
       }, [fbUser]);
 
-      useEffect(() => {
-        if (!currentUser || !db) return;
-        const now = Date.now();
-        allQuizzes.forEach(q => {
-          if (q.expiresAt < now && q.owner === currentUser.username.toLowerCase()) {
-            db.doc(`${quizzesPath}/${q.id}`).delete().catch(e => {});
-          }
-        });
-      }, [allQuizzes, currentUser]);
-
       // --- LOGIC TÀI KHOẢN ---
       const handleLogin = async (e) => {
         e.preventDefault();
-        // TỰ ĐỘNG XÓA MỌI DẤU CÁCH Ở TÊN ĐĂNG NHẬP
         const rawUname = e.target.username.value;
         const uname = rawUname.replace(/\s+/g, '');
         const pwd = e.target.password.value;
-
         if (!uname || !pwd) return showMessage("Vui lòng nhập đủ thông tin.");
         const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
         try {
@@ -283,15 +266,21 @@
 
       const handleDeleteAccount = async () => {
         if (!currentUser || !db) return;
-        if (!window.confirm("CẢNH BÁO: Xóa tài khoản sẽ xóa vĩnh viễn mọi đề thi của bạn. Tiếp tục?")) return;
-        try {
-          const usernameLower = currentUser.username.toLowerCase();
-          const userQuizzes = allQuizzes.filter(q => q.owner === usernameLower);
-          for (const q of userQuizzes) await db.doc(`${quizzesPath}/${q.id}`).delete();
-          await db.doc(`${usersPath}/${usernameLower}`).delete();
-          showMessage("Đã xóa tài khoản và dọn dẹp dữ liệu!", "success");
-          setCurrentUser(null); setShowUserMenu(false); setScreen('home');
-        } catch (error) { showMessage("Lỗi khi xóa tài khoản!"); }
+        setConfirmDialog({
+            isOpen: true,
+            title: "Tạo Trắc Nghiệm cho biết",
+            subtitle: "CẢNH BÁO: Bạn có chắc chắn muốn xóa tài khoản này không?\n\nToàn bộ đề thi do bạn tạo cũng sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác!",
+            onConfirm: async () => {
+                try {
+                  const usernameLower = currentUser.username.toLowerCase();
+                  const userQuizzes = allQuizzes.filter(q => q.owner === usernameLower);
+                  for (const q of userQuizzes) await db.doc(`${quizzesPath}/${q.id}`).delete();
+                  await db.doc(`${usersPath}/${usernameLower}`).delete();
+                  showMessage("Đã xóa tài khoản!", "success");
+                  setCurrentUser(null); setShowUserMenu(false); setScreen('home');
+                } catch (error) { showMessage("Lỗi khi xóa!"); }
+            }
+        });
       };
 
       const handleChangePassword = async (e) => {
@@ -309,18 +298,7 @@
         } catch (err) { showMessage("Lỗi đổi mật khẩu!"); }
       };
 
-      const handleGuestJoin = async (e) => {
-        e.preventDefault();
-        const code = e.target.shareCode.value.trim().toUpperCase();
-        if (code.length !== 6) return showMessage("Mã đề gồm 6 ký tự.");
-        const qDoc = allQuizzes.find(q => q.code === code && q.expiresAt > Date.now());
-        if (qDoc) {
-          const safeParsed = { mc: [], tf: [], sa: [], rc: [], ...qDoc.parsedData };
-          setParsedData(safeParsed); setIsReadOnly(true); setCurrentQuizCode(code); setScreen('settings');
-        } else showMessage("Mã không đúng hoặc đề đã hết hạn!");
-      };
-
-      // --- PARSING ENGINE SIÊU CẤP (Bao gồm làm sạch Text) ---
+      // --- PARSING ENGINE SIÊU CẤP ---
       const parseTextEngine = (text, forcedType) => {
         let result = [];
         let currentQ = null, currentSubQ = null;
@@ -331,7 +309,6 @@
           let line = rawLine.replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim();
           if (!line) continue;
 
-          // Bắt Phần (áp dụng nếu hỗn hợp)
           if (forcedType === 'mixed') {
               const secMatch = line.match(/^[Pp]hần\s+([IVX]+|[1-4])/i);
               if (secMatch) {
@@ -343,29 +320,20 @@
                   continue; 
               }
           }
-
           const activeType = currentSectionType === 'mixed' ? 'mc' : currentSectionType;
-
-          // 1. Nhận diện câu hỏi chính (Câu XX. hoặc Câu XX:)
           const qMatch = line.match(/^[Cc][âa]u\s*\d+[\.\:\)]\s*(.*)/);
           if (qMatch) {
             if (currentQ) result.push(currentQ);
             currentQ = { id: generateId(), text: qMatch[1] || "", type: activeType, options: [], subQuestions: [], image: null };
-            currentSubQ = null;
-            continue;
+            currentSubQ = null; continue;
           }
-
-          // 2. Nhận diện câu hỏi phụ (#1. hoặc #1:)
           const subQMatch = line.match(/^#\d+[\.\:\)]\s*(.*)/);
           if (subQMatch && currentQ) {
             currentQ.type = 'rc';
             currentSubQ = { id: generateId(), text: subQMatch[1] || "", options: [] };
-            currentQ.subQuestions.push(currentSubQ);
-            continue;
+            currentQ.subQuestions.push(currentSubQ); continue;
           }
-
-          // 3. Nhận diện Đáp án
-          const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\)]\s*(.*)/);
+          const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\)\:]\s*(.*)/);
           if (optMatch) {
             const optObj = { id: generateId(), text: optMatch[3], isCorrect: optMatch[1] === '*' };
             if (currentSubQ) currentSubQ.options.push(optObj);
@@ -375,16 +343,12 @@
             }
             continue;
           }
-
-          // 4. Nhận diện Trả lời ngắn
           const saMatch = line.match(/^\*\s*(.+?)\s*\*$/);
           if (saMatch && currentQ && !currentSubQ && currentQ.options.length === 0) {
             currentQ.type = 'sa';
             currentQ.options.push({ id: generateId(), text: saMatch[1], isCorrect: true });
             continue;
           }
-
-          // 5. Nối text
           if (currentSubQ) {
             if (currentSubQ.options.length === 0) currentSubQ.text += '\n' + line;
             else currentSubQ.options[currentSubQ.options.length - 1].text += '\n' + line;
@@ -394,123 +358,91 @@
           }
         }
         if (currentQ) result.push(currentQ);
-
-        // BỘ LỌC DỌN RÁC (Trim Whitespace & Dòng thừa cuối câu)
         result.forEach(q => {
-            q.text = q.text.trim();
-            q.options.forEach(o => o.text = o.text.trim());
-            if (q.subQuestions) {
-                q.subQuestions.forEach(sq => {
-                    sq.text = sq.text.trim();
-                    sq.options.forEach(o => o.text = o.text.trim());
-                });
-            }
+            q.text = q.text.trim(); q.options.forEach(o => o.text = o.text.trim());
+            if (q.subQuestions) { q.subQuestions.forEach(sq => { sq.text = sq.text.trim(); sq.options.forEach(o => o.text = o.text.trim()); }); }
         });
-
         return result;
       };
 
+      // --- LOGIC LƯU VỚI CẢNH BÁO ---
       const handleParseAndSave = async () => {
+        // Nếu là đề ĐÃ CÓ trong kho (Sửa text gốc)
+        if (currentQuizCode && !isReadOnly) {
+            setConfirmDialog({
+                isOpen: true,
+                title: "Bạn có muốn lưu text này không?",
+                subtitle: "Tất cả những gì bạn đã làm trong phần \"Chi tiết các câu hỏi\" sẽ mất",
+                onConfirm: executeParseAndSave
+            });
+        } else {
+            executeParseAndSave();
+        }
+      };
+
+      const executeParseAndSave = async () => {
         let allMC = [], allTF = [], allSA = [], allRC = [];
-        
-        // TÁCH BIỆT: CHỈ QUÉT TAB HIỆN TẠI
         if (inputTab === 'file') {
             const mixedItems = parseTextEngine(rawTexts.file, 'mixed');
             mixedItems.forEach(item => {
-              if (item.type === 'mc') allMC.push(item);
-              else if (item.type === 'tf') allTF.push(item);
-              else if (item.type === 'sa') allSA.push(item);
-              else if (item.type === 'rc') allRC.push(item);
+              if (item.type === 'mc') allMC.push(item); else if (item.type === 'tf') allTF.push(item);
+              else if (item.type === 'sa') allSA.push(item); else if (item.type === 'rc') allRC.push(item);
             });
         } else {
-            allMC.push(...parseTextEngine(rawTexts.mc, 'mc'));
-            allTF.push(...parseTextEngine(rawTexts.tf, 'tf'));
-            allSA.push(...parseTextEngine(rawTexts.sa, 'sa'));
-            allRC.push(...parseTextEngine(rawTexts.rc, 'rc'));
+            allMC.push(...parseTextEngine(rawTexts.mc, 'mc')); allTF.push(...parseTextEngine(rawTexts.tf, 'tf'));
+            allSA.push(...parseTextEngine(rawTexts.sa, 'sa')); allRC.push(...parseTextEngine(rawTexts.rc, 'rc'));
         }
 
         if (allMC.length === 0 && allTF.length === 0 && allSA.length === 0 && allRC.length === 0) {
-          return showMessage('Không tìm thấy câu hỏi đúng định dạng ở phần này!');
+          return showMessage('Nội dung nhập vào không đúng định dạng!');
         }
 
         const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
         setParsedData(newParsedData);
 
-        // AUTO SAVE LÊN CLOUD
         if (currentUser && db && !isReadOnly) {
             const usernameLower = currentUser.username.toLowerCase();
             const isAdmin = usernameLower === ADMIN_USERNAME;
-            
-            if (!isAdmin && !currentQuizCode) {
-              const userQuizzesCount = allQuizzes.filter(q => q.owner === usernameLower).length;
-              if (userQuizzesCount >= MAX_QUIZZES_PER_USER) {
-                showMessage(`Đạt giới hạn ${MAX_QUIZZES_PER_USER} đề. Đề này chỉ được lưu tạm trên máy, hãy xóa bớt đề cũ.`, "error");
-                setScreen('settings'); return;
-              }
+            if (!isAdmin && !currentQuizCode && allQuizzes.filter(q => q.owner === usernameLower).length >= MAX_QUIZZES_PER_USER) {
+                showMessage(`Giới hạn ${MAX_QUIZZES_PER_USER} đề.`, "error"); setScreen('settings'); return;
             }
-
             const code = currentQuizCode || generateShareCode();
             let titleLine = "Đề thi không tên";
             const targetText = inputTab === 'file' ? rawTexts.file : (rawTexts.mc || rawTexts.tf || rawTexts.sa || rawTexts.rc);
             const firstLine = (targetText || "").split('\n').find(l => l.trim().length > 0);
             if(firstLine) titleLine = firstLine.length > 50 ? firstLine.substring(0, 50) + "..." : firstLine;
-
             try {
               await db.doc(`${quizzesPath}/${code}`).set({ 
                   code, owner: usernameLower, title: titleLine, parsedData: newParsedData, rawTexts, 
                   createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 
               }, {merge: true});
-              setCurrentQuizCode(code);
-              showMessage("Đã tự động lưu vào Kho đám mây!", "success");
-            } catch (e) { console.error(e); }
+              setCurrentQuizCode(code); showMessage("Đã lưu vào Kho đám mây!", "success");
+            } catch (e) {}
         }
         setScreen('settings');
       };
 
-      const handleImageUpload = (qId, sectionId, file) => {
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const newData = { ...parsedData };
-          const q = newData[sectionId].find(x => x.id === qId);
-          if (q) q.image = e.target.result;
-          setParsedData(newData);
-          if (currentUser && currentQuizCode && db) {
-              db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
+      const handleCancelEdit = () => {
+          if (currentQuizCode) {
+            setConfirmDialog({
+                isOpen: true,
+                title: "Bạn có muốn hủy sửa text gốc hay không?",
+                subtitle: "Tất cả những gì bạn sửa ở đây sẽ không được lưu",
+                onConfirm: () => setScreen('settings')
+            });
+          } else {
+            setScreen('dashboard');
           }
-        };
-        reader.readAsDataURL(file);
       };
 
-      // Inline Editing Save/Delete
-      const saveInlineEdit = async () => {
-         const newData = {...parsedData};
-         const index = newData[editingQ.sectionId].findIndex(q => q.id === editingQ.data.id);
-         if (index !== -1) newData[editingQ.sectionId][index] = editingQ.data;
-         setParsedData(newData);
-         setEditingQ(null);
-         
-         if (currentUser && currentQuizCode && db) {
-            try {
-                await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
-                showMessage("Đã lưu chỉnh sửa!", "success");
-            } catch(e) {}
-         }
-      };
-
-      const removeInlineQuestion = async () => {
-         if (!window.confirm("Xác nhận XÓA HOÀN TOÀN câu hỏi này?")) return;
-         const newData = {...parsedData};
-         newData[editingQ.sectionId] = newData[editingQ.sectionId].filter(q => q.id !== editingQ.data.id);
-         setParsedData(newData);
-         setEditingQ(null);
-         
-         if (currentUser && currentQuizCode && db) {
-            try {
-                await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
-                showMessage("Đã xóa câu hỏi!", "success");
-            } catch(e) {}
-         }
+      const handleAddNewQuestion = (sectionId) => {
+          const newQ = { id: generateId(), text: "Nội dung câu hỏi mới...", type: sectionId,
+            options: sectionId === 'sa' ? [{id: generateId(), text: 'Đáp án', isCorrect: true}] : (sectionId === 'rc' ? [] : [
+                {id: generateId(), text: 'Lựa chọn 1', isCorrect: true}, {id: generateId(), text: 'Lựa chọn 2', isCorrect: false}
+            ]), subQuestions: sectionId === 'rc' ? [{id: generateId(), text: 'Câu phụ 1', options: [{id: generateId(), text: 'Đ.án 1', isCorrect: true}]}] : [], image: null
+          };
+          const newData = {...parsedData}; newData[sectionId].push(newQ); setParsedData(newData);
+          setEditingQ({ sectionId: sectionId, data: newQ, isNew: true });
       };
 
       // --- LOGIC LÀM ĐỀ & PROGRESS ---
@@ -518,69 +450,56 @@
         let finalMc = [...parsedData.mc], finalTf = [...parsedData.tf], finalSa = [...parsedData.sa], finalRc = [...(parsedData.rc || [])];
         const shuffleOpts = config.shuffle === 'options' || config.shuffle === 'both';
         const shuffleQ = config.shuffle === 'questions' || config.shuffle === 'both';
-
-        if (shuffleQ) {
-          finalMc = shuffleArray(finalMc); finalTf = shuffleArray(finalTf); finalSa = shuffleArray(finalSa); finalRc = shuffleArray(finalRc);
-        }
+        if (shuffleQ) { finalMc = shuffleArray(finalMc); finalTf = shuffleArray(finalTf); finalSa = shuffleArray(finalSa); finalRc = shuffleArray(finalRc); }
         if (shuffleOpts) {
-          finalMc.forEach(q => { q.options = shuffleArray(q.options); });
-          finalTf.forEach(q => { q.options = shuffleArray(q.options); });
+          finalMc.forEach(q => { q.options = shuffleArray(q.options); }); finalTf.forEach(q => { q.options = shuffleArray(q.options); });
           finalRc.forEach(q => { q.subQuestions.forEach(sq => { sq.options = shuffleArray(sq.options); }) });
         }
-
         setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, rc: finalRc, flat: [...finalMc, ...finalTf, ...finalSa, ...finalRc] });
         setAnswers({}); setCurrentIndex(0); setIsSubmitted(false); setSingleQuestionConfirmed(false);
-        
         let rcQCount = finalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
         setScore({ correct: 0, total: finalMc.length + finalTf.length + finalSa.length + rcQCount });
         setScreen('quiz');
       };
 
-      const checkQuestionCorrect = (type, qObj, userAns) => {
-        if (type === 'mc' || type === 'rc') {
-          const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
-          return Array.isArray(userAns) && userAns.length > 0 && correctIds.includes(userAns[0]);
-        } else if (type === 'tf') {
-          const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
-          return Array.isArray(userAns) && userAns.length === correctIds.length && userAns.every(id => correctIds.includes(id));
-        } else if (type === 'sa') {
-          if (typeof userAns !== 'string' || !userAns.trim()) return false;
-          if (!qObj.options || qObj.options.length === 0) return false; 
-          const cleanUser = userAns.trim().replace(',', '.');
-          const cleanCorrect = qObj.options[0].text.trim().replace(',', '.');
-          if (!isNaN(parseFloat(cleanUser)) && !isNaN(parseFloat(cleanCorrect))) return parseFloat(cleanUser) === parseFloat(cleanCorrect);
-          return cleanUser.toLowerCase() === cleanCorrect.toLowerCase();
-        }
-        return false;
+      const submitFinal = () => {
+          let hasUnanswered = false;
+          activeQuiz.flat.forEach(q => {
+            if(q.type === 'rc') { q.subQuestions.forEach(sq => { if(!answers[sq.id] || answers[sq.id].length===0) hasUnanswered = true; }) }
+            else { const ans = answers[q.id]; if(!ans || (Array.isArray(ans)&&ans.length===0) || (typeof ans==='string'&&!ans.trim())) hasUnanswered = true; }
+          });
+          if (hasUnanswered) return showMessage('Bạn còn câu chưa làm!');
+          let correct = 0;
+          activeQuiz.flat.forEach(q => {
+            if(q.type === 'rc') { q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) correct++; }) }
+            else { if(checkQuestionCorrect(q.type, q, answers[q.id])) correct++; }
+          });
+          setScore({ correct, total: score.total });
+          const percent = (correct / score.total) * 100;
+          let pool = [];
+          if (percent < 50) pool = RESULT_COMMENTS.bad;
+          else if (percent < 85) pool = RESULT_COMMENTS.average;
+          else pool = RESULT_COMMENTS.good;
+          setResultComment(pool[Math.floor(Math.random() * pool.length)]);
+          setIsSubmitted(true); window.scrollTo(0,0); setScreen('result');
       };
 
-      const getAnsweredCount = () => {
-        let count = 0;
-        activeQuiz.flat.forEach(q => {
-          if (q.type === 'rc') {
-            q.subQuestions.forEach(sq => { if (answers[sq.id] && answers[sq.id].length > 0) count++; });
-          } else {
-            const ans = answers[q.id];
-            if (ans && ((Array.isArray(ans) && ans.length > 0) || (typeof ans === 'string' && ans.trim()))) count++;
-          }
-        });
-        return count;
-      };
-
-      // ================= CÁC MÀN HÌNH (RENDER) =================
-      const Notification = () => (
-        globalMessage.text && (
-          <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
-            {globalMessage.text}
+      // ================= RENDER HELPERS =================
+      const ConfirmModal = () => {
+        if (!confirmDialog.isOpen) return null;
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in border border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">{confirmDialog.title}</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm leading-relaxed whitespace-pre-wrap font-medium">{confirmDialog.subtitle}</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setConfirmDialog({ isOpen: false })} className="px-5 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-300 transition">Quay lại</button>
+                <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ isOpen: false }); }} className="px-5 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow">Đồng ý</button>
+              </div>
+            </div>
           </div>
-        )
-      );
-
-      const ThemeToggleBtn = () => (
-        <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition" title="Đổi giao diện Tối/Sáng">
-          {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
-        </button>
-      );
+        );
+      };
 
       // --- MÀN HÌNH CHÍNH (HOME) ---
       if (screen === 'home') {
@@ -588,15 +507,16 @@
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 transition-colors flex items-center justify-center p-4 relative">
             <div className="absolute top-4 right-4"><ThemeToggleBtn /></div>
             <Notification />
+            <ConfirmModal />
             <div className="max-w-5xl w-full grid md:grid-cols-2 gap-6 animate-fade-in">
               <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl p-8 text-white shadow-xl flex flex-col justify-center">
                 <div className="mb-8">
                   <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block">Dành cho Người thi</span>
-                  <h1 className="text-4xl font-black mb-2">Vào Thi Ngay</h1>
-                  <p className="text-blue-100">Không cần đăng nhập. Nhập mã đề 6 ký tự để bắt đầu làm bài.</p>
+                  <h2 className="text-3xl font-black mb-2">Vào Thi Ngay</h2>
+                  <p className="text-blue-100">Hãy nhập chính xác mã đề 6 ký tự để bắt đầu thử sức nhé!</p>
                 </div>
                 <form onSubmit={handleGuestJoin} className="bg-white/10 p-2 rounded-2xl flex gap-2 border border-white/20 backdrop-blur-sm">
-                  <input type="text" name="shareCode" placeholder="Nhập mã..." maxLength="6" className="w-full bg-transparent px-4 py-3 text-xl font-bold uppercase placeholder-blue-200 text-white outline-none" required />
+                  <input type="text" name="shareCode" placeholder="Nhập mã..." maxLength="6" className="w-full bg-transparent px-4 py-3 text-xl font-bold uppercase text-white outline-none" required />
                   <button type="submit" className="bg-white text-blue-600 px-6 font-bold rounded-xl shadow hover:bg-slate-50 transition">VÀO</button>
                 </form>
               </div>
@@ -604,25 +524,21 @@
                 <div className="mb-6">
                   <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block transition-colors">Dành cho Người ra đề</span>
                   <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-2">Quản Lý Đề Thi</h2>
-                  <p className="text-slate-500 dark:text-slate-400">Đăng nhập để tạo đề, lưu trữ và lấy mã chia sẻ.</p>
+                  <p className="text-slate-500 dark:text-slate-400">Đăng nhập để xây dựng kho đề thi của riêng bạn.</p>
                 </div>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên tài khoản</label>
-                    <input type="text" name="username" placeholder="Viết liền không dấu..." required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên đăng nhập</label>
+                    <input type="text" name="username" placeholder="Tên đăng nhập..." required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Mật khẩu</label>
                     <div className="relative">
                       <input type={showPassword ? "text" : "password"} name="password" placeholder="••••••••" required className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2">
-                        {showPassword ? <Icons.EyeOff /> : <Icons.Eye />}
-                      </button>
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 p-2"><Icons.EyeOff /></button>
                     </div>
                   </div>
-                  <button type="submit" className="w-full bg-slate-800 dark:bg-blue-600 hover:bg-slate-900 dark:hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition shadow mt-2 flex items-center justify-center gap-2">
-                    <Icons.User /> Đăng Nhập / Đăng Ký
-                  </button>
+                  <button type="submit" className="w-full bg-slate-800 dark:bg-blue-600 hover:bg-slate-900 text-white font-bold py-3.5 rounded-xl transition shadow mt-2 flex items-center justify-center gap-2"><Icons.User /> Đăng Nhập / Đăng Ký</button>
                 </form>
               </div>
             </div>
@@ -636,415 +552,138 @@
         const usernameLower = currentUser?.username.toLowerCase();
         const isAdmin = usernameLower === ADMIN_USERNAME;
         const myQuizzes = allQuizzes.filter(q => q.owner === usernameLower && q.expiresAt > now).sort((a,b) => b.createdAt - a.createdAt);
-        const limitText = isAdmin ? "VIP Không giới hạn" : `${myQuizzes.length}/${MAX_QUIZZES_PER_USER} đề`;
-
         return (
           <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-50 dark:bg-slate-900 transition-colors">
-            <Notification />
-            
-            {showChangePwd && (
-              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                <form onSubmit={handleChangePassword} className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-                  <h3 className="text-xl font-bold mb-4 dark:text-white">Đổi Mật Khẩu</h3>
-                  <input type="password" name="oldPassword" placeholder="Mật khẩu cũ" required className="w-full mb-3 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700 outline-none" />
-                  <input type="password" name="newPassword" placeholder="Mật khẩu mới" required className="w-full mb-5 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700 outline-none" />
-                  <div className="flex gap-3">
-                    <button type="submit" className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Xác nhận</button>
-                    <button type="button" onClick={() => setShowChangePwd(false)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
-                  </div>
-                </form>
-              </div>
-            )}
-
+            <Notification /><ConfirmModal />
             <div className="max-w-5xl mx-auto">
               <div className="flex flex-col md:flex-row justify-between md:items-center mb-8 bg-white dark:bg-slate-800 p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 gap-4 transition-colors">
-                
                 <div className="flex justify-between items-center w-full md:w-auto gap-4 md:border-r border-slate-200 dark:border-slate-700 md:pr-6">
-                  {/* Dropdown User */}
                   <div className="relative">
-                    <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80 transition w-full md:w-auto">
-                      <Icons.User /> <span className="text-blue-600 dark:text-blue-400">{currentUser?.username}</span> ▾
-                      {isAdmin && <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase">VIP</span>}
-                    </button>
+                    <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80 transition"><Icons.User /> {currentUser?.username} ▾ {isAdmin && <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase">VIP</span>}</button>
                     {showUserMenu && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
-                        <div className="absolute left-0 mt-2 w-56 md:w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
-                          <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition"><Icons.Key /> Đổi mật khẩu</button>
-                          <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium transition"><Icons.UserX /> Xóa tài khoản</button>
-                        </div>
-                      </>
+                      <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
+                        <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition"><Icons.Key /> Đổi mật khẩu</button>
+                        <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium transition"><Icons.UserX /> Xóa tài khoản</button>
+                      </div>
                     )}
                   </div>
-
-                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                    <ThemeToggleBtn />
-                    <button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm font-bold">
-                      Đăng xuất
-                    </button>
-                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3"><ThemeToggleBtn /><button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 transition text-sm font-bold">Đăng xuất</button></div>
                 </div>
-                
-                {/* THANH VÀO THI NGAY */}
-                <form onSubmit={handleGuestJoin} className="flex-1 flex gap-2 w-full mt-2 md:mt-0">
-                  <input type="text" name="shareCode" placeholder="Nhập mã đề thi..." maxLength="6" className="w-full bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl text-slate-800 dark:text-white font-bold uppercase outline-none border border-slate-200 dark:border-slate-700" required />
-                  <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition shadow font-bold whitespace-nowrap">VÀO THI</button>
-                </form>
-
+                <form onSubmit={handleGuestJoin} className="flex-1 flex gap-2 w-full"><input type="text" name="shareCode" placeholder="Nhập mã đề thi..." maxLength="6" className="w-full bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl text-slate-800 dark:text-white font-bold uppercase outline-none border dark:border-slate-700" required /><button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition shadow font-bold whitespace-nowrap">VÀO THI</button></form>
               </div>
-
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-800 dark:text-white">Kho đề thi của bạn</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Đã lưu: {limitText}</p>
-                </div>
-                <button onClick={() => { 
-                  setRawTexts({ mc:'', tf:'', sa:'', rc:'', file:'' }); setInputTab('mc');
-                  setParsedData({mc:[], tf:[], sa:[], rc:[]}); setIsReadOnly(false); setCurrentQuizCode(null); setScreen('input'); 
-                }} className="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto">+ TẠO ĐỀ MỚI</button>
+                <div><h2 className="text-2xl font-black text-slate-800 dark:text-white">Kho đề thi của bạn</h2><p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Lưu trữ tối đa {MAX_QUIZZES_PER_USER} đề.</p></div>
+                <button onClick={() => { setRawTexts({ mc:'', tf:'', sa:'', rc:'', file:'' }); setInputTab('mc'); setParsedData({mc:[], tf:[], sa:[], rc:[]}); setIsReadOnly(false); setCurrentQuizCode(null); setScreen('input'); }} className="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto">+ TẠO ĐỀ MỚI</button>
               </div>
-
-              {myQuizzes.length === 0 ? (
-                <div className="bg-white dark:bg-slate-800 rounded-3xl p-12 text-center text-slate-400 dark:text-slate-500 border border-dashed border-slate-300 dark:border-slate-600 transition-colors">Chưa có đề nào được tạo.</div>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-5">
-                  {myQuizzes.map(q => {
-                    const daysLeft = Math.ceil((q.expiresAt - now) / 86400000);
-                    return (
-                      <div key={q.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 transition-colors flex flex-col justify-between">
-                        <div>
-                          <h3 className="font-bold text-slate-800 dark:text-white mb-2 line-clamp-2">{q.title}</h3>
-                          <div className="flex justify-between text-xs mb-4">
-                            <span className="text-slate-500 dark:text-slate-400">{new Date(q.createdAt).toLocaleDateString('vi-VN')}</span>
-                            <span className={daysLeft <= 5 ? "text-red-500 font-bold" : "text-amber-500 font-bold"}>Hết hạn sau {daysLeft} ngày</span>
-                          </div>
-                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl mb-4 border border-blue-100 dark:border-blue-800/50">
-                            <span className="text-blue-800 dark:text-blue-300 font-mono font-black text-lg">{q.code}</span>
-                            <button onClick={() => copyToClipboard(q.code)} className="text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800 px-3 py-1 rounded-lg font-bold transition text-sm">Copy</button>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700 relative">
-                          <button onClick={() => { 
-                            setParsedData(q.parsedData); 
-                            if(q.rawTexts) setRawTexts(q.rawTexts); else setRawTexts({...rawTexts, file: q.rawText});
-                            setIsReadOnly(false); setCurrentQuizCode(q.code); setScreen('settings'); 
-                          }} className="flex-1 bg-slate-100 dark:bg-slate-700 py-2 rounded-lg font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Xem / Sửa</button>
-                          
-                          <button onClick={() => db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000) })} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800 transition text-sm">+7 Ngày</button>
-                          
-                          {confirmDeleteId === q.id ? (
-                            <div className="absolute right-0 bottom-12 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-xl border border-red-200 dark:border-red-800 flex gap-2">
-                              <button onClick={() => { db.doc(`${quizzesPath}/${q.id}`).delete(); setConfirmDeleteId(null); }} className="bg-red-500 text-white px-3 py-1 font-bold rounded text-sm transition">Xóa</button>
-                              <button onClick={() => setConfirmDeleteId(null)} className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 px-3 py-1 font-bold rounded text-sm transition">Hủy</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-500 hover:text-white transition"><Icons.Trash /></button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {myQuizzes.length === 0 ? <div className="bg-white dark:bg-slate-800 rounded-3xl p-12 text-center text-slate-400 border border-dashed border-slate-300 dark:border-slate-600 transition-colors">Chưa có đề nào được tạo.</div> : <div className="grid md:grid-cols-2 gap-5">{myQuizzes.map(q => <div key={q.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border dark:border-slate-700 transition-colors flex flex-col justify-between"><div><h3 className="font-bold text-slate-800 dark:text-white mb-2 line-clamp-2">{q.title}</h3><div className="flex justify-between text-xs mb-4"><span className="text-slate-500 dark:text-slate-400">{new Date(q.createdAt).toLocaleDateString('vi-VN')}</span><span className={Math.ceil((q.expiresAt - now) / 86400000) <= 5 ? "text-red-500 font-bold" : "text-amber-500 font-bold"}>Hết hạn sau {Math.ceil((q.expiresAt - now) / 86400000)} ngày</span></div><div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl mb-4 border dark:border-blue-800/50"><span className="text-blue-800 dark:text-blue-300 font-mono font-black text-lg">{q.code}</span><button onClick={() => copyToClipboard(q.code)} className="text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg font-bold transition text-sm">Copy</button></div></div><div className="flex items-center gap-2 pt-3 border-t dark:border-slate-700 relative"><button onClick={() => { setParsedData(q.parsedData); if(q.rawTexts) setRawTexts(q.rawTexts); else setRawTexts({...rawTexts, file: q.rawText}); setIsReadOnly(false); setCurrentQuizCode(q.code); setScreen('settings'); }} className="flex-1 bg-slate-100 dark:bg-slate-700 py-2 rounded-lg font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors text-sm">Sửa đề</button><button onClick={() => db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000) })} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg text-sm">+7 Ngày</button>{confirmDeleteId === q.id ? <div className="absolute right-0 bottom-12 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-xl border dark:border-red-800 flex gap-2"><button onClick={() => db.doc(`${quizzesPath}/${q.id}`).delete()} className="bg-red-500 text-white px-3 py-1 font-bold rounded text-sm transition">Xóa</button><button onClick={() => setConfirmDeleteId(null)} className="bg-slate-200 px-3 py-1 font-bold rounded text-sm transition">Hủy</button></div> : <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-500 hover:text-white transition"><Icons.Trash /></button>}</div></div>)}</div>}
             </div>
           </div>
         );
       }
 
-      // --- MÀN HÌNH NHẬP TEXT (TABS ĐƯỢC CHỈNH LẠI GIAO DIỆN) ---
+      // --- MÀN HÌNH NHẬP TEXT ---
       if (screen === 'input') {
         const tabs = [
-          { id: 'mc', label: 'I. Trắc nghiệm' },
-          { id: 'tf', label: 'II. Đúng sai' },
-          { id: 'sa', label: 'III. Trả lời ngắn' },
-          { id: 'rc', label: 'IV. Đọc hiểu' },
+          { id: 'mc', label: 'I. Trắc nghiệm' }, { id: 'tf', label: 'II. Đúng sai' },
+          { id: 'sa', label: 'III. Trả lời ngắn' }, { id: 'rc', label: 'IV. Đọc hiểu' },
           { id: 'file', label: 'Tải File / Hỗn hợp' }
         ];
-
-        const placeholders = {
-          mc: "Câu 1. Nội dung câu hỏi trắc nghiệm\nA. Lựa chọn 1\n*B. Lựa chọn đúng\nC. Lựa chọn 3",
-          tf: "Câu 2: Nội dung câu hỏi đúng sai\na) Mệnh đề 1\n*b) Mệnh đề 2 (Đúng)\nc) Mệnh đề 3",
-          sa: "Câu 3. Nội dung câu hỏi trả lời ngắn\n*4.5* \n(Lưu ý: Đáp án để giữa 2 dấu sao)",
-          rc: "Câu 4. Đây là đoạn văn chung dùng cho các câu hỏi phụ bên dưới.\n#1. Câu hỏi phụ 1 của đoạn văn?\nA. Lựa chọn\n*B) Lựa chọn đúng\n#2: Câu hỏi phụ số 2\n*a. Đúng\nb. Sai",
-          file: "Dán toàn bộ nội dung hỗn hợp vào đây hoặc tải file .txt lên.\nHệ thống sẽ tự nhận diện cấu trúc. Nhớ ghi rõ Phần I, Phần II... nếu có."
-        };
-
         const tips = {
-          mc: "Hỗ trợ 'Câu X.' hoặc 'Câu X:'. Đáp án dùng 'A.' hoặc 'A)'. Đáp án đúng có dấu '*' ở đầu.",
-          tf: "Tương tự trắc nghiệm, thường dùng 'a)', 'b)'.",
-          sa: "Hệ thống sẽ tự hiện bàn phím số trên điện thoại. Đáp án phải để giữa 2 dấu * (VD: *123*).",
-          rc: "Dùng 'Câu X.' cho Đoạn văn/Yêu cầu chung. Dùng '#1.', '#2.' cho các câu hỏi con thuộc đoạn văn đó.",
-          file: "Ở tab này, các tab khác sẽ BỊ BỎ QUA. Nếu chép hỗn hợp nhiều phần, hãy dùng từ khóa 'Phần I', 'Phần II'..."
+          mc: "Soạn: 'Câu 1. Nội dung...'. Đáp án: 'A. Lựa chọn'. Đánh dấu '*' trước câu đúng: '*B. Hà Nội'.",
+          tf: "Soạn tương tự Trắc nghiệm, thường dùng 'a)', 'b)'. Đánh '*' vào các ý bạn cho là Đúng.",
+          sa: "Dùng để nhập số hoặc từ ngắn. Đáp án phải để giữa 2 dấu sao: '*4.5*' hoặc '*Hà Nội*'.",
+          rc: "Viết đoạn văn sau chữ 'Câu X.'. Sau đó soạn các câu hỏi con bắt đầu bằng '#1.', '#2.'.",
+          file: "Dán hỗn hợp nhiều phần. Hãy ghi rõ 'Phần I', 'Phần II' để hệ thống tự động phân loại chính xác."
         };
 
         return (
-          <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
-            <Notification />
-            <div className="max-w-5xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 transition-colors border border-slate-200 dark:border-slate-700">
+          <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors pb-20">
+            <Notification /><ConfirmModal />
+            <div className="max-w-5xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border dark:border-slate-700">
               <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-black text-slate-800 dark:text-white">Soạn Thảo Đề Thi</h1>
-                <div className="flex items-center gap-4">
-                  <ThemeToggleBtn />
-                  <button onClick={() => setScreen('dashboard')} className="text-slate-500 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition">Thoát</button>
-                </div>
+                <h1 className="text-2xl font-black text-slate-800 dark:text-white">Soạn Thảo Nội Dung</h1>
+                <div className="flex items-center gap-4"><ThemeToggleBtn /><button onClick={handleCancelEdit} className="text-slate-500 dark:text-slate-400 font-bold hover:text-slate-800 transition">Hủy</button></div>
               </div>
-
-              {/* TABS ĐƯỢC CHỈNH LẠI GIAO DIỆN DẠNG LƯỚI CHO MOBILE, DÀN NGANG CHO PC */}
-              <div className="grid grid-cols-2 md:flex md:flex-wrap gap-3 mb-6 border-b border-slate-200 dark:border-slate-700 pb-5">
-                {tabs.map(t => (
-                  <button key={t.id} onClick={() => setInputTab(t.id)} 
-                    className={`px-4 py-3 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center text-center text-sm md:text-base ${
-                      inputTab === t.id 
-                        ? (t.id === 'file' ? 'bg-amber-500 text-white shadow-md transform scale-[1.02]' : 'bg-blue-600 text-white shadow-md transform scale-[1.02]') 
-                        : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600'
-                    } ${t.id === 'file' ? 'col-span-2 md:col-auto' : ''}`}>
-                    {t.label}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 md:flex md:flex-wrap gap-3 mb-6 border-b dark:border-slate-700 pb-5">
+                {tabs.map(t => <button key={t.id} onClick={() => setInputTab(t.id)} className={`px-4 py-3 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center text-center text-sm md:text-base ${inputTab === t.id ? (t.id === 'file' ? 'bg-amber-600 text-white shadow-md transform scale-105' : 'bg-blue-600 text-white shadow-md transform scale-105') : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border dark:border-slate-600'} ${t.id === 'file' ? 'col-span-2 md:col-auto' : ''}`}>{t.label}</button>)}
               </div>
-
-              <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl mb-4 border border-blue-100 dark:border-blue-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">💡 <b>Hướng dẫn:</b> {tips[inputTab]}</p>
-                {inputTab === 'file' && (
-                  <label className="cursor-pointer bg-white dark:bg-slate-700 border-2 border-blue-200 dark:border-slate-600 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-50 dark:hover:bg-slate-600 transition shrink-0">
-                    <Icons.Upload /> Chọn file .txt
-                    <input type="file" accept=".txt" className="hidden" onChange={(e) => {
-                      const file = e.target.files[0]; if(!file) return;
-                      const reader = new FileReader(); reader.onload = (evt) => setRawTexts({...rawTexts, file: evt.target.result});
-                      reader.readAsText(file);
-                    }} />
-                  </label>
-                )}
+              <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl mb-4 border dark:border-blue-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">💡 <b>Cách soạn:</b> {tips[inputTab]}</p>
+                {inputTab === 'file' && <label className="cursor-pointer bg-white dark:bg-slate-700 border-2 border-blue-200 dark:border-slate-600 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition shrink-0"><Icons.Upload /> Chọn file .txt <input type="file" accept=".txt" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (evt) => setRawTexts({...rawTexts, file: evt.target.result}); reader.readAsText(file); }} /></label>}
               </div>
-
-              <textarea 
-                className="w-full h-[350px] p-5 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-blue-500 outline-none resize-none font-mono text-sm leading-relaxed bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white transition-colors mb-6" 
-                placeholder={placeholders[inputTab]} 
-                value={rawTexts[inputTab]} 
-                onChange={(e) => setRawTexts({...rawTexts, [inputTab]: e.target.value})}
-              />
-
-              <button onClick={handleParseAndSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform hover:-translate-y-1">
-                <Icons.Check /> LƯU LẠI & TIẾP TỤC
-              </button>
+              <textarea className="w-full h-[350px] p-5 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-blue-500 outline-none resize-none font-mono text-sm leading-relaxed bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white mb-6" placeholder="Nhập câu hỏi tại đây..." value={rawTexts[inputTab]} onChange={(e) => setRawTexts({...rawTexts, [inputTab]: e.target.value})} />
+              <button onClick={handleParseAndSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform hover:-translate-y-1"><Icons.Check /> LƯU LẠI & TIẾP TỤC</button>
             </div>
           </div>
         );
       }
 
-      // --- MÀN HÌNH SETTINGS (TỔNG QUAN & CHỈNH SỬA TỪNG CÂU) ---
+      // --- MÀN HÌNH SETTINGS ---
       if (screen === 'settings') {
         const sections = [
-          { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: parsedData.mc },
-          { id: 'tf', title: 'Phần II: Đúng/Sai', data: parsedData.tf },
-          { id: 'sa', title: 'Phần III: Trả lời ngắn', data: parsedData.sa },
-          { id: 'rc', title: 'Phần IV: Đọc hiểu / Nhóm', data: parsedData.rc }
-        ].filter(s => s.data.length > 0);
+          { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: parsedData.mc || [] },
+          { id: 'tf', title: 'Phần II: Đúng/Sai', data: parsedData.tf || [] },
+          { id: 'sa', title: 'Phần III: Trả lời ngắn', data: parsedData.sa || [] },
+          { id: 'rc', title: 'Phần IV: Đọc hiểu / Nhóm', data: parsedData.rc || [] }
+        ].filter(s => !isReadOnly || s.data.length > 0);
 
         return (
-          <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
-            <Notification />
+          <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors pb-20">
+            <Notification /><ConfirmModal />
             
-            {/* MODAL INLINE EDITING (Đã chuyển thẻ input thành textarea) */}
             {editingQ && (
               <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-start pt-10 px-4 overflow-y-auto pb-10">
-                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-2xl shadow-2xl animate-fade-in border border-slate-200 dark:border-slate-700">
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-2xl shadow-2xl animate-fade-in border dark:border-slate-700">
                   <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-4">Sửa câu hỏi</h3>
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Nội dung câu hỏi / Đoạn văn:</label>
-                      <textarea value={editingQ.data.text} onChange={e => setEditingQ({...editingQ, data: {...editingQ.data, text: e.target.value}})} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none" rows="3" />
-                    </div>
-                    
-                    {/* Chỉnh sửa Đáp án thường */}
+                    <div><label className="block text-sm font-bold text-slate-400 mb-1">Nội dung chính:</label><textarea value={editingQ.data.text} onChange={e => setEditingQ({...editingQ, data: {...editingQ.data, text: e.target.value}})} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none" rows="3" /></div>
                     {editingQ.data.type !== 'rc' && (
                       <div>
-                        <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">Đáp án:</label>
-                        {editingQ.data.options.map((opt, oIdx) => (
-                          <div key={opt.id} className="flex items-start gap-3 mb-2">
-                            {editingQ.data.type !== 'sa' && (
-                              <div className="mt-2.5">
-                                <input type="radio" name="editIsCorrect" checked={opt.isCorrect} onChange={() => {
-                                  const newOpts = editingQ.data.options.map(o => ({...o, isCorrect: o.id === opt.id}));
-                                  setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                                }} className="w-5 h-5 text-blue-600 cursor-pointer" />
-                              </div>
-                            )}
-                            <textarea value={opt.text} onChange={e => {
-                              const newOpts = [...editingQ.data.options]; newOpts[oIdx].text = e.target.value;
-                              setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                            }} className="flex-1 p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none" rows="2" />
-                            {/* NÚT XÓA ĐÁP ÁN */}
-                            <button onClick={() => {
-                                const newOpts = editingQ.data.options.filter(o => o.id !== opt.id);
-                                setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                            }} className="p-2 mt-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition" title="Xóa đáp án này"><Icons.Trash /></button>
-                          </div>
-                        ))}
-                        <button onClick={() => {
-                          const newOpts = [...editingQ.data.options, {id: generateId(), text: '', isCorrect: editingQ.data.options.length === 0}];
-                          setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                        }} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold mt-1 transition">+ Thêm đáp án</button>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Đáp án:</label>
+                        {editingQ.data.options.map((opt, oIdx) => <div key={opt.id} className="flex items-start gap-3 mb-2">{editingQ.data.type !== 'sa' && <div className="mt-2.5"><input type="radio" name="editIsCorrect" checked={opt.isCorrect} onChange={() => setEditingQ({...editingQ, data: {...editingQ.data, options: editingQ.data.options.map(o => ({...o, isCorrect: o.id === opt.id}))}})} className="w-5 h-5 text-blue-600 cursor-pointer" /></div>}<textarea value={opt.text} onChange={e => { const newOpts = [...editingQ.data.options]; newOpts[oIdx].text = e.target.value; setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}}); }} className="flex-1 p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none text-sm" rows="2" /><button onClick={() => setEditingQ({...editingQ, data: {...editingQ.data, options: editingQ.data.options.filter(o => o.id !== opt.id)}})} className="p-2 mt-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"><Icons.Trash /></button></div>)}
+                        <button onClick={() => setEditingQ({...editingQ, data: {...editingQ.data, options: [...editingQ.data.options, {id: generateId(), text: '', isCorrect: editingQ.data.options.length === 0}]}})} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold mt-1">+ Thêm đáp án</button>
                       </div>
                     )}
-
-                    {/* Chỉnh sửa Đọc hiểu */}
                     {editingQ.data.type === 'rc' && (
-                      <div className="space-y-6 border-t pt-4 dark:border-slate-700">
-                        <label className="block text-sm font-bold text-slate-600 dark:text-slate-400">Các câu hỏi phụ:</label>
-                        {editingQ.data.subQuestions.map((sq, sqIdx) => (
-                          <div key={sq.id} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border dark:border-slate-700 relative">
-                            {/* Nút xóa câu hỏi phụ */}
-                            <button onClick={() => {
-                                const newSqs = editingQ.data.subQuestions.filter(s => s.id !== sq.id);
-                                setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                            }} className="absolute top-2 right-2 text-red-500 text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded border shadow-sm hover:bg-red-50 transition">Xóa câu phụ</button>
-
-                            <textarea value={sq.text} onChange={e => {
-                                const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].text = e.target.value;
-                                setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                            }} className="w-full pr-20 p-2 mb-3 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 font-bold outline-none resize-none" rows="2" />
-                            
-                            {sq.options.map((opt, oIdx) => (
-                              <div key={opt.id} className="flex items-start gap-3 mb-2 pl-2 md:pl-4">
-                                <div className="mt-2.5">
-                                  <input type="radio" name={`editIsCorrect_sq_${sq.id}`} checked={opt.isCorrect} onChange={() => {
-                                      const newSqs = [...editingQ.data.subQuestions];
-                                      newSqs[sqIdx].options = sq.options.map(o => ({...o, isCorrect: o.id === opt.id}));
-                                      setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                  }} className="w-4 h-4 text-blue-600 cursor-pointer" />
-                                </div>
-                                <textarea value={opt.text} onChange={e => {
-                                    const newSqs = [...editingQ.data.subQuestions];
-                                    newSqs[sqIdx].options[oIdx].text = e.target.value;
-                                    setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                }} className="flex-1 p-2 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 text-sm outline-none resize-none" rows="2" />
-                                {/* Nút xóa đáp án câu phụ */}
-                                <button onClick={() => {
-                                    const newSqs = [...editingQ.data.subQuestions];
-                                    newSqs[sqIdx].options = newSqs[sqIdx].options.filter(o => o.id !== opt.id);
-                                    setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                }} className="p-2 mt-0.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg"><Icons.Trash /></button>
-                              </div>
-                            ))}
-                            <button onClick={() => {
-                                const newSqs = [...editingQ.data.subQuestions];
-                                newSqs[sqIdx].options.push({id: generateId(), text: '', isCorrect: newSqs[sqIdx].options.length === 0});
-                                setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                            }} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold mt-2 transition ml-4">+ Thêm tùy chọn</button>
-                          </div>
-                        ))}
-                        <button onClick={() => {
-                            const newSqs = [...editingQ.data.subQuestions, {id: generateId(), text: 'Câu hỏi phụ mới', options: []}];
-                            setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                        }} className="text-sm bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-lg font-bold transition w-full">+ Thêm câu hỏi phụ</button>
+                      <div className="space-y-6 border-t dark:border-slate-700 pt-4">
+                        {editingQ.data.subQuestions.map((sq, sqIdx) => <div key={sq.id} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border dark:border-slate-700 relative"><button onClick={() => setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: editingQ.data.subQuestions.filter(s => s.id !== sq.id)}})} className="absolute top-2 right-2 text-red-500 text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded border shadow-sm transition">Xóa</button><textarea value={sq.text} onChange={e => { const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].text = e.target.value; setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}}); }} className="w-full pr-20 p-2 mb-3 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 font-bold outline-none resize-none text-sm" rows="2" />{sq.options.map((opt, oIdx) => <div key={opt.id} className="flex items-start gap-3 mb-2 md:pl-4"><div className="mt-2.5"><input type="radio" name={`editIsCorrect_sq_${sq.id}`} checked={opt.isCorrect} onChange={() => { const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].options = sq.options.map(o => ({...o, isCorrect: o.id === opt.id})); setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}}); }} className="w-4 h-4 text-blue-600 cursor-pointer" /></div><textarea value={opt.text} onChange={e => { const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].options[oIdx].text = e.target.value; setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}}); }} className="flex-1 p-2 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 text-sm outline-none resize-none" rows="2" /><button onClick={() => { const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].options = newSqs[sqIdx].options.filter(o => o.id !== opt.id); setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}}); }} className="p-2 text-red-500 hover:bg-red-100 rounded-lg"><Icons.Trash /></button></div>)}<button onClick={() => { const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].options.push({id: generateId(), text: '', isCorrect: newSqs[sqIdx].options.length === 0}); setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}}); }} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold mt-2 transition ml-4">+ Thêm tùy chọn</button></div>)}
+                        <button onClick={() => setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: [...editingQ.data.subQuestions, {id: generateId(), text: 'Câu hỏi phụ mới', options: []}]}})} className="text-sm bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 font-bold px-4 py-2 rounded-lg transition w-full">+ Thêm câu hỏi phụ</button>
                       </div>
                     )}
                   </div>
-                  
-                  <div className="flex gap-3 mt-6 border-t dark:border-slate-700 pt-4 flex-wrap">
-                    <button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow transition min-w-[120px]">Lưu Thay Đổi</button>
-                    <button onClick={removeInlineQuestion} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 shadow transition min-w-[120px]">XÓA CÂU NÀY</button>
-                    <button onClick={() => setEditingQ(null)} className="w-full sm:w-auto bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 px-6 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
-                  </div>
-                  <p className="text-xs text-orange-500 dark:text-orange-400 mt-3 text-center">Lưu ý: Sửa ở đây sẽ lưu trực tiếp vào Kho nhưng Text gốc ở tab Soạn Thảo sẽ không thay đổi.</p>
+                  <div className="flex gap-3 mt-6 border-t dark:border-slate-700 pt-4 flex-wrap"><button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition min-w-[120px]">Lưu Thay Đổi</button>{!editingQ.isNew && <button onClick={removeInlineQuestion} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition min-w-[120px]">XÓA CÂU NÀY</button>}<button onClick={() => { if(editingQ.isNew) setParsedData({...parsedData, [editingQ.sectionId]: parsedData[editingQ.sectionId].filter(q => q.id !== editingQ.data.id)}); setEditingQ(null); }} className="w-full sm:w-auto bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 px-6 rounded-xl hover:bg-slate-300 transition">Hủy</button></div>
                 </div>
               </div>
             )}
 
             <div className="max-w-4xl mx-auto space-y-6">
-              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 transition-colors">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
-                  <h2 className="text-2xl font-black text-slate-800 dark:text-white">Tổng Quan Đề Thi</h2>
-                  <div className="flex items-center gap-3">
-                    {currentQuizCode && (
-                      <div onClick={() => copyToClipboard(currentQuizCode)} className="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono font-bold px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 transition shadow-inner">
-                        Mã: {currentQuizCode} <Icons.Copy />
-                      </div>
-                    )}
-                    <ThemeToggleBtn />
-                  </div>
+              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border dark:border-slate-700 transition-colors">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b dark:border-slate-700 pb-4">
+                  <h2 className="text-2xl font-black text-slate-800 dark:text-white">Cài Đặt Đề Thi</h2>
+                  <div className="flex items-center gap-3">{currentQuizCode && <div onClick={() => copyToClipboard(currentQuizCode)} className="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono font-bold px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer transition shadow-inner">Mã: {currentQuizCode} <Icons.Copy /></div>}<ThemeToggleBtn /></div>
                 </div>
-
-                <div className="grid md:grid-cols-2 gap-6 mb-8 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                  <div>
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Chế độ thi</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setConfig({...config, mode: 'single'})} className={`flex-1 py-2 rounded-lg font-bold border-2 transition ${config.mode === 'single' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800'}`}>Từng câu</button>
-                      <button onClick={() => setConfig({...config, mode: 'all'})} className={`flex-1 py-2 rounded-lg font-bold border-2 transition ${config.mode === 'all' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800'}`}>Tất cả</button>
+                {/* NÚT THÊM CÂU HỎI TỔNG QUÁT */}
+                {!isReadOnly && (
+                    <div className="flex flex-wrap gap-2 mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed dark:border-slate-700">
+                        <span className="text-sm font-bold text-slate-400 w-full mb-1">Tạo nhanh câu hỏi mới vào:</span>
+                        {['mc','tf','sa','rc'].map(sid => <button key={sid} onClick={() => handleAddNewQuestion(sid)} className="px-4 py-2 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold rounded-lg border dark:border-slate-600 hover:bg-blue-50 transition text-sm flex items-center gap-2"><Icons.Add /> {sid==='mc'?'Phần I':sid==='tf'?'Phần II':sid==='sa'?'Phần III':'Phần IV'}</button>)}
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Xáo trộn</p>
-                    <select value={config.shuffle} onChange={(e) => setConfig({...config, shuffle: e.target.value})} className="w-full py-2.5 px-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg font-bold outline-none transition-colors">
-                      <option value="none">Giữ nguyên</option>
-                      <option value="questions">Chỉ trộn câu hỏi</option>
-                      <option value="options">Chỉ trộn đáp án</option>
-                      <option value="both">Trộn tất cả</option>
-                    </select>
-                  </div>
+                )}
+                <div className="grid md:grid-cols-2 gap-6 mb-8 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border dark:border-slate-700 transition-colors">
+                  <div><p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Chế độ thi</p><div className="flex gap-2"><button onClick={() => setConfig({...config, mode: 'single'})} className={`flex-1 py-2 rounded-lg font-bold border-2 transition ${config.mode === 'single' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800'}`}>Từng câu</button><button onClick={() => setConfig({...config, mode: 'all'})} className={`flex-1 py-2 rounded-lg font-bold border-2 transition ${config.mode === 'all' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800'}`}>Tất cả</button></div></div>
+                  <div><p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Xáo trộn</p><select value={config.shuffle} onChange={(e) => setConfig({...config, shuffle: e.target.value})} className="w-full py-2.5 px-3 border-2 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg font-bold outline-none"><option value="none">Giữ nguyên</option><option value="questions">Chỉ trộn câu hỏi</option><option value="options">Chỉ trộn đáp án</option><option value="both">Trộn tất cả</option></select></div>
                 </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="sm:w-auto w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-6 py-3 rounded-xl transition">Thoát</button>
-                  {!isReadOnly && <button onClick={() => setScreen('input')} className="sm:w-auto w-full bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 font-bold px-6 py-3 rounded-xl transition">Sửa Text Gốc</button>}
-                  <button onClick={prepareQuiz} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Play /> BẮT ĐẦU THI</button>
-                </div>
+                <div className="flex flex-col sm:flex-row gap-3"><button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="sm:w-auto w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold px-6 py-3 rounded-xl transition text-sm">Quay lại</button>{!isReadOnly && <button onClick={() => setScreen('input')} className="sm:w-auto w-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold px-6 py-3 rounded-xl transition text-sm">Sửa Text Gốc</button>}<button onClick={prepareQuiz} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Play /> BẮT ĐẦU THI</button></div>
               </div>
-
-              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 transition-colors">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">Chi tiết các câu hỏi</h2>
+              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border dark:border-slate-700 transition-colors">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">Chi tiết nội dung đề</h2>
                 {sections.length === 0 ? <div className="text-center text-slate-400 py-10">Đề trống.</div> : sections.map(section => (
-                  <div key={section.id} className="mb-10 last:mb-0">
-                    <h3 className="font-bold text-lg text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg mb-4 inline-block border border-blue-100 dark:border-blue-800/50">{section.title}</h3>
-                    <div className="space-y-4">
-                      {section.data.map((q, idx) => (
-                        <div key={q.id} className="border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-600 transition-colors relative">
-                          
-                          {!isReadOnly && (
-                            <button onClick={() => setEditingQ({ sectionId: section.id, data: JSON.parse(JSON.stringify(q)) })} className="absolute top-4 right-4 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition">
-                               <Icons.Edit /> Sửa
-                            </button>
-                          )}
-
-                          <div className="flex-1 pr-16 md:pr-20">
-                            <div className="font-black text-slate-700 dark:text-slate-300 mb-1">Câu {idx + 1}:</div>
-                            <div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium">{q.text}</div>
-                            
-                            {!isReadOnly && q.type === 'sa' && <div className="text-sm text-green-700 dark:text-green-400 mt-2 font-bold bg-green-50 dark:bg-green-900/30 p-2 rounded inline-block">Đ.án: {q.options[0]?.text || '(Chưa nhập đáp án)'}</div>}
-                            
-                            {q.type === 'rc' && (
-                              <div className="mt-4 space-y-3 pl-4 border-l-4 border-slate-200 dark:border-slate-600">
-                                {q.subQuestions.map((sq, sIdx) => (
-                                  <div key={sq.id}>
-                                    <div className="font-bold text-slate-600 dark:text-slate-400">#{sIdx + 1}: {sq.text}</div>
-                                    {!isReadOnly && sq.options.filter(o=>o.isCorrect).map(o => <div key={o.id} className="text-sm text-green-600 dark:text-green-400 font-medium inline-block mr-2">Đ.án: {o.text}</div>)}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="w-full md:w-auto shrink-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600">
-                            {q.image ? (
-                              <div className="relative inline-block">
-                                <img src={q.image} className="h-28 w-auto object-contain rounded" />
-                                {!isReadOnly && <button onClick={() => { const newData = {...parsedData}; newData[section.id].find(x => x.id === q.id).image = null; setParsedData(newData); if (currentUser && currentQuizCode && db) db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow hover:bg-red-600">×</button>}
-                              </div>
-                            ) : (
-                              !isReadOnly ? (
-                                <label className="cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold text-sm py-4 px-6 flex flex-col items-center gap-1 transition">
-                                  <Icons.Image /> Thêm ảnh
-                                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(q.id, section.id, e.target.files[0])} />
-                                </label>
-                              ) : <span className="text-slate-400 text-sm px-4">Không có ảnh</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  <div key={section.id} className="mb-10 last:mb-0"><h3 className="font-bold text-lg text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg mb-4 inline-block border dark:border-blue-800/50">{section.title}</h3><div className="space-y-4">{section.data.map((q, idx) => (
+                    <div key={q.id} className="border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-600 transition-colors relative">
+                        {!isReadOnly && <button onClick={() => setEditingQ({ sectionId: section.id, data: JSON.parse(JSON.stringify(q)) })} className="absolute top-4 right-4 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-sm"><Icons.Edit /> Sửa</button>}
+                        <div className="flex-1 pr-16 md:pr-20"><div className="font-black text-slate-700 dark:text-slate-300 mb-1 text-sm">Câu {idx + 1}:</div><div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium">{q.text}</div>{!isReadOnly && q.type === 'sa' && <div className="text-xs text-green-700 dark:text-green-400 mt-2 font-bold bg-green-50 dark:bg-green-900/30 p-2 rounded inline-block">Đáp án: {q.options[0]?.text || '(Rỗng)'}</div>}{q.type === 'rc' && <div className="mt-4 space-y-3 pl-4 border-l-4 dark:border-slate-600">{q.subQuestions.map((sq, sIdx) => <div key={sq.id} className="text-sm"><div className="font-bold text-slate-600 dark:text-slate-400">#{sIdx + 1}: {sq.text}</div>{!isReadOnly && sq.options.filter(o=>o.isCorrect).map(o => <div key={o.id} className="text-xs text-green-600 inline-block mr-2">✓ {o.text}</div>)}</div>)}</div>}</div>
+                        <div className="w-full md:w-auto shrink-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-2 rounded-xl border border-dashed dark:border-slate-600">{q.image ? <div className="relative inline-block"><img src={q.image} className="h-28 w-auto object-contain rounded" />{!isReadOnly && <button onClick={() => { const newData = {...parsedData}; newData[section.id].find(x => x.id === q.id).image = null; setParsedData(newData); if (currentUser && currentQuizCode && db) db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow hover:bg-red-600 transition">×</button>}</div> : (!isReadOnly ? <label className="cursor-pointer text-blue-600 dark:text-blue-400 font-bold text-sm py-4 px-6 flex flex-col items-center gap-1 transition"><Icons.Image /> Gắn ảnh <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(q.id, section.id, e.target.files[0])} /></label> : <span className="text-slate-400 text-sm px-4 italic">Không có ảnh</span>)}</div>
+                    </div>))}</div></div>))}
               </div>
             </div>
           </div>
@@ -1055,7 +694,6 @@
       if (screen === 'quiz') {
         const totalQ = score.total;
         const isModeSingle = config.mode === 'single';
-
         const mcLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
         const getOptClass = (opt, isSelected, showResult) => {
           if (!showResult) return isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 dark:border-blue-500 text-blue-800 dark:text-blue-200' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 text-slate-800 dark:text-slate-200';
@@ -1066,205 +704,49 @@
         };
 
         const renderOptions = (type, qObj, isConfirming) => {
-           if (type === 'sa') {
-             return (
-               <div className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors">
-                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 uppercase">Nhập đáp án:</p>
-                 <ShortAnswerInput value={answers[qObj.id] || ''} onChange={(v) => !isConfirming && setAnswers({...answers, [qObj.id]: v})} readOnly={isConfirming} showResult={isConfirming} isCorrect={isConfirming ? checkQuestionCorrect('sa', qObj, answers[qObj.id]) : null} />
-                 {isConfirming && !checkQuestionCorrect('sa', qObj, answers[qObj.id]) && <div className="mt-4 p-2 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 font-bold rounded-lg text-sm border border-green-200 dark:border-green-800">Đáp án đúng: {qObj.options[0]?.text || '(Câu này chưa có đáp án)'}</div>}
-               </div>
-             );
-           }
-           return (
-             <div className="grid gap-3">
-               {qObj.options.map((opt, oIdx) => {
-                 const isRadio = type !== 'tf'; 
-                 const isSelected = (answers[qObj.id] || []).includes(opt.id);
-                 return (
-                   <label key={opt.id} className={`flex items-start p-4 border-2 rounded-xl transition cursor-pointer ${getOptClass(opt, isSelected, isConfirming)}`} 
-                     onClick={() => {
-                       if (isConfirming) return;
-                       let newSelected = answers[qObj.id] || [];
-                       if (type === 'mc' || type === 'rc') newSelected = [opt.id]; 
-                       else newSelected = newSelected.includes(opt.id) ? newSelected.filter(id => id !== opt.id) : [...newSelected, opt.id]; 
-                       setAnswers({...answers, [qObj.id]: newSelected});
-                     }}>
-                     <input type={type==='tf'?"checkbox":"radio"} checked={isSelected} readOnly className={`mt-1 w-5 h-5 ${type==='tf'?'rounded text-indigo-600':'text-blue-600'}`} />
-                     <div className="ml-3 font-medium text-lg whitespace-pre-wrap"><span className="font-bold mr-2">{type==='tf' ? String.fromCharCode(97+oIdx)+')' : mcLetters[oIdx]+'.'}</span>{opt.text}</div>
-                   </label>
-                 )
-               })}
-             </div>
-           );
+           if (type === 'sa') return <div className="p-6 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-2xl"><p className="text-xs font-bold text-slate-500 mb-3 uppercase">Nhập đáp án:</p><ShortAnswerInput value={answers[qObj.id] || ''} onChange={(v) => !isConfirming && setAnswers({...answers, [qObj.id]: v})} readOnly={isConfirming} showResult={isConfirming} isCorrect={isConfirming ? checkQuestionCorrect('sa', qObj, answers[qObj.id]) : null} />{isConfirming && !checkQuestionCorrect('sa', qObj, answers[qObj.id]) && <div className="mt-4 p-2 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 font-bold rounded-lg text-sm border dark:border-green-800">Đáp án đúng: {qObj.options[0]?.text || '...'}</div>}</div>;
+           return <div className="grid gap-3">{qObj.options.map((opt, oIdx) => { const isSelected = (answers[qObj.id] || []).includes(opt.id); return <label key={opt.id} className={`flex items-start p-4 border-2 rounded-xl transition cursor-pointer ${getOptClass(opt, isSelected, isConfirming)}`} onClick={() => { if (isConfirming) return; let ns = answers[qObj.id] || []; if (type === 'mc' || type === 'rc') ns = [opt.id]; else ns = ns.includes(opt.id) ? ns.filter(id => id !== opt.id) : [...ns, opt.id]; setAnswers({...answers, [qObj.id]: ns}); }}><input type={type==='tf'?"checkbox":"radio"} checked={isSelected} readOnly className={`mt-1 w-5 h-5 ${type==='tf'?'rounded text-indigo-600':'text-blue-600'}`} /><div className="ml-3 font-medium text-lg whitespace-pre-wrap"><span className="font-bold mr-2">{type==='tf' ? String.fromCharCode(97+oIdx)+')' : mcLetters[oIdx]+'.'}</span>{opt.text}</div></label> })}</div>;
         }
 
         const confirmSingle = () => {
           const q = activeQuiz.flat[currentIndex];
           if (q.type === 'rc') {
-            for (let sq of q.subQuestions) {
-              if (!answers[sq.id] || answers[sq.id].length === 0) return showMessage('Vui lòng trả lời hết các câu hỏi phụ!');
-            }
-            let correct = 0;
-            q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) correct++; });
-            setScore(p => ({ ...p, correct: p.correct + correct }));
+            for (let sq of q.subQuestions) if (!answers[sq.id] || answers[sq.id].length === 0) return showMessage('Hãy làm hết các câu hỏi phụ!');
+            let c = 0; q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) c++; });
+            setScore(p => ({ ...p, correct: p.correct + c }));
           } else {
-            const ans = answers[q.id];
-            if (!ans || (Array.isArray(ans) && ans.length===0) || (typeof ans==='string' && !ans.trim())) return showMessage('Vui lòng chọn đáp án!');
+            const ans = answers[q.id]; if (!ans || (Array.isArray(ans) && ans.length===0) || (typeof ans==='string' && !ans.trim())) return showMessage('Vui lòng trả lời câu này!');
             if (checkQuestionCorrect(q.type, q, ans)) setScore(p => ({ ...p, correct: p.correct + 1 }));
           }
           setSingleQuestionConfirmed(true);
         };
 
-        const submitAll = () => {
-          let hasUnanswered = false;
-          activeQuiz.flat.forEach(q => {
-            if(q.type === 'rc') { q.subQuestions.forEach(sq => { if(!answers[sq.id] || answers[sq.id].length===0) hasUnanswered = true; }) }
-            else { const ans = answers[q.id]; if(!ans || (Array.isArray(ans)&&ans.length===0) || (typeof ans==='string'&&!ans.trim())) hasUnanswered = true; }
-          });
-          if (hasUnanswered) return showMessage('Bạn còn câu chưa làm!');
-
-          let correct = 0;
-          activeQuiz.flat.forEach(q => {
-            if(q.type === 'rc') { q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) correct++; }) }
-            else { if(checkQuestionCorrect(q.type, q, answers[q.id])) correct++; }
-          });
-          setScore({ correct, total: totalQ });
-          setIsSubmitted(true);
-          window.scrollTo(0,0);
-        };
-
-        // THANH TIẾN TRÌNH THÔNG MINH
-        let answeredCount = 0;
-        if (isModeSingle) {
-            let rcCountBefore = 0;
-            for(let i=0; i<currentIndex; i++) {
-               if(activeQuiz.flat[i].type === 'rc') rcCountBefore += activeQuiz.flat[i].subQuestions.length;
-               else rcCountBefore++;
-            }
-            let currentQWeight = activeQuiz.flat[currentIndex].type === 'rc' ? activeQuiz.flat[currentIndex].subQuestions.length : 1;
-            answeredCount = rcCountBefore + (singleQuestionConfirmed ? currentQWeight : 0);
-        } else {
-            answeredCount = getAnsweredCount();
-        }
-        const progressPercent = totalQ > 0 ? (answeredCount / totalQ) * 100 : 0;
+        let ansCount = isModeSingle ? (currentIndex + (singleQuestionConfirmed ? 1 : 0)) : getAnsweredCount();
+        const progress = totalQ > 0 ? (ansCount / totalQ) * 100 : 0;
 
         return (
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-20 animate-fade-in transition-colors">
-            <Notification />
-            
-            <div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 transition-colors">
-              <div className="max-w-4xl mx-auto flex items-center justify-between p-4">
-                <div className="font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors text-sm md:text-base">
-                  Tiến độ: <span className="text-blue-600 dark:text-blue-400">{answeredCount}</span> / {totalQ}
-                </div>
-                <div className="flex items-center gap-3">
-                  <ThemeToggleBtn />
-                  <button onClick={() => { if(window.confirm("Thoát sẽ mất kết quả đang làm. Vẫn thoát?")) setScreen(currentUser ? 'dashboard' : 'home')}} className="font-bold text-red-500 dark:text-red-400 hover:text-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/50">Thoát</button>
-                </div>
-              </div>
-              <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700">
-                <div className="h-full bg-blue-600 dark:bg-blue-500 transition-all duration-500 ease-out" style={{ width: `${progressPercent}%` }}></div>
-              </div>
-            </div>
-
+            <Notification /><ConfirmModal />
+            <div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b dark:border-slate-700 transition-colors"><div className="max-w-4xl mx-auto flex items-center justify-between p-4"><div className="font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border dark:border-slate-600 transition-colors text-sm">Câu: <span className="text-blue-600 dark:text-blue-400">{ansCount}</span> / {totalQ}</div><div className="flex items-center gap-3"><ThemeToggleBtn /><button onClick={() => setConfirmDialog({ isOpen: true, title: "Xác nhận thoát", subtitle: "Thoát sẽ mất kết quả đang làm. Vẫn thoát?", onConfirm: () => setScreen(currentUser ? 'dashboard' : 'home') })} className="font-bold text-red-500 bg-red-50 dark:bg-red-900/30 px-4 py-2 rounded-lg transition border dark:border-red-800/50">Thoát</button></div></div><div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700"><div className="h-full bg-blue-600 dark:bg-blue-500 transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div></div></div>
             <div className="max-w-3xl mx-auto mt-8 px-4">
-              {isModeSingle && (() => {
+              {isModeSingle ? (() => {
                 const q = activeQuiz.flat[currentIndex];
-                return (
-                  <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-10 animate-fade-in transition-colors border border-slate-200 dark:border-slate-700">
-                    <span className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 text-xs font-black px-3 py-1 rounded-full uppercase mb-4 inline-block border border-indigo-200 dark:border-indigo-800">
-                      {q.type === 'mc' ? 'Trắc Nghiệm' : q.type === 'tf' ? 'Đúng Sai' : q.type === 'sa' ? 'Trả Lời Ngắn' : 'Đọc Hiểu / Nhóm'}
-                    </span>
-                    <div className="text-xl font-medium text-slate-800 dark:text-white mb-6 whitespace-pre-wrap"><span className="font-black mr-1">Nội dung:</span> {q.text}</div>
-                    {q.image && <img src={q.image} className="max-w-full rounded-xl mb-6 shadow" />}
-
-                    {q.type !== 'rc' ? renderOptions(q.type, q, singleQuestionConfirmed) : (
-                      <div className="space-y-6">
-                        {q.subQuestions.map((sq, idx) => (
-                          <div key={sq.id} className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors">
-                            <p className="font-bold text-slate-800 dark:text-slate-200 mb-4">#{idx+1}: {sq.text}</p>
-                            {renderOptions('rc', sq, singleQuestionConfirmed)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex justify-end pt-6 mt-6 border-t border-slate-100 dark:border-slate-700">
-                      {!singleQuestionConfirmed ? (
-                        <button onClick={confirmSingle} className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto transition transform hover:-translate-y-1">XÁC NHẬN</button>
-                      ) : (
-                        <button onClick={() => currentIndex < activeQuiz.flat.length - 1 ? (setCurrentIndex(p=>p+1), setSingleQuestionConfirmed(false)) : setScreen('result')} className="bg-green-600 hover:bg-green-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto flex items-center justify-center gap-2 transition">
-                          {currentIndex < activeQuiz.flat.length - 1 ? 'CÂU TIẾP THEO' : 'XEM KẾT QUẢ'} <Icons.Check />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {!isModeSingle && (
-                <div className="space-y-8">
-                  {isSubmitted && (
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border-4 border-green-500 p-8 text-center animate-fade-in relative overflow-hidden transition-colors">
-                      <div className="absolute top-0 left-0 w-full bg-green-500 text-white font-bold py-1 text-sm uppercase">Hoàn thành xuất sắc</div>
-                      <h2 className="text-3xl font-black text-slate-800 dark:text-white mt-4 mb-2">ĐIỂM CỦA BẠN</h2>
-                      <div className="text-7xl font-black text-green-600 dark:text-green-400 mb-6 drop-shadow-md">{score.correct} <span className="text-4xl text-slate-300 dark:text-slate-600">/ {totalQ}</span></div>
-                      <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl transition shadow">Quay về Màn hình chính</button>
-                    </div>
-                  )}
-
-                  {['mc', 'tf', 'sa', 'rc'].map(type => {
-                    const data = activeQuiz[type]; if(data.length === 0) return null;
-                    const typeName = type === 'mc' ? 'I. Trắc Nghiệm' : type === 'tf' ? 'II. Đúng / Sai' : type === 'sa' ? 'III. Trả Lời Ngắn' : 'IV. Đọc Hiểu';
-                    
-                    return (
-                      <div key={type} className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg overflow-hidden border border-slate-200 dark:border-slate-700 transition-colors">
-                        <div className="bg-indigo-600 dark:bg-indigo-700 p-4"><h2 className="text-xl font-black text-white">{typeName}</h2></div>
-                        <div className="p-6 md:p-8 space-y-10">
-                          {data.map((q, idx) => (
-                            <div key={q.id} className="border-b-2 border-dashed border-slate-200 dark:border-slate-700 pb-10 last:border-0 last:pb-0">
-                              <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-4 whitespace-pre-wrap"><span className="font-black mr-2 text-indigo-600 dark:text-indigo-400">Câu {idx + 1}.</span> {q.text}</h3>
-                              {q.image && <img src={q.image} className="max-w-full rounded-xl mb-6 shadow border" />}
-                              
-                              {type !== 'rc' ? renderOptions(type, q, isSubmitted) : (
-                                <div className="space-y-6">
-                                  {q.subQuestions.map((sq, sIdx) => (
-                                    <div key={sq.id} className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors">
-                                      <p className="font-bold text-slate-800 dark:text-slate-200 mb-4">#{sIdx+1}: {sq.text}</p>
-                                      {renderOptions('rc', sq, isSubmitted)}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {!isSubmitted && <button onClick={submitAll} className="w-full bg-green-600 hover:bg-green-700 text-white text-2xl font-black py-5 rounded-2xl shadow-xl transition transform hover:-translate-y-1 mb-10">NỘP BÀI</button>}
-                </div>
-              )}
+                return <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-10 border dark:border-slate-700 animate-fade-in"><span className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 text-xs font-black px-3 py-1 rounded-full uppercase mb-4 inline-block border dark:border-indigo-800">{q.type === 'mc' ? 'Trắc Nghiệm' : q.type === 'tf' ? 'Đúng Sai' : q.type === 'sa' ? 'Trả Lời Ngắn' : 'Đọc Hiểu'}</span><div className="text-xl font-medium text-slate-800 dark:text-white mb-6 whitespace-pre-wrap"><span className="font-black mr-1 text-blue-600">Câu {currentIndex+1}.</span> {q.text}</div>{q.image && <img src={q.image} className="max-w-full rounded-xl mb-6 shadow" />}{q.type !== 'rc' ? renderOptions(q.type, q, singleQuestionConfirmed) : <div className="space-y-6">{q.subQuestions.map((sq, idx) => <div key={sq.id} className="p-5 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-2xl"><p className="font-bold text-slate-800 dark:text-slate-200 mb-4">#{idx+1}: {sq.text}</p>{renderOptions('rc', sq, singleQuestionConfirmed)}</div>)}</div>}<div className="flex justify-end pt-6 mt-6 border-t dark:border-slate-700">{!singleQuestionConfirmed ? <button onClick={confirmSingle} className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto transition transform hover:-translate-y-1">XÁC NHẬN</button> : <button onClick={() => currentIndex < activeQuiz.flat.length - 1 ? (setCurrentIndex(p=>p+1), setSingleQuestionConfirmed(false)) : submitFinal()} className="bg-green-600 hover:bg-green-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto flex items-center justify-center gap-2 transition">{currentIndex < activeQuiz.flat.length - 1 ? 'CÂU TIẾP THEO' : 'XEM KẾT QUẢ'} <Icons.Check /></button>}</div></div>
+              })() : <div className="space-y-8">{['mc', 'tf', 'sa', 'rc'].map(type => { const data = activeQuiz[type]; if(data.length === 0) return null; return <div key={type} className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg overflow-hidden border dark:border-slate-700"><div className="bg-indigo-600 p-4 font-black text-white">{type === 'mc' ? 'I. TRẮC NGHIỆM' : type === 'tf' ? 'II. ĐÚNG / SAI' : type === 'sa' ? 'III. TRẢ LỜI NGẮN' : 'IV. ĐỌC HIỂU'}</div><div className="p-6 md:p-8 space-y-10">{data.map((q, idx) => <div key={q.id} className="border-b-2 border-dashed dark:border-slate-700 pb-10 last:border-0 last:pb-0"><h3 className="text-lg font-medium text-slate-800 dark:text-white mb-4 whitespace-pre-wrap"><span className="font-black mr-2 text-indigo-600">Câu {idx + 1}.</span> {q.text}</h3>{q.image && <img src={q.image} className="max-w-full rounded-xl mb-6 shadow border dark:border-slate-700" />}{type !== 'rc' ? renderOptions(type, q, isSubmitted) : <div className="space-y-6">{q.subQuestions.map((sq, sIdx) => <div key={sq.id} className="p-5 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-2xl"><p className="font-bold text-slate-800 dark:text-slate-200 mb-4">#{sIdx+1}: {sq.text}</p>{renderOptions('rc', sq, isSubmitted)}</div>)}</div>}</div>)}</div></div> })}<button onClick={submitFinal} className="w-full bg-green-600 hover:bg-green-700 text-white text-2xl font-black py-5 rounded-2xl shadow-xl transition transform hover:-translate-y-1 mb-10">NỘP BÀI</button></div>}
             </div>
           </div>
         );
       }
 
       if (screen === 'result') {
+        const percent = (score.correct / score.total) * 100;
         return (
           <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 dark:bg-slate-900 animate-fade-in transition-colors">
-            <div className="absolute top-4 right-4"><ThemeToggleBtn /></div>
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-10 max-w-sm w-full text-center border-t-8 border-green-500 transition-colors">
-              <div className="w-24 h-24 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><Icons.Check /></div>
-              <h1 className="text-4xl font-black text-slate-800 dark:text-white mb-2">Tốt Lắm!</h1>
-              <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 mb-8 border border-slate-200 dark:border-slate-700 mt-6 shadow-inner transition-colors">
-                <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">ĐIỂM CỦA BẠN</p>
-                <div className="text-7xl font-black text-blue-600 dark:text-blue-400 drop-shadow-sm">{score.correct} <span className="text-3xl text-slate-300 dark:text-slate-600">/ {score.total}</span></div>
-              </div>
-              <div className="space-y-3">
-                <button onClick={prepareQuiz} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition">Làm lại bài này</button>
-                <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-colors">Thoát ra ngoài</button>
-              </div>
+              <h1 className="text-4xl font-black text-slate-800 dark:text-white mb-4">Kết Quả</h1>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 mb-4 border dark:border-slate-700 shadow-inner"><p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Số câu đúng</p><div className="text-7xl font-black text-blue-600 dark:text-blue-400 drop-shadow-sm">{score.correct}<span className="text-2xl text-slate-300 dark:text-slate-600"> / {score.total}</span></div></div>
+              <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800/30 text-amber-800 dark:text-amber-200 font-medium italic">"{resultComment}"</div>
+              <div className="space-y-3"><button onClick={prepareQuiz} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition">Làm lại bài này</button><button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition">Về trang chủ</button></div>
             </div>
           </div>
         );
@@ -1272,15 +754,10 @@
       return null;
     }
 
-    function RootApp() {
-      if (isSetupNeeded) return <SetupScreen />;
-      return <MainApp />;
-    }
-
+    function RootApp() { if (isSetupNeeded) return <SetupScreen />; return <MainApp />; }
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<RootApp />);
   </script>
 </body>
 </html>
-
 
