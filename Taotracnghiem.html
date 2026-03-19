@@ -19,8 +19,8 @@
   
   <style>
     body { -webkit-font-smoothing: antialiased; }
-    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     textarea::-webkit-scrollbar { width: 8px; }
     textarea::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     .dark textarea::-webkit-scrollbar-thumb { background-color: #475569; }
@@ -32,7 +32,7 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
     
-    // CẤU HÌNH FIREBASE CỦA HUY
+    // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
     const MY_FIREBASE_CONFIG = {
       apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
       authDomain: "tracnghiem-31c44.firebaseapp.com",
@@ -43,10 +43,10 @@
       measurementId: "G-VNXTHZV6ZH"
     };
 
-    const MAX_QUIZZES_PER_USER = 5;
+    const MAX_QUIZZES_PER_USER = 10; // Đã tăng lên 10 đề cho rộng rãi
     const ADMIN_USERNAME = "huy20022k8";
 
-    // KHỞI TẠO FIREBASE
+    // --- KHỞI TẠO HỆ THỐNG ---
     let finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
     let auth = null, db = null, isSetupNeeded = false;
     let appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy-github';
@@ -64,7 +64,7 @@
     const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
     const usersPath = `artifacts/${appId}/public/data/users`;
 
-    // TIỆN ÍCH
+    // --- TIỆN ÍCH ---
     const shuffleArray = (array) => {
       const newArr = [...array];
       for (let i = newArr.length - 1; i > 0; i--) {
@@ -75,11 +75,13 @@
     };
     const generateShareCode = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      return Array.from({length: 6}).map(() => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      let result = '';
+      for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+      return result;
     };
     const generateId = () => Math.random().toString(36).substr(2, 9);
 
-    // ICONS
+    // --- ICONS ---
     const Icons = {
       Upload: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
       Image: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
@@ -99,7 +101,7 @@
       Key: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
     };
 
-    // COMPONENT NHẬP TRẢ LỜI NGẮN
+    // --- COMPONENT TRẢ LỜI NGẮN ---
     const ShortAnswerInput = ({ value = '', onChange, readOnly, isCorrect, showResult }) => {
       const chars = (value || '').split('');
       const boxes = [0, 1, 2, 3];
@@ -157,7 +159,7 @@
       const [isReadOnly, setIsReadOnly] = useState(false);
       const [currentQuizCode, setCurrentQuizCode] = useState(null);
       const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [], rc: [] });
-      const [editingQ, setEditingQ] = useState(null); // Cho Inline Editing
+      const [editingQ, setEditingQ] = useState(null); 
       const [config, setConfig] = useState({ mode: 'single', shuffle: 'none' });
       
       const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], rc: [], flat: [] });
@@ -294,12 +296,12 @@
         let currentQ = null, currentSubQ = null;
         let currentSectionType = forcedType; 
 
-        const lines = text.split('\n');
+        const lines = (text || '').split('\n');
         for (let rawLine of lines) {
           let line = rawLine.replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim();
           if (!line) continue;
 
-          // Nhận diện header Phần I, II, III, IV trong file hỗn hợp
+          // Nhận diện header Phần trong file hỗn hợp
           if (forcedType === 'mixed') {
               const secMatch = line.match(/^[Pp]hần\s+([IVX]+|[1-4])/i);
               if (secMatch) {
@@ -332,8 +334,8 @@
             continue;
           }
 
-          // 3. Nhận diện Đáp án (Đồng nhất A. A) A: a. a) a:)
-          const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\:\)]\s*(.*)/);
+          // 3. Nhận diện Đáp án
+          const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\)]\s*(.*)/);
           if (optMatch) {
             const optObj = { id: generateId(), text: optMatch[3], isCorrect: optMatch[1] === '*' };
             if (currentSubQ) currentSubQ.options.push(optObj);
@@ -352,7 +354,7 @@
             continue;
           }
 
-          // 5. Nối text rớt dòng
+          // 5. Nối text
           if (currentSubQ) {
             if (currentSubQ.options.length === 0) currentSubQ.text += '\n' + line;
             else currentSubQ.options[currentSubQ.options.length - 1].text += '\n' + line;
@@ -387,7 +389,7 @@
         const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
         setParsedData(newParsedData);
 
-        // AUTO SAVE LÊN CLOUD NGAY KHI BẤM "LƯU LẠI & TIẾP TỤC"
+        // AUTO SAVE
         if (currentUser && db && !isReadOnly) {
             const usernameLower = currentUser.username.toLowerCase();
             const isAdmin = usernameLower === ADMIN_USERNAME;
@@ -426,7 +428,6 @@
           const q = newData[sectionId].find(x => x.id === qId);
           if (q) q.image = e.target.result;
           setParsedData(newData);
-          // Auto save image changes if logged in
           if (currentUser && currentQuizCode && db) {
               db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
           }
@@ -482,6 +483,7 @@
           return Array.isArray(userAns) && userAns.length === correctIds.length && userAns.every(id => correctIds.includes(id));
         } else if (type === 'sa') {
           if (typeof userAns !== 'string' || !userAns.trim()) return false;
+          if (!qObj.options || qObj.options.length === 0) return false; // SAFEGUARD MỚI CHỐNG TRẮNG MÀN HÌNH
           const cleanUser = userAns.trim().replace(',', '.');
           const cleanCorrect = qObj.options[0].text.trim().replace(',', '.');
           if (!isNaN(parseFloat(cleanUser)) && !isNaN(parseFloat(cleanCorrect))) return parseFloat(cleanUser) === parseFloat(cleanCorrect);
@@ -578,16 +580,15 @@
           <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-50 dark:bg-slate-900 transition-colors">
             <Notification />
             
-            {/* Modal Đổi mật khẩu */}
             {showChangePwd && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                 <form onSubmit={handleChangePassword} className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
                   <h3 className="text-xl font-bold mb-4 dark:text-white">Đổi Mật Khẩu</h3>
-                  <input type="password" name="oldPassword" placeholder="Mật khẩu cũ" required className="w-full mb-3 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700" />
-                  <input type="password" name="newPassword" placeholder="Mật khẩu mới" required className="w-full mb-5 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                  <input type="password" name="oldPassword" placeholder="Mật khẩu cũ" required className="w-full mb-3 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700 outline-none" />
+                  <input type="password" name="newPassword" placeholder="Mật khẩu mới" required className="w-full mb-5 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700 outline-none" />
                   <div className="flex gap-3">
-                    <button type="submit" className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700">Xác nhận</button>
-                    <button type="button" onClick={() => setShowChangePwd(false)} className="flex-1 bg-slate-200 text-slate-800 font-bold py-2 rounded-lg hover:bg-slate-300">Hủy</button>
+                    <button type="submit" className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Xác nhận</button>
+                    <button type="button" onClick={() => setShowChangePwd(false)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
                   </div>
                 </form>
               </div>
@@ -596,24 +597,25 @@
             <div className="max-w-5xl mx-auto">
               <div className="flex justify-between items-center mb-8 bg-white dark:bg-slate-800 p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
                 <div className="relative">
-                  <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80">
+                  <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80 transition">
                     Xin chào, <span className="text-blue-600 dark:text-blue-400">{currentUser?.username}</span> ▾
                     {isAdmin && <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase">VIP</span>}
                   </button>
-                  {/* Dropdown Menu User */}
                   {showUserMenu && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
                       <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
-                        <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium"><Icons.Key /> Đổi mật khẩu</button>
-                        <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium"><Icons.UserX /> Xóa tài khoản</button>
+                        <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition"><Icons.Key /> Đổi mật khẩu</button>
+                        <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium transition"><Icons.UserX /> Xóa tài khoản</button>
                       </div>
                     </>
                   )}
                 </div>
                 <div className="flex items-center gap-3 sm:gap-4">
                   <ThemeToggleBtn />
-                  <button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm font-bold">Đăng xuất</button>
+                  <button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm font-bold">
+                    Đăng xuất
+                  </button>
                 </div>
               </div>
 
@@ -658,8 +660,8 @@
                           
                           {confirmDeleteId === q.id ? (
                             <div className="absolute right-0 bottom-12 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-xl border border-red-200 dark:border-red-800 flex gap-2">
-                              <button onClick={() => { db.doc(`${quizzesPath}/${q.id}`).delete(); setConfirmDeleteId(null); }} className="bg-red-500 text-white px-3 py-1 font-bold rounded text-sm">Xóa</button>
-                              <button onClick={() => setConfirmDeleteId(null)} className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 px-3 py-1 font-bold rounded text-sm">Hủy</button>
+                              <button onClick={() => { db.doc(`${quizzesPath}/${q.id}`).delete(); setConfirmDeleteId(null); }} className="bg-red-500 text-white px-3 py-1 font-bold rounded text-sm transition">Xóa</button>
+                              <button onClick={() => setConfirmDeleteId(null)} className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 px-3 py-1 font-bold rounded text-sm transition">Hủy</button>
                             </div>
                           ) : (
                             <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-500 hover:text-white transition"><Icons.Trash /></button>
@@ -743,7 +745,7 @@
                 onChange={(e) => setRawTexts({...rawTexts, [inputTab]: e.target.value})}
               />
 
-              <button onClick={handleParseAndSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2">
+              <button onClick={handleParseAndSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform hover:-translate-y-1">
                 <Icons.Check /> LƯU LẠI & TIẾP TỤC
               </button>
             </div>
@@ -751,7 +753,7 @@
         );
       }
 
-      // --- MÀN HÌNH SETTINGS (TỔNG QUAN VÀ CHỈNH SỬA TỪNG CÂU) ---
+      // --- MÀN HÌNH SETTINGS (TỔNG QUAN & CHỈNH SỬA TỪNG CÂU) ---
       if (screen === 'settings') {
         const sections = [
           { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: parsedData.mc },
@@ -775,7 +777,7 @@
                       <textarea value={editingQ.data.text} onChange={e => setEditingQ({...editingQ, data: {...editingQ.data, text: e.target.value}})} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none" rows="3" />
                     </div>
                     
-                    {/* Render Edit Options if not RC */}
+                    {/* Chỉnh sửa Đáp án (Trừ phần Đọc hiểu) */}
                     {editingQ.data.type !== 'rc' && (
                       <div>
                         <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">Đáp án:</label>
@@ -793,10 +795,15 @@
                             }} className="flex-1 p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none" />
                           </div>
                         ))}
+                        {/* Nút thêm đáp án để phòng trường hợp quên nhập lúc nãy */}
+                        <button onClick={() => {
+                          const newOpts = [...editingQ.data.options, {id: generateId(), text: '', isCorrect: editingQ.data.options.length === 0}];
+                          setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                        }} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold mt-1 transition">+ Thêm đáp án</button>
                       </div>
                     )}
 
-                    {/* Render SubQuestions if RC */}
+                    {/* Chỉnh sửa phần Đọc hiểu (Có các câu hỏi con) */}
                     {editingQ.data.type === 'rc' && (
                       <div className="space-y-6 border-t pt-4 dark:border-slate-700">
                         <label className="block text-sm font-bold text-slate-600 dark:text-slate-400">Các câu hỏi phụ:</label>
@@ -805,7 +812,7 @@
                             <input value={sq.text} onChange={e => {
                                 const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].text = e.target.value;
                                 setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                            }} className="w-full p-2 mb-3 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 font-bold" />
+                            }} className="w-full p-2 mb-3 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 font-bold outline-none" />
                             {sq.options.map((opt, oIdx) => (
                               <div key={opt.id} className="flex items-center gap-3 mb-2 pl-4">
                                 <input type="radio" name={`editIsCorrect_sq_${sq.id}`} checked={opt.isCorrect} onChange={() => {
@@ -817,26 +824,30 @@
                                     const newSqs = [...editingQ.data.subQuestions];
                                     newSqs[sqIdx].options[oIdx].text = e.target.value;
                                     setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                }} className="flex-1 p-2 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 text-sm" />
+                                }} className="flex-1 p-2 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 text-sm outline-none" />
                               </div>
                             ))}
+                            <button onClick={() => {
+                                const newSqs = [...editingQ.data.subQuestions];
+                                newSqs[sqIdx].options.push({id: generateId(), text: '', isCorrect: newSqs[sqIdx].options.length === 0});
+                                setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
+                            }} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold mt-2 transition ml-4">+ Thêm tùy chọn</button>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex gap-3 mt-6">
-                    <button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow">Lưu lại</button>
-                    <button onClick={() => setEditingQ(null)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600">Hủy</button>
+                  <div className="flex gap-3 mt-6 border-t dark:border-slate-700 pt-4">
+                    <button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow transition">Lưu Thay Đổi</button>
+                    <button onClick={() => setEditingQ(null)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
                   </div>
-                  <p className="text-xs text-orange-500 mt-3 text-center">Lưu ý: Chỉnh sửa tại đây sẽ được lưu trực tiếp vào Kho (nếu có mạng) nhưng văn bản gốc ở tab "Soạn Thảo" sẽ không đổi.</p>
+                  <p className="text-xs text-orange-500 dark:text-orange-400 mt-3 text-center">Lưu ý: Sửa ở đây sẽ lưu trực tiếp vào Kho nhưng Text gốc ở tab Soạn Thảo sẽ không thay đổi.</p>
                 </div>
               </div>
             )}
 
             <div className="max-w-4xl mx-auto space-y-6">
-              
               <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 transition-colors">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
                   <h2 className="text-2xl font-black text-slate-800 dark:text-white">Tổng Quan Đề Thi</h2>
@@ -872,7 +883,6 @@
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="sm:w-auto w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-6 py-3 rounded-xl transition">Thoát</button>
                   {!isReadOnly && <button onClick={() => setScreen('input')} className="sm:w-auto w-full bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 font-bold px-6 py-3 rounded-xl transition">Sửa Text Gốc</button>}
-                  {!isReadOnly && <button onClick={saveQuiz} className="sm:w-auto w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Share /> Copy Link Chia sẻ</button>}
                   <button onClick={prepareQuiz} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Play /> BẮT ĐẦU THI</button>
                 </div>
               </div>
@@ -886,18 +896,18 @@
                       {section.data.map((q, idx) => (
                         <div key={q.id} className="border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-600 transition-colors relative">
                           
-                          {/* NÚT SỬA */}
                           {!isReadOnly && (
-                            <button onClick={() => setEditingQ({ sectionId: section.id, data: JSON.parse(JSON.stringify(q)) })} className="absolute top-4 right-4 bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+                            <button onClick={() => setEditingQ({ sectionId: section.id, data: JSON.parse(JSON.stringify(q)) })} className="absolute top-4 right-4 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition">
                                <Icons.Edit /> Sửa
                             </button>
                           )}
 
-                          <div className="flex-1 pr-12">
+                          <div className="flex-1 pr-16 md:pr-20">
                             <div className="font-black text-slate-700 dark:text-slate-300 mb-1">Câu {idx + 1}:</div>
                             <div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium">{q.text}</div>
                             
-                            {!isReadOnly && q.type === 'sa' && <div className="text-sm text-green-700 dark:text-green-400 mt-2 font-bold bg-green-50 dark:bg-green-900/30 p-2 rounded inline-block">Đ.án: {q.options[0].text}</div>}
+                            {/* BẢO VỆ CHỐNG LỖI TRẮNG MÀN HÌNH NẾU QUÊN NHẬP ĐÁP ÁN */}
+                            {!isReadOnly && q.type === 'sa' && <div className="text-sm text-green-700 dark:text-green-400 mt-2 font-bold bg-green-50 dark:bg-green-900/30 p-2 rounded inline-block">Đ.án: {q.options[0]?.text || '(Chưa nhập đáp án)'}</div>}
                             
                             {q.type === 'rc' && (
                               <div className="mt-4 space-y-3 pl-4 border-l-4 border-slate-200 dark:border-slate-600">
@@ -915,7 +925,7 @@
                             {q.image ? (
                               <div className="relative inline-block">
                                 <img src={q.image} className="h-28 w-auto object-contain rounded" />
-                                {!isReadOnly && <button onClick={() => { const newData = {...parsedData}; newData[section.id].find(x => x.id === q.id).image = null; setParsedData(newData); }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow hover:bg-red-600">×</button>}
+                                {!isReadOnly && <button onClick={() => { const newData = {...parsedData}; newData[section.id].find(x => x.id === q.id).image = null; setParsedData(newData); if (currentUser && currentQuizCode && db) db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow hover:bg-red-600">×</button>}
                               </div>
                             ) : (
                               !isReadOnly ? (
@@ -937,7 +947,7 @@
         );
       }
 
-      // --- MÀN HÌNH LÀM BÀI (VỚI PROGRESS BAR) ---
+      // --- MÀN HÌNH LÀM BÀI ---
       if (screen === 'quiz') {
         const totalQ = score.total;
         const isModeSingle = config.mode === 'single';
@@ -957,7 +967,8 @@
                <div className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors">
                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 uppercase">Nhập đáp án:</p>
                  <ShortAnswerInput value={answers[qObj.id] || ''} onChange={(v) => !isConfirming && setAnswers({...answers, [qObj.id]: v})} readOnly={isConfirming} showResult={isConfirming} isCorrect={isConfirming ? checkQuestionCorrect('sa', qObj, answers[qObj.id]) : null} />
-                 {isConfirming && !checkQuestionCorrect('sa', qObj, answers[qObj.id]) && <div className="mt-4 p-2 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 font-bold rounded-lg text-sm border border-green-200 dark:border-green-800">Đáp án đúng: {qObj.options[0].text}</div>}
+                 {/* BẢO VỆ CHỐNG LỖI KHI SA THIẾU ĐÁP ÁN TRONG LÚC CHẤM ĐIỂM */}
+                 {isConfirming && !checkQuestionCorrect('sa', qObj, answers[qObj.id]) && <div className="mt-4 p-2 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 font-bold rounded-lg text-sm border border-green-200 dark:border-green-800">Đáp án đúng: {qObj.options[0]?.text || '(Câu này chưa có đáp án)'}</div>}
                </div>
              );
            }
@@ -1019,7 +1030,6 @@
           window.scrollTo(0,0);
         };
 
-        // TINH TOAN TIẾN TRÌNH
         let answeredCount = 0;
         if (isModeSingle) {
             let rcCountBefore = 0;
@@ -1038,7 +1048,6 @@
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-20 animate-fade-in transition-colors">
             <Notification />
             
-            {/* HEADER CÓ PROGRESS BAR */}
             <div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 transition-colors">
               <div className="max-w-4xl mx-auto flex items-center justify-between p-4">
                 <div className="font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors text-sm md:text-base">
@@ -1049,7 +1058,6 @@
                   <button onClick={() => { if(window.confirm("Thoát sẽ mất kết quả đang làm. Vẫn thoát?")) setScreen(currentUser ? 'dashboard' : 'home')}} className="font-bold text-red-500 dark:text-red-400 hover:text-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/50">Thoát</button>
                 </div>
               </div>
-              {/* THANH PROGRESS */}
               <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700">
                 <div className="h-full bg-blue-600 dark:bg-blue-500 transition-all duration-500 ease-out" style={{ width: `${progressPercent}%` }}></div>
               </div>
