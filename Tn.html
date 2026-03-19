@@ -3,13 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trắc Nghiệm Đám Mây</title>
+  <title>Tạo trắc nghiệm</title>
   
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
   <script src="https://cdn.tailwindcss.com"></script>
   
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
@@ -19,10 +17,7 @@
   <style>
     body { -webkit-font-smoothing: antialiased; }
     .animate-fade-in { animation: fadeIn 0.4s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
@@ -32,8 +27,7 @@
     const { useState, useEffect } = React;
 
     // ==========================================
-    // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
-    // (Bạn dán các mã tương ứng vào giữa 2 dấu ngoặc kép bên dưới nhé)
+    // ĐIỀN CẤU HÌNH FIREBASE CỦA BẠN VÀO ĐÂY
     // ==========================================
     const MY_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
@@ -45,33 +39,25 @@
   measurementId: "G-VNXTHZV6ZH"
 };
 
-    // --- KHỞI TẠO HỆ THỐNG ---
+    // --- KHỞI TẠO FIREBASE ---
     let finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
-    let auth = null;
-    let db = null;
-    let isSetupNeeded = false;
+    let auth = null; let db = null; let isSetupNeeded = false;
     let appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy-github';
 
-    // Kiểm tra xem đã có API Key chưa
     if (!finalConfig || !finalConfig.apiKey) {
       isSetupNeeded = true;
     } else {
       try {
-        if (!firebase.apps.length) {
-          firebase.initializeApp(finalConfig);
-        }
-        auth = firebase.auth();
-        db = firebase.firestore();
-      } catch(e) {
-        console.error("Lỗi khởi tạo Firebase:", e);
-        isSetupNeeded = true;
-      }
+        if (!firebase.apps.length) firebase.initializeApp(finalConfig);
+        auth = firebase.auth(); db = firebase.firestore();
+      } catch(e) { isSetupNeeded = true; }
     }
 
     const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
     const usersPath = `artifacts/${appId}/public/data/users`;
 
     // --- TIỆN ÍCH ---
+    const genId = () => Math.random().toString(36).substr(2, 9);
     const shuffleArray = (array) => {
       const newArr = [...array];
       for (let i = newArr.length - 1; i > 0; i--) {
@@ -80,13 +66,9 @@
       }
       return newArr;
     };
-
     const generateShareCode = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let result = '';
-      for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let result = '';
+      for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
       return result;
     };
 
@@ -102,29 +84,18 @@
       Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
     };
 
-    // --- COMPONENT HƯỚNG DẪN CÀI ĐẶT (Khi thiếu cấu hình) ---
     function SetupScreen() {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 font-sans">
-          <div className="max-w-2xl bg-white p-8 md:p-10 rounded-3xl shadow-2xl border border-red-100 animate-fade-in">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+          <div className="max-w-2xl bg-white p-8 rounded-3xl shadow-2xl border border-red-100">
             <h1 className="text-3xl font-black text-red-600 mb-4">Cần Thiết Lập Cơ Sở Dữ Liệu!</h1>
-            <p className="text-slate-600 mb-6 text-lg">
-              Chào Huy! Ứng dụng đã chạy thành công trên GitHub của bạn. Tuy nhiên, để tính năng <b>Tạo tài khoản</b> và <b>Lưu đề thi</b> hoạt động, bạn cần cung cấp "chìa khóa" kết nối với cơ sở dữ liệu.
-            </p>
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-xl mb-6">
-              <h3 className="font-bold text-blue-800 mb-2">Hướng dẫn thực hiện (Chỉ 3 phút):</h3>
-              <ol className="list-decimal list-inside space-y-2 text-slate-700">
-                <li>Truy cập <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-600 font-bold underline">Firebase Console</a> và lấy đoạn mã <code>firebaseConfig</code>.</li>
-                <li>Mở file <code>index.html</code> này trên GitHub của bạn, tìm đến dòng số <b>37</b> (biến <code className="bg-slate-200 px-1 rounded text-red-500">MY_FIREBASE_CONFIG</code>) và dán cấu hình của bạn vào giữa các dấu ngoặc kép.</li>
-              </ol>
-            </div>
-            <p className="text-sm text-slate-500 italic">Sau khi dán cấu hình và lưu lại trên GitHub, hãy tải lại trang này. Ứng dụng sẽ tự động chạy mượt mà!</p>
+            <p className="mb-6">Bạn cần cung cấp cấu hình Firebase vào dòng số 38 trong mã nguồn HTML.</p>
           </div>
         </div>
       );
     }
 
-    // --- COMPONENT TRẢ LỜI NGẮN ---
+    // --- COMPONENT TRẢ LỜI NGẮN (Đã cập nhật Bàn phím số) ---
     const ShortAnswerInput = ({ value = '', onChange, readOnly, isCorrect, showResult }) => {
       const chars = (value || '').split('');
       const boxes = [0, 1, 2, 3];
@@ -138,7 +109,8 @@
               {chars[i] || ''}
             </div>
           ))}
-          <input type="text" className="absolute inset-0 w-full h-full opacity-0 cursor-text z-10" value={value}
+          {/* Cập nhật inputMode="decimal" để gọi bàn phím số có dấu phẩy/chấm trên điện thoại */}
+          <input type="text" inputMode="decimal" pattern="[0-9\.\,\-]*" className="absolute inset-0 w-full h-full opacity-0 cursor-text z-10" value={value}
             onChange={(e) => {
               const filteredValue = e.target.value.replace(/[^0-9\.\,\-]/g, '').slice(0, 4);
               onChange(filteredValue);
@@ -147,23 +119,22 @@
       );
     };
 
-    // ================= APP CHÍNH (Chỉ chạy khi đã có Firebase) =================
+    // ================= APP CHÍNH =================
     function MainApp() {
-      const [fbUser, setFbUser] = useState(null);
       const [currentUser, setCurrentUser] = useState(null); 
-      
       const [screen, setScreen] = useState('login'); 
       const [allQuizzes, setAllQuizzes] = useState([]);
       const [globalMessage, setGlobalMessage] = useState({ text: '', type: 'error' });
       const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+      // State Bài thi
       const [isReadOnly, setIsReadOnly] = useState(false);
       const [currentQuizCode, setCurrentQuizCode] = useState(null);
       const [rawText, setRawText] = useState('');
-      const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [] });
+      const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [], group: [] });
       const [config, setConfig] = useState({ mode: 'single', shuffle: 'none' });
       
-      const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], flat: [] });
+      const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], group: [], flat: [] });
       const [answers, setAnswers] = useState({}); 
       const [currentIndex, setCurrentIndex] = useState(0); 
       const [isSubmitted, setIsSubmitted] = useState(false); 
@@ -175,55 +146,22 @@
         setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
       };
 
-      // Chức năng copy siêu mạnh mẽ cho mọi thiết bị
       const copyToClipboard = async (text) => {
-        try {
-          if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-            showMessage("Đã copy mã: " + text, "success");
-            return;
-          }
-        } catch (err) {}
-        
         const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.top = "0";
-        textArea.style.left = "0";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          showMessage("Đã copy mã: " + text, "success");
-        } catch (err) {
-          showMessage("Thiết bị chặn copy tự động. Bạn hãy tự bôi đen mã nhé.", "error");
-        }
+        textArea.value = text; textArea.style.position = "fixed"; textArea.style.opacity = "0";
+        document.body.appendChild(textArea); textArea.focus(); textArea.select();
+        try { document.execCommand('copy'); showMessage("Đã copy mã: " + text, "success"); } 
+        catch (err) { showMessage("Lỗi copy tự động.", "error"); }
         document.body.removeChild(textArea);
       };
 
-      // 1. Firebase Auth Initializer
       useEffect(() => {
         if (!auth) return;
-        const initAuth = async () => {
-          try {
-            const iToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            if (iToken) await auth.signInWithCustomToken(iToken);
-            else await auth.signInAnonymously();
-          } catch (error) {
-            console.error("Lỗi xác thực hệ thống:", error);
-          }
-        };
-        initAuth();
-
-        const unsub = auth.onAuthStateChanged((u) => setFbUser(u));
-        return () => unsub();
+        auth.signInAnonymously().catch(e => console.error(e));
       }, []);
 
-      // 2. Lắng nghe dữ liệu Quizzes realtime
       useEffect(() => {
-        if (!fbUser || !db) return;
+        if (!db) return;
         const unsub = db.collection(quizzesPath).onSnapshot((snap) => {
           const list = [];
           snap.forEach(docSnap => {
@@ -232,109 +170,143 @@
              list.push({ id: docSnap.id, ...data, expiresAt: currentExpires });
           });
           setAllQuizzes(list);
-        }, (err) => console.error(err));
+        });
         return () => unsub();
-      }, [fbUser]);
+      }, []);
 
-      // 3. Tự động dọn dẹp Đề quá hạn
+      // Dọn dẹp đề quá hạn
       useEffect(() => {
-        if (!currentUser || !db) return;
+        if (!currentUser || currentUser.isGuest || !db) return;
         const now = Date.now();
         allQuizzes.forEach(q => {
           if (q.expiresAt < now && q.owner === currentUser.username.toLowerCase()) {
-            db.doc(`${quizzesPath}/${q.id}`).delete()
-              .catch(e => console.error("Lỗi dọn dẹp đề quá hạn: ", e));
+            db.doc(`${quizzesPath}/${q.id}`).delete().catch(e => {});
           }
         });
       }, [allQuizzes, currentUser]);
 
-      // --- LOGIC AUTH CÁ NHÂN ---
+      // --- LOGIC AUTH & GUEST ---
       const handleLogin = async (e) => {
         e.preventDefault();
-        const uname = e.target.username.value.trim();
-        const pwd = e.target.password.value;
-        if (!uname || !pwd) return showMessage("Vui lòng nhập đầy đủ tên và mật khẩu.");
-
-        const unameLower = uname.toLowerCase();
-        const userRef = db.doc(`${usersPath}/${unameLower}`);
-        
+        const uname = e.target.username.value.trim(); const pwd = e.target.password.value;
+        if (!uname || !pwd) return showMessage("Nhập đủ tên và mật khẩu.");
+        const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
         try {
           const userSnap = await userRef.get();
           if (userSnap.exists) {
-            if (userSnap.data().password === pwd) {
-              setCurrentUser({ username: userSnap.data().username });
-              setScreen('dashboard');
-            } else {
-              showMessage("Sai mật khẩu!");
-            }
+            if (userSnap.data().password === pwd) { setCurrentUser({ username: userSnap.data().username, isGuest: false }); setScreen('dashboard'); } 
+            else showMessage("Sai mật khẩu!");
           } else {
             await userRef.set({ username: uname, password: pwd });
-            setCurrentUser({ username: uname });
-            setScreen('dashboard');
-            showMessage("Đã tạo tài khoản mới thành công!", "success");
+            setCurrentUser({ username: uname, isGuest: false }); setScreen('dashboard');
+            showMessage("Đã tạo tài khoản mới!", "success");
           }
-        } catch (error) {
-          showMessage("Lỗi: Kiểm tra lại quyền truy cập Firestore của bạn.");
-          console.error(error);
-        }
+        } catch (error) { showMessage("Lỗi: " + error.message); }
       };
 
-      // --- LOGIC TẠO & LƯU ĐỀ ---
-      const handleParse = () => {
-        if (!rawText.trim()) return showMessage('Vui lòng nhập nội dung câu hỏi!');
-        const lines = rawText.split('\n');
-        const mc = [], tf = [], sa = [];
-        let currentQ = null;
+      const handleGuestJoin = async (e) => {
+        e.preventDefault();
+        const code = e.target.guestCode.value.trim().toUpperCase();
+        if (!code || code.length !== 6) return showMessage("Mã đề phải gồm 6 ký tự.");
+        try {
+          const qDoc = await db.doc(`${quizzesPath}/${code}`).get();
+          if (qDoc.exists && qDoc.data().expiresAt > Date.now()) {
+            const data = qDoc.data();
+            setParsedData(data.parsedData); setRawText(data.rawText); setIsReadOnly(true); setCurrentQuizCode(code);
+            setCurrentUser({ username: 'Khách', isGuest: true });
+            setScreen('settings');
+            showMessage("Đã tìm thấy đề!", "success");
+          } else { showMessage("Mã không đúng hoặc đề đã hết hạn!"); }
+        } catch(e) { showMessage("Lỗi kết nối."); }
+      };
 
-        const pushQuestion = () => {
-          if (currentQ && currentQ.options.length > 0) {
-            if (currentQ.type === 'MC') mc.push(currentQ);
-            else if (currentQ.type === 'TF') tf.push(currentQ);
-            else if (currentQ.type === 'SA') sa.push(currentQ);
+      const joinQuizFromDashboard = (e) => {
+        e.preventDefault();
+        const code = e.target.shareCode.value.trim().toUpperCase();
+        const qDoc = allQuizzes.find(q => q.code === code && q.expiresAt > Date.now());
+        if (qDoc) {
+          setParsedData(qDoc.parsedData); setRawText(qDoc.rawText); setIsReadOnly(true); setCurrentQuizCode(code);
+          setScreen('settings');
+        } else showMessage("Mã không đúng hoặc đề đã hết hạn!");
+      };
+
+      // --- PARSER SIÊU CẤP ---
+      const handleParse = () => {
+        if (!rawText.trim()) return showMessage('Vui lòng nhập nội dung đề!');
+        const lines = rawText.split('\n');
+        
+        let mc = [], tf = [], sa = [], group = [];
+        let currentQ = null; let currentSub = null;
+        let activeSection = 'mc'; // Default section
+
+        const pushQ = () => {
+          if (!currentQ) return;
+          if (currentQ.subQuestions && currentQ.subQuestions.length > 0) group.push(currentQ);
+          else if (currentQ.options.length > 0) {
+            if (currentQ.type === 'SA' || activeSection === 'sa') sa.push(currentQ);
+            else if (activeSection === 'tf') tf.push(currentQ);
+            else mc.push(currentQ);
           }
+          currentQ = null; currentSub = null;
         };
 
         for (let i = 0; i < lines.length; i++) {
           let line = lines[i].trim();
           if (!line) continue;
 
-          const qMatch = line.match(/^Câu\s*\d+[\.\:]\s*(.*)/i);
+          // Chuyển section nếu có header
+          if (line.match(/^Phần\s*I+[\:\.\s]/i) || line.match(/^Phần\s*1[\:\.\s]/i)) { pushQ(); activeSection = 'mc'; continue; }
+          if (line.match(/^Phần\s*II[\:\.\s]/i) || line.match(/^Phần\s*2[\:\.\s]/i)) { pushQ(); activeSection = 'tf'; continue; }
+          if (line.match(/^Phần\s*III[\:\.\s]/i) || line.match(/^Phần\s*3[\:\.\s]/i)) { pushQ(); activeSection = 'sa'; continue; }
+          if (line.match(/^Phần\s*IV[\:\.\s]/i) || line.match(/^Phần\s*4[\:\.\s]/i)) { pushQ(); activeSection = 'group'; continue; }
+
+          // Câu hỏi cha: Bắt "Câu XX." hoặc "câu XX:"
+          const qMatch = line.match(/^(?:Câu|câu)\s*\d+[\.\:]\s*(.*)/i);
           if (qMatch) {
-            pushQuestion();
-            currentQ = { id: Math.random().toString(36).substr(2, 9), text: qMatch[1] || "", options: [], type: null, image: null };
+            pushQ();
+            currentQ = { id: genId(), text: qMatch[1], options: [], subQuestions: [], type: null, image: null };
             continue;
           }
-          if (!currentQ) continue;
 
+          // Câu hỏi con: Bắt "#1.", "#2:"
+          const subMatch = line.match(/^#\d+[\.\:]\s*(.*)/);
+          if (subMatch && currentQ) {
+            currentSub = { id: genId(), text: subMatch[1], options: [], type: null };
+            currentQ.subQuestions.push(currentSub);
+            continue;
+          }
+
+          let target = currentSub || currentQ;
+          if (!target) continue;
+
+          // SA: Bắt *đáp án*
           const saMatch = line.match(/^\*\s*(.+?)\s*\*$/);
-          if (saMatch && currentQ.options.length === 0) {
-            currentQ.type = 'SA'; currentQ.options.push({ id: Math.random().toString(36).substr(2, 9), text: saMatch[1], isCorrect: true });
-            continue;
-          }
-          const mcOptMatch = line.match(/^(\*?)([A-ZĐ])\.\s*(.*)/i);
-          if (mcOptMatch && !line.match(/^(\*?)[a-zđ]\)/i)) {
-            currentQ.type = 'MC'; currentQ.options.push({ id: Math.random().toString(36).substr(2, 9), text: mcOptMatch[3], isCorrect: mcOptMatch[1] === '*' });
-            continue;
-          }
-          const tfOptMatch = line.match(/^(\*?)([a-zđ])\)\s*(.*)/i);
-          if (tfOptMatch) {
-            currentQ.type = 'TF'; currentQ.options.push({ id: Math.random().toString(36).substr(2, 9), text: tfOptMatch[3], isCorrect: tfOptMatch[1] === '*' });
+          if (saMatch && target.options.length === 0) {
+            target.type = 'SA';
+            target.options.push({ id: genId(), text: saMatch[1], isCorrect: true });
             continue;
           }
 
-          if (currentQ.options.length === 0) currentQ.text += '\n' + line;
-          else currentQ.options[currentQ.options.length - 1].text += '\n' + line;
+          // Options: Bắt A. B) a. a)
+          const optMatch = line.match(/^(\*?)([A-ZĐa-zđ])[\.\)]\s*(.*)/i);
+          if (optMatch) {
+            if(!target.type) target.type = 'OPT';
+            target.options.push({ id: genId(), text: optMatch[3], isCorrect: optMatch[1] === '*' });
+            continue;
+          }
+
+          // Dòng text bổ sung
+          if (target.options.length === 0) target.text += '\n' + line;
+          else target.options[target.options.length - 1].text += '\n' + line;
         }
-        pushQuestion();
+        pushQ();
 
-        if (mc.length === 0 && tf.length === 0 && sa.length === 0) return showMessage('Không tìm thấy câu hỏi đúng định dạng!');
-        setParsedData({ mc, tf, sa });
-        setScreen('settings');
+        if (mc.length === 0 && tf.length === 0 && sa.length === 0 && group.length === 0) return showMessage('Không tìm thấy câu hỏi đúng định dạng!');
+        setParsedData({ mc, tf, sa, group }); setScreen('settings');
       };
 
       const handleImageUpload = (qId, type, file) => {
-        if (!file) return;
-        const reader = new FileReader();
+        if (!file) return; const reader = new FileReader();
         reader.onload = (e) => {
           const newData = { ...parsedData };
           const q = newData[type].find(x => x.id === qId);
@@ -345,178 +317,142 @@
       };
 
       const saveQuiz = async () => {
-        if (!fbUser || !currentUser || !db) return;
-        
+        if (currentUser.isGuest) return showMessage("Khách không thể lưu đề!");
         const dataStr = JSON.stringify(parsedData);
-        if (dataStr.length > 900000) {
-          return showMessage("Đề có chứa ảnh quá lớn. Vui lòng giảm dung lượng ảnh hoặc bớt ảnh để có thể lưu đám mây.");
-        }
+        if (dataStr.length > 900000) return showMessage("Đề chứa ảnh quá lớn. Vui lòng giảm dung lượng.");
 
         const code = generateShareCode();
         const titleLine = rawText.split('\n').find(l => l.trim().length > 0) || "Đề thi không tên";
         const title = titleLine.length > 50 ? titleLine.substring(0, 50) + "..." : titleLine;
 
         const docRef = db.doc(`${quizzesPath}/${code}`);
-        const now = Date.now();
-        const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 ngày
+        const now = Date.now(); const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
 
         try {
-          await docRef.set({
-            code, owner: currentUser.username.toLowerCase(), title, parsedData, rawText, createdAt: now, expiresAt: expiresAt
-          });
-          setCurrentQuizCode(code);
-          copyToClipboard(code); 
-        } catch (error) {
-          showMessage("Lỗi khi lưu đề: " + error.message);
-        }
+          await docRef.set({ code, owner: currentUser.username.toLowerCase(), title, parsedData, rawText, createdAt: now, expiresAt });
+          setCurrentQuizCode(code); copyToClipboard(code); 
+        } catch (error) { showMessage("Lỗi khi lưu: " + error.message); }
       };
 
-      // --- LOGIC XÓA VÀ GIA HẠN ĐỀ ---
+      // XÓA & GIA HẠN
       const handleDeleteQuiz = async (quizId) => {
-        try {
-          await db.doc(`${quizzesPath}/${quizId}`).delete();
-          showMessage("Đã xóa đề thi thành công!", "success");
-          setConfirmDeleteId(null);
-        } catch (e) {
-          showMessage("Lỗi khi xóa: " + e.message);
-        }
+        try { await db.doc(`${quizzesPath}/${quizId}`).delete(); setConfirmDeleteId(null); showMessage("Đã xóa!", "success"); } 
+        catch (e) { showMessage("Lỗi xóa: " + e.message); }
       };
-
       const handleExtendQuiz = async (q) => {
-        const maxLifetime = 50 * 24 * 60 * 60 * 1000; 
-        const maxExpiresAt = q.createdAt + maxLifetime;
+        const maxExpiresAt = q.createdAt + 50 * 24 * 60 * 60 * 1000;
         let newExpiresAt = q.expiresAt + 7 * 24 * 60 * 60 * 1000;
-
         if (newExpiresAt > maxExpiresAt) newExpiresAt = maxExpiresAt;
-
-        try {
-          await db.doc(`${quizzesPath}/${q.id}`).update({
-            expiresAt: newExpiresAt
-          });
-          showMessage("Đã gia hạn đề thi thành công!", "success");
-        } catch (e) {
-          showMessage("Lỗi khi gia hạn: " + e.message);
-        }
+        try { await db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: newExpiresAt }); showMessage("Đã gia hạn!", "success"); } 
+        catch (e) { showMessage("Lỗi gia hạn: " + e.message); }
       };
 
       // --- LOGIC LÀM ĐỀ ---
-      const joinQuiz = async (e) => {
-        e.preventDefault();
-        const code = e.target.shareCode.value.trim().toUpperCase();
-        if (!code || code.length !== 6) return showMessage("Mã đề phải gồm 6 ký tự.");
-
-        const qDoc = allQuizzes.find(q => q.code === code && q.expiresAt > Date.now());
-        if (qDoc) {
-          setParsedData(qDoc.parsedData);
-          setRawText(qDoc.rawText);
-          setIsReadOnly(true);
-          setCurrentQuizCode(code);
-          setScreen('settings');
-        } else {
-          showMessage("Mã không đúng hoặc đề thi đã hết hạn/bị xóa!");
-        }
-      };
-
       const prepareQuiz = () => {
-        let finalMc = [...parsedData.mc]; let finalTf = [...parsedData.tf]; let finalSa = [...parsedData.sa];
+        let finalMc = [...parsedData.mc]; let finalTf = [...parsedData.tf]; let finalSa = [...parsedData.sa]; let finalGroup = [...(parsedData.group||[])];
         const shuffleOpts = config.shuffle === 'options' || config.shuffle === 'both';
         const shuffleQ = config.shuffle === 'questions' || config.shuffle === 'both';
 
-        if (shuffleQ) { finalMc = shuffleArray(finalMc); finalTf = shuffleArray(finalTf); finalSa = shuffleArray(finalSa); }
-        if (shuffleOpts) { finalMc.forEach(q => { q.options = shuffleArray(q.options); }); finalTf.forEach(q => { q.options = shuffleArray(q.options); }); }
+        if (shuffleQ) { finalMc = shuffleArray(finalMc); finalTf = shuffleArray(finalTf); finalSa = shuffleArray(finalSa); finalGroup = shuffleArray(finalGroup); }
+        if (shuffleOpts) {
+          finalMc.forEach(q => q.options = shuffleArray(q.options));
+          finalTf.forEach(q => q.options = shuffleArray(q.options));
+          finalGroup.forEach(g => g.subQuestions.forEach(sub => { if(sub.type !== 'SA') sub.options = shuffleArray(sub.options); }));
+        }
 
-        setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, flat: [...finalMc, ...finalTf, ...finalSa] });
+        // Tính tổng điểm. Câu nhóm tính bằng số lượng câu hỏi con.
+        let total = finalMc.length + finalTf.length + finalSa.length + finalGroup.reduce((acc, g) => acc + g.subQuestions.length, 0);
+        setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, group: finalGroup, flat: [...finalMc, ...finalTf, ...finalSa, ...finalGroup] });
         setAnswers({}); setCurrentIndex(0); setIsSubmitted(false); setSingleQuestionConfirmed(false);
-        setScore({ correct: 0, total: finalMc.length + finalTf.length + finalSa.length });
-        setScreen('quiz');
+        setScore({ correct: 0, total }); setScreen('quiz');
       };
 
-      const checkQuestionCorrect = (question, userAns) => {
-        if (question.type === 'MC') {
-          const correctIds = question.options.filter(o => o.isCorrect).map(o => o.id);
-          return Array.isArray(userAns) && userAns.length > 0 && correctIds.includes(userAns[0]);
-        } else if (question.type === 'TF') {
-          const correctIds = question.options.filter(o => o.isCorrect).map(o => o.id);
-          return Array.isArray(userAns) && userAns.length === correctIds.length && userAns.every(id => correctIds.includes(id));
-        } else if (question.type === 'SA') {
+      const checkCorrectLogic = (q, userAns) => {
+        if (!userAns) return false;
+        if (q.type === 'SA' || q.options.length === 1 && q.options[0].isCorrect === true) {
           if (typeof userAns !== 'string' || !userAns.trim()) return false;
-          const cleanUser = userAns.trim().replace(',', '.');
-          const cleanCorrect = question.options[0].text.trim().replace(',', '.');
+          const cleanUser = userAns.trim().replace(',', '.'); const cleanCorrect = q.options[0].text.trim().replace(',', '.');
           if (!isNaN(parseFloat(cleanUser)) && !isNaN(parseFloat(cleanCorrect))) return parseFloat(cleanUser) === parseFloat(cleanCorrect);
           return cleanUser.toLowerCase() === cleanCorrect.toLowerCase();
+        } else {
+          // Check standard options
+          const correctIds = q.options.filter(o => o.isCorrect).map(o => o.id);
+          if (Array.isArray(userAns)) {
+            // Nếu format TF (nhiều đáp án), userAns phải khớp hoàn toàn correctIds
+            if (correctIds.length > 1) return userAns.length === correctIds.length && userAns.every(id => correctIds.includes(id));
+            // Nếu MC
+            return userAns.length > 0 && correctIds.includes(userAns[0]);
+          }
+          return false;
         }
-        return false;
+      };
+
+      const handleSelect = (qId, optionId, isRadio) => {
+        if (isSubmitted || singleQuestionConfirmed) return;
+        let newSelected = answers[qId] || [];
+        if (isRadio) newSelected = [optionId];
+        else newSelected = newSelected.includes(optionId) ? newSelected.filter(id => id !== optionId) : [...newSelected, optionId];
+        setAnswers({ ...answers, [qId]: newSelected });
       };
 
       // ================= RENDER =================
-      const now = Date.now();
-      const myQuizzes = allQuizzes
-        .filter(q => q.owner === currentUser?.username.toLowerCase() && q.expiresAt > now)
-        .sort((a,b) => b.createdAt - a.createdAt);
-
-      const Notification = () => (
-        globalMessage.text && (
-          <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
-            {globalMessage.text}
-          </div>
-        )
+      const Notification = () => globalMessage.text && (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>{globalMessage.text}</div>
       );
 
-      // MÀN HÌNH LOGIN
       if (screen === 'login') {
         return (
-          <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="min-h-screen flex flex-col md:flex-row items-center justify-center p-4 gap-8">
             <Notification />
-            <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 max-w-md w-full animate-fade-in border border-slate-100">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-black text-blue-600 mb-2">Trắc Nghiệm Đám Mây</h1>
-                <p className="text-slate-500">Nền tảng tạo và chia sẻ đề thi</p>
-              </div>
-              <form onSubmit={handleLogin} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Tên đăng nhập</label>
-                  <input type="text" name="username" placeholder="Ví dụ: Huy123" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" />
-                  <p className="text-xs text-slate-400 mt-1">Không phân biệt chữ hoa, chữ thường.</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Mật khẩu</label>
-                  <input type="password" name="password" placeholder="••••••••" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" />
-                </div>
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition shadow-lg mt-4">
-                  Đăng Nhập / Đăng Ký
-                </button>
+            {/* Form đăng nhập */}
+            <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full animate-fade-in border border-slate-100">
+              <h2 className="text-2xl font-black text-blue-600 mb-2">Tạo & Quản lý đề</h2>
+              <p className="text-slate-500 mb-6 text-sm">Dành cho Giáo viên / Người tạo đề</p>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <input type="text" name="username" placeholder="Tên đăng nhập" required className="w-full px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="password" name="password" placeholder="Mật khẩu" required className="w-full px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md">Đăng Nhập / Đăng Ký</button>
+              </form>
+            </div>
+            
+            <div className="hidden md:block w-px h-64 bg-slate-300"></div>
+
+            {/* Form khách */}
+            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl shadow-xl p-8 max-w-md w-full animate-fade-in text-white">
+              <h2 className="text-2xl font-black mb-2">Học Sinh / Sinh Viên</h2>
+              <p className="text-blue-100 mb-6 text-sm">Làm bài ngay không cần tài khoản</p>
+              <form onSubmit={handleGuestJoin} className="space-y-4">
+                <input type="text" name="guestCode" placeholder="Nhập mã đề 6 ký tự" maxLength="6" required className="w-full px-4 py-3 rounded-xl text-slate-800 font-bold uppercase text-center focus:ring-2 focus:ring-white outline-none" />
+                <button type="submit" className="w-full bg-white text-blue-600 hover:bg-slate-100 font-bold py-3.5 rounded-xl shadow-md flex justify-center items-center gap-2"><Icons.Play /> Bắt Đầu Làm Bài</button>
               </form>
             </div>
           </div>
         );
       }
 
-      // MÀN HÌNH DASHBOARD
       if (screen === 'dashboard') {
+        const myQuizzes = allQuizzes.filter(q => q.owner === currentUser.username.toLowerCase() && q.expiresAt > Date.now()).sort((a,b) => b.createdAt - a.createdAt);
         return (
           <div className="min-h-screen p-4 md:p-8 animate-fade-in">
             <Notification />
             <div className="max-w-5xl mx-auto">
-              <div className="flex justify-between items-center mb-10 bg-white p-4 px-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex justify-between items-center mb-8 bg-white p-4 px-6 rounded-2xl shadow-sm border border-slate-100">
                 <div className="text-xl font-bold text-slate-800">Xin chào, <span className="text-blue-600">{currentUser.username}</span>!</div>
-                <button onClick={() => { setCurrentUser(null); setScreen('login'); }} className="flex items-center gap-2 text-slate-500 hover:text-red-600 font-medium transition">
+                <button onClick={() => { setCurrentUser(null); setScreen('login'); }} className="flex items-center gap-2 text-slate-500 hover:text-red-600 font-medium">
                   <Icons.Logout /> Đăng xuất
                 </button>
               </div>
 
               <div className="grid md:grid-cols-3 gap-8">
                 <div className="md:col-span-1 space-y-6">
-                  <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl p-6 text-white shadow-lg">
-                    <h2 className="text-xl font-bold mb-2">Làm đề chia sẻ</h2>
-                    <p className="text-blue-100 text-sm mb-6">Nhập mã 6 ký tự do bạn bè gửi.</p>
-                    <form onSubmit={joinQuiz} className="flex gap-2">
-                      <input type="text" name="shareCode" placeholder="Mã đề" maxLength="6" className="w-full px-4 py-3 rounded-xl text-slate-800 font-bold uppercase text-center outline-none" required />
-                      <button type="submit" className="bg-white text-blue-600 px-4 rounded-xl hover:bg-slate-100 transition shadow font-bold">VÀO</button>
+                  <div className="bg-slate-800 rounded-3xl p-6 text-white shadow-lg">
+                    <h2 className="text-xl font-bold mb-2">Test Đề Chia Sẻ</h2>
+                    <form onSubmit={joinQuizFromDashboard} className="flex gap-2 mt-4">
+                      <input type="text" name="shareCode" placeholder="Mã đề" maxLength="6" className="w-full px-4 py-3 rounded-xl text-slate-800 font-bold uppercase text-center" required />
+                      <button type="submit" className="bg-blue-600 text-white px-4 rounded-xl hover:bg-blue-500 font-bold">VÀO</button>
                     </form>
                   </div>
-                  
-                  <button onClick={() => { setRawText(''); setParsedData({mc:[], tf:[], sa:[]}); setIsReadOnly(false); setCurrentQuizCode(null); setScreen('input'); }} 
-                    className="w-full bg-white border-2 border-dashed border-slate-300 text-slate-600 hover:border-blue-500 hover:text-blue-600 font-bold py-6 rounded-3xl transition flex flex-col items-center justify-center gap-2">
+                  <button onClick={() => { setRawText(''); setParsedData({mc:[], tf:[], sa:[], group:[]}); setIsReadOnly(false); setCurrentQuizCode(null); setScreen('input'); }} className="w-full bg-white border-2 border-dashed border-slate-300 text-slate-600 hover:border-blue-500 hover:text-blue-600 font-bold py-6 rounded-3xl transition flex flex-col items-center justify-center gap-2">
                     <span className="text-3xl leading-none">+</span> Tạo Đề Mới
                   </button>
                 </div>
@@ -524,54 +460,30 @@
                 <div className="md:col-span-2">
                   <h2 className="text-2xl font-bold text-slate-800 mb-6">Đề thi của bạn</h2>
                   {myQuizzes.length === 0 ? (
-                    <div className="bg-white rounded-3xl p-10 text-center text-slate-400 border border-slate-100 shadow-sm">
-                      Bạn chưa tạo đề nào hoặc các đề đã hết hạn tự xóa.
-                    </div>
+                    <div className="bg-white rounded-3xl p-10 text-center text-slate-400 border border-slate-100">Chưa có đề nào.</div>
                   ) : (
                     <div className="grid sm:grid-cols-2 gap-5">
                       {myQuizzes.map(q => {
-                        const maxExpiresAt = q.createdAt + 50 * 24 * 60 * 60 * 1000;
-                        const daysLeft = Math.ceil((q.expiresAt - now) / (1000 * 60 * 60 * 24));
-                        const canExtend = q.expiresAt < maxExpiresAt;
-
+                        const daysLeft = Math.ceil((q.expiresAt - Date.now()) / (1000 * 60 * 60 * 24));
                         return (
-                          <div key={q.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md transition flex flex-col justify-between">
+                          <div key={q.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
                             <div>
-                              <h3 className="font-bold text-slate-800 mb-2 line-clamp-2" title={q.title}>{q.title}</h3>
-                              <div className="flex justify-between items-center text-xs mb-4">
-                                <span className="text-slate-400">Tạo: {new Date(q.createdAt).toLocaleDateString('vi-VN')}</span>
-                                <span className={daysLeft <= 5 ? "text-red-500 font-bold" : "text-amber-500 font-bold"}>Hết hạn sau {daysLeft} ngày</span>
-                              </div>
-
-                              <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl mb-5 border border-slate-100">
+                              <h3 className="font-bold text-slate-800 mb-2 line-clamp-2">{q.title}</h3>
+                              <p className={`text-xs mb-4 ${daysLeft<=5?'text-red-500':'text-amber-500'} font-bold`}>Hết hạn sau {daysLeft} ngày</p>
+                              <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl mb-5">
                                 <span className="text-blue-700 font-mono font-bold text-lg px-2">{q.code}</span>
-                                <button onClick={() => copyToClipboard(q.code)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg text-sm font-bold transition">
-                                  <Icons.Copy /> Copy
-                                </button>
+                                <button onClick={() => copyToClipboard(q.code)} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold"><Icons.Copy /> Copy</button>
                               </div>
                             </div>
-
                             <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                              <button onClick={() => { setParsedData(q.parsedData); setRawText(q.rawText); setIsReadOnly(false); setCurrentQuizCode(q.code); setScreen('settings'); }} 
-                                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-lg transition text-center">Xem/Sửa</button>
-
-                              {canExtend ? (
-                                <button onClick={() => handleExtendQuiz(q)} className="px-3 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-sm font-bold rounded-lg transition" title="Gia hạn thêm 7 ngày">+7 Ngày</button>
-                              ) : (
-                                <button disabled className="px-3 py-2 bg-slate-50 text-slate-300 text-sm font-bold rounded-lg cursor-not-allowed" title="Đã đạt mức gia hạn tối đa 50 ngày">Max</button>
-                              )}
-
+                              <button onClick={() => { setParsedData(q.parsedData); setRawText(q.rawText); setIsReadOnly(false); setCurrentQuizCode(q.code); setScreen('settings'); }} className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-lg">Xem/Sửa</button>
+                              <button onClick={() => handleExtendQuiz(q)} className="px-3 py-2 bg-emerald-50 text-emerald-600 text-sm font-bold rounded-lg">+7 Ngày</button>
                               {confirmDeleteId === q.id ? (
-                                <div className="flex items-center gap-1 bg-red-50 rounded-lg p-1.5 border border-red-100 absolute bottom-5 right-5 z-10 shadow">
-                                  <button onClick={() => handleDeleteQuiz(q.id)} className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600">XÓA</button>
-                                  <button onClick={() => setConfirmDeleteId(null)} className="px-3 py-1 bg-slate-200 text-slate-700 text-xs font-bold rounded hover:bg-slate-300">Hủy</button>
-                                </div>
-                              ) : (
-                                <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-50 rounded-lg transition" title="Xóa đề này"><Icons.Trash /></button>
-                              )}
+                                <div className="absolute bg-red-50 p-1.5 rounded-lg border border-red-100 flex gap-1"><button onClick={()=>handleDeleteQuiz(q.id)} className="px-2 bg-red-500 text-white rounded text-xs font-bold">XÓA</button><button onClick={()=>setConfirmDeleteId(null)} className="px-2 bg-slate-200 rounded text-xs">Hủy</button></div>
+                              ) : <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-400 bg-red-50 rounded-lg"><Icons.Trash /></button>}
                             </div>
                           </div>
-                        );
+                        )
                       })}
                     </div>
                   )}
@@ -582,146 +494,107 @@
         );
       }
 
-      // MÀN HÌNH NHẬP TEXT
       if (screen === 'input') {
         return (
           <div className="min-h-screen p-4 md:p-8">
             <Notification />
-            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-lg p-6 md:p-8 animate-fade-in">
+            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-lg p-6 md:p-8">
               <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-slate-800">Nhập nội dung đề thi</h1>
-                <button onClick={() => setScreen('dashboard')} className="text-slate-500 hover:text-slate-800 text-sm font-bold">Quay lại</button>
+                <h1 className="text-2xl font-bold text-slate-800">Nhập đề thi</h1>
+                <button onClick={() => setScreen('dashboard')} className="text-slate-500 font-bold">Quay lại</button>
               </div>
-              <div className="mb-4">
-                <div className="flex justify-between items-end mb-2">
-                  <label className="text-sm font-semibold text-slate-600">Dán text hoặc tải file .txt</label>
-                  <label className="cursor-pointer text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold">
-                    <Icons.Upload /> Tải file .txt
-                    <input type="file" accept=".txt" className="hidden" onChange={(e) => {
-                      const file = e.target.files[0];
-                      if(!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (evt) => setRawText(evt.target.result);
-                      reader.readAsText(file);
-                    }} />
-                  </label>
-                </div>
-                <textarea className="w-full h-[400px] p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono text-sm leading-relaxed bg-slate-50" 
-                  placeholder="Câu 1. Ví dụ câu hỏi...&#10;A. Đáp án&#10;*B. Đáp án đúng" value={rawText} onChange={(e) => setRawText(e.target.value)}></textarea>
-              </div>
-              <button onClick={handleParse} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition shadow-md">Nhận diện câu hỏi</button>
+              <textarea className="w-full h-[400px] p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono text-sm bg-slate-50 mb-4" 
+                placeholder="Phần I: Trắc nghiệm&#10;Câu 1: Nội dung&#10;A. Sai&#10;*B) Đúng&#10;&#10;Phần IV: Câu hỏi nhóm&#10;Câu 2: Đọc đoạn văn sau...&#10;#1. Nội dung câu 1&#10;A. Sai&#10;*B) Đúng" value={rawText} onChange={(e) => setRawText(e.target.value)}></textarea>
+              <button onClick={handleParse} className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl">Nhận diện</button>
             </div>
           </div>
         );
       }
 
-      // MÀN HÌNH CÀI ĐẶT
       if (screen === 'settings') {
         const sections = [
           { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: parsedData.mc },
           { id: 'tf', title: 'Phần II: Đúng/Sai', data: parsedData.tf },
-          { id: 'sa', title: 'Phần III: Trả lời ngắn', data: parsedData.sa }
+          { id: 'sa', title: 'Phần III: Trả lời ngắn', data: parsedData.sa },
+          { id: 'group', title: 'Phần IV: Câu hỏi nhóm / Đọc hiểu', data: parsedData.group || [] }
         ].filter(s => s.data.length > 0);
 
         return (
-          <div className="min-h-screen p-4 md:p-8 animate-fade-in">
+          <div className="min-h-screen p-4 md:p-8">
             <Notification />
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white rounded-3xl shadow-lg p-6 md:p-8">
                 <div className="flex justify-between items-center mb-6 border-b pb-4">
-                  <h2 className="text-2xl font-bold text-slate-800">Cài đặt & Tổng quan</h2>
-                  <button onClick={() => setScreen('dashboard')} className="text-slate-500 hover:text-slate-800 font-bold bg-slate-100 px-4 py-2 rounded-lg transition">Về trang chủ</button>
+                  <h2 className="text-2xl font-bold text-slate-800">Tổng quan đề thi</h2>
+                  <button onClick={() => setScreen(currentUser.isGuest ? 'login' : 'dashboard')} className="text-slate-500 bg-slate-100 px-4 py-2 rounded-lg font-bold">Thoát</button>
                 </div>
                 
                 <div className="grid md:grid-cols-2 gap-8 mb-8">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-500 mb-3 uppercase tracking-wider">Chế độ làm bài</h3>
+                    <h3 className="text-sm font-bold text-slate-500 mb-3 uppercase">Chế độ làm bài</h3>
                     <div className="space-y-3">
-                      <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition ${config.mode === 'single' ? 'bg-blue-50 border-blue-500 ring-1' : 'hover:bg-slate-50'}`}>
-                        <input type="radio" className="w-4 h-4 text-blue-600" checked={config.mode === 'single'} onChange={() => setConfig({...config, mode: 'single'})} />
-                        <span className="ml-3 font-bold text-slate-700">Làm từng câu</span>
-                      </label>
-                      <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition ${config.mode === 'all' ? 'bg-blue-50 border-blue-500 ring-1' : 'hover:bg-slate-50'}`}>
-                        <input type="radio" className="w-4 h-4 text-blue-600" checked={config.mode === 'all'} onChange={() => setConfig({...config, mode: 'all'})} />
-                        <span className="ml-3 font-bold text-slate-700">Làm toàn bộ</span>
-                      </label>
+                      <label className={`flex items-center p-4 border rounded-xl cursor-pointer ${config.mode==='single'?'bg-blue-50 border-blue-500':'hover:bg-slate-50'}`}><input type="radio" className="w-4 h-4" checked={config.mode==='single'} onChange={()=>setConfig({...config,mode:'single'})}/><span className="ml-3 font-bold">Làm từng câu</span></label>
+                      <label className={`flex items-center p-4 border rounded-xl cursor-pointer ${config.mode==='all'?'bg-blue-50 border-blue-500':'hover:bg-slate-50'}`}><input type="radio" className="w-4 h-4" checked={config.mode==='all'} onChange={()=>setConfig({...config,mode:'all'})}/><span className="ml-3 font-bold">Làm toàn bộ</span></label>
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-500 mb-3 uppercase tracking-wider">Xáo trộn</h3>
+                    <h3 className="text-sm font-bold text-slate-500 mb-3 uppercase">Xáo trộn</h3>
                     <div className="space-y-3">
-                      {['none', 'questions', 'options', 'both'].map((opt) => (
-                        <label key={opt} className="flex items-center cursor-pointer">
-                          <input type="radio" className="w-4 h-4 text-blue-600" checked={config.shuffle === opt} onChange={() => setConfig({...config, shuffle: opt})} />
-                          <span className="ml-3 font-medium text-slate-600">
-                            {opt === 'none' && 'Giữ nguyên'} {opt === 'questions' && 'Chỉ trộn câu hỏi'}
-                            {opt === 'options' && 'Chỉ trộn đáp án'} {opt === 'both' && 'Trộn tất cả'}
-                          </span>
-                        </label>
+                      {['none','questions','options','both'].map(opt => (
+                        <label key={opt} className="flex items-center"><input type="radio" className="w-4 h-4" checked={config.shuffle===opt} onChange={()=>setConfig({...config,shuffle:opt})}/><span className="ml-3">{opt==='none'&&'Không'} {opt==='questions'&&'Câu hỏi'} {opt==='options'&&'Đáp án'} {opt==='both'&&'Tất cả'}</span></label>
                       ))}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-3">
-                  {!isReadOnly && (
+                  {!isReadOnly && !currentUser.isGuest && (
                     <>
-                      <button onClick={() => setScreen('input')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition">Sửa nội dung (Text)</button>
-                      <button onClick={saveQuiz} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition shadow flex items-center justify-center gap-2">
-                        <Icons.Share /> Lưu Đề & Chia Sẻ
-                      </button>
+                      <button onClick={()=>setScreen('input')} className="flex-1 bg-slate-100 font-bold py-3.5 rounded-xl">Sửa (Text)</button>
+                      <button onClick={saveQuiz} className="flex-1 bg-indigo-600 text-white font-bold py-3.5 rounded-xl flex justify-center gap-2"><Icons.Share /> Lưu Đề</button>
                     </>
                   )}
-                  <button onClick={prepareQuiz} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition shadow flex items-center justify-center gap-2">
-                    <Icons.Play /> Bắt Đầu Làm Bài
-                  </button>
+                  <button onClick={prepareQuiz} className="flex-1 bg-green-600 text-white font-bold py-3.5 rounded-xl flex justify-center gap-2"><Icons.Play /> Bắt Đầu Làm Bài</button>
                 </div>
               </div>
 
               <div className="bg-white rounded-3xl shadow-lg p-6 md:p-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
-                  <h2 className="text-xl font-bold text-slate-800">Danh sách câu hỏi {isReadOnly ? "" : "& Gắn ảnh"}</h2>
-                  {currentQuizCode && (
-                    <div className="bg-blue-50 border border-blue-200 text-blue-800 font-mono font-bold px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-blue-100 transition" onClick={() => copyToClipboard(currentQuizCode)} title="Bấm để copy">
-                      Mã: {currentQuizCode} <Icons.Copy />
-                    </div>
-                  )}
+                <div className="mb-6 flex justify-between">
+                  <h2 className="text-xl font-bold">Nội dung chi tiết</h2>
+                  {currentQuizCode && <div className="bg-blue-50 text-blue-800 font-mono font-bold px-4 py-2 rounded-xl">Mã: {currentQuizCode}</div>}
                 </div>
                 
                 {sections.map(section => (
-                  <div key={section.id} className="mb-10 last:mb-0">
+                  <div key={section.id} className="mb-10">
                     <h3 className="font-bold text-lg text-blue-800 bg-blue-50 px-4 py-2 rounded-lg mb-4">{section.title}</h3>
                     <div className="space-y-4">
                       {section.data.map((q, idx) => (
-                        <div key={q.id} className="border border-slate-200 rounded-xl p-5 flex flex-col md:flex-row gap-4 hover:border-blue-300 transition">
+                        <div key={q.id} className="border border-slate-200 rounded-xl p-5 flex flex-col md:flex-row gap-4">
                           <div className="flex-1">
-                            <div className="font-bold text-slate-800 mb-1">Câu {idx + 1}:</div>
-                            <div className="text-slate-600 whitespace-pre-wrap">{q.text}</div>
-                            {(!isReadOnly && q.type === 'SA') && <div className="text-sm text-green-600 mt-2 font-bold bg-green-50 p-2 rounded inline-block">Đáp án đúng: {q.options[0].text}</div>}
+                            <div className="font-bold mb-1">Câu {idx + 1}:</div>
+                            <div className="whitespace-pre-wrap mb-2">{q.text}</div>
+                            {(!isReadOnly && q.type === 'SA') && <div className="text-sm text-green-600 font-bold">Đáp án: {q.options[0]?.text}</div>}
+                            
+                            {/* Render SubQuestions cho Phần Nhóm */}
+                            {q.subQuestions && q.subQuestions.length > 0 && (
+                              <div className="mt-4 space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                {q.subQuestions.map((sub, sIdx) => (
+                                  <div key={sub.id} className="border-b pb-3 last:border-0 last:pb-0">
+                                    <div className="font-bold text-sm">#{sIdx + 1}. {sub.text}</div>
+                                    {!isReadOnly && sub.type === 'SA' && <div className="text-xs text-green-600">Đ/A: {sub.options[0]?.text}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           
-                          <div className="w-full md:w-auto shrink-0 flex items-center justify-center bg-slate-50 p-2 rounded-xl border border-dashed border-slate-300">
+                          <div className="w-full md:w-auto shrink-0 flex flex-col items-center justify-center bg-slate-50 p-2 rounded-xl border border-dashed border-slate-300">
                             {q.image ? (
-                              <div className="relative inline-block">
-                                <img src={q.image} alt="preview" className="h-28 w-auto object-contain rounded" />
-                                {!isReadOnly && (
-                                  <button onClick={() => {
-                                    const newData = {...parsedData};
-                                    newData[section.id].find(x => x.id === q.id).image = null;
-                                    setParsedData(newData);
-                                  }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow-md hover:bg-red-600 transition">×</button>
-                                )}
+                              <div className="relative">
+                                <img src={q.image} className="h-28 rounded" />
+                                {!isReadOnly && <button onClick={()=>{const n={...parsedData};n[section.id].find(x=>x.id===q.id).image=null;setParsedData(n);}} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7">×</button>}
                               </div>
-                            ) : (
-                              !isReadOnly ? (
-                                <label className="cursor-pointer text-blue-600 hover:text-blue-800 font-bold text-sm py-4 px-6 flex flex-col items-center gap-1 transition">
-                                  <Icons.Image /> Thêm ảnh
-                                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(q.id, section.id, e.target.files[0])} />
-                                </label>
-                              ) : (
-                                <span className="text-slate-400 text-sm px-4">Không có ảnh</span>
-                              )
-                            )}
+                            ) : ( !isReadOnly ? <label className="cursor-pointer text-blue-600 font-bold text-sm flex flex-col items-center"><Icons.Image /> Ảnh <input type="file" accept="image/*" className="hidden" onChange={(e)=>handleImageUpload(q.id, section.id, e.target.files[0])} /></label> : <span className="text-slate-400 text-sm px-2">Không ảnh</span> )}
                           </div>
                         </div>
                       ))}
@@ -734,182 +607,129 @@
         );
       }
 
-      // MÀN HÌNH LÀM BÀI
+      // --- MÀN HÌNH LÀM BÀI ---
       if (screen === 'quiz') {
         const totalQ = score.total;
         const isModeSingle = config.mode === 'single';
 
-        const handleSingleSelect = (optionId, isRadio) => {
-          if (singleQuestionConfirmed) return;
+        const confirmSingle = () => {
           const q = activeQuiz.flat[currentIndex];
-          let newSelected = answers[q.id] || [];
-          if (isRadio) newSelected = [optionId];
-          else newSelected = newSelected.includes(optionId) ? newSelected.filter(id => id !== optionId) : [...newSelected, optionId];
-          setAnswers({ ...answers, [q.id]: newSelected });
-        };
-
-        const confirmSingleQuestion = () => {
-          const q = activeQuiz.flat[currentIndex];
-          const userAns = answers[q.id];
-          if (!userAns || (Array.isArray(userAns) && userAns.length === 0) || (typeof userAns === 'string' && !userAns.trim())) {
-            return showMessage('Vui lòng nhập/chọn đáp án!');
+          let correct = 0; let answeredAll = true;
+          
+          if (q.subQuestions && q.subQuestions.length > 0) {
+            q.subQuestions.forEach(sub => {
+              if (!answers[sub.id] || answers[sub.id].length===0 || answers[sub.id]==='') answeredAll = false;
+              if (checkCorrectLogic(sub, answers[sub.id])) correct++;
+            });
+          } else {
+            if (!answers[q.id] || answers[q.id].length===0 || answers[q.id]==='') answeredAll = false;
+            if (checkCorrectLogic(q, answers[q.id])) correct++;
           }
-          if (checkQuestionCorrect(q, userAns)) setScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+
+          if (!answeredAll) return showMessage('Vui lòng hoàn thành tất cả đáp án của câu này!');
+          setScore(prev => ({ ...prev, correct: prev.correct + correct }));
           setSingleQuestionConfirmed(true);
         };
 
-        const handleMultiSelect = (qId, optionId, isRadio) => {
-          if (isSubmitted) return;
-          let newSelected = answers[qId] || [];
-          if (isRadio) newSelected = [optionId];
-          else newSelected = newSelected.includes(optionId) ? newSelected.filter(id => id !== optionId) : [...newSelected, optionId];
-          setAnswers({ ...answers, [qId]: newSelected });
-        };
-
-        const submitAllQuiz = () => {
-          const unansweredQ = activeQuiz.flat.find(q => {
-            const ans = answers[q.id];
-            if (!ans) return true;
-            if (Array.isArray(ans) && ans.length === 0) return true;
-            if (typeof ans === 'string' && !ans.trim()) return true;
-            return false;
+        const submitAll = () => {
+          let correct = 0; let missed = false;
+          activeQuiz.flat.forEach(q => {
+            if (q.subQuestions && q.subQuestions.length > 0) {
+              q.subQuestions.forEach(sub => {
+                if (!answers[sub.id] || answers[sub.id].length===0 || answers[sub.id]==='') { missed = true; }
+                if (checkCorrectLogic(sub, answers[sub.id])) correct++;
+              });
+            } else {
+              if (!answers[q.id] || answers[q.id].length===0 || answers[q.id]==='') { missed = true; }
+              if (checkCorrectLogic(q, answers[q.id])) correct++;
+            }
           });
-          if (unansweredQ) {
-            showMessage('Bạn còn câu chưa hoàn thành!');
-            const el = document.getElementById(`q-${unansweredQ.id}`);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
-          }
-          let correctCount = 0;
-          activeQuiz.flat.forEach(q => { if (checkQuestionCorrect(q, answers[q.id])) correctCount++; });
-          setScore(prev => ({ ...prev, correct: correctCount }));
-          setIsSubmitted(true);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          if (missed) return showMessage('Bạn còn câu chưa chọn đáp án!');
+          setScore(prev => ({ ...prev, correct })); setIsSubmitted(true); window.scrollTo(0,0);
         };
 
-        const mcLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        const tfLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-        const getOptClass = (q, opt, isSelected, showResult) => {
-          if (!showResult) return isSelected ? 'bg-blue-50 border-blue-400' : 'bg-white border-slate-200 hover:border-blue-300';
-          if (opt.isCorrect && isSelected) return 'bg-green-100 border-green-500 text-green-800';
-          if (opt.isCorrect && !isSelected) return 'bg-white border-green-500 border-dashed text-green-700';
-          if (!opt.isCorrect && isSelected) return 'bg-red-100 border-red-500 text-red-800';
+        const getOptClass = (opt, isSelected, showRes) => {
+          if (!showRes) return isSelected ? 'bg-blue-50 border-blue-400' : 'bg-white border-slate-200 hover:border-blue-300';
+          if (opt.isCorrect && isSelected) return 'bg-green-100 border-green-500';
+          if (opt.isCorrect && !isSelected) return 'bg-white border-green-500 border-dashed';
+          if (!opt.isCorrect && isSelected) return 'bg-red-100 border-red-500';
           return 'bg-white border-slate-200 opacity-50';
         };
 
-        return (
-          <div className="min-h-screen pb-20 animate-fade-in">
-            <Notification />
-            <div className="sticky top-0 z-50 bg-white/90 backdrop-blur shadow-sm border-b border-slate-200 p-4">
-              <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-                <div className="font-bold text-slate-700">
-                  {isModeSingle ? ( <>Câu: <span className="text-blue-600 text-xl">{currentIndex + 1}</span>/{totalQ}</> ) 
-                  : ( <>Đã làm: <span className="text-blue-600 text-xl">{Object.keys(answers).length}</span>/{totalQ}</> )}
-                </div>
-                <button onClick={() => setScreen('dashboard')} className="text-sm font-bold text-slate-500 hover:text-slate-800 bg-slate-100 px-4 py-2 rounded-lg transition">Thoát Bài</button>
+        const renderQuestionContent = (q, isShowResult, isSingle) => {
+          if (q.subQuestions && q.subQuestions.length > 0) {
+            return (
+              <div className="space-y-6">
+                {q.subQuestions.map((sub, sIdx) => (
+                  <div key={sub.id} className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <p className="font-bold text-slate-700 mb-3">#{sIdx+1}. {sub.text}</p>
+                    {sub.type === 'SA' ? (
+                      <ShortAnswerInput value={answers[sub.id]||''} onChange={(v)=>!isShowResult&&setAnswers({...answers, [sub.id]:v})} readOnly={isShowResult} showResult={isShowResult} isCorrect={checkCorrectLogic(sub, answers[sub.id])} />
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2">
+                        {sub.options.map((opt, oIdx) => {
+                          const isRadio = sub.options.filter(o=>o.isCorrect).length <= 1;
+                          const isSelected = (answers[sub.id]||[]).includes(opt.id);
+                          return (
+                            <label key={opt.id} onClick={()=>handleSelect(sub.id, opt.id, isRadio)} className={`flex p-3 border-2 rounded-xl cursor-pointer ${getOptClass(opt, isSelected, isShowResult)}`}><input type={isRadio?"radio":"checkbox"} checked={isSelected} readOnly className="mt-1 w-4 h-4 mr-2" />{['A','B','C','D','E'][oIdx]}. {opt.text}</label>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {isShowResult && sub.type === 'SA' && !checkCorrectLogic(sub, answers[sub.id]) && <div className="text-sm font-bold text-green-700 mt-2">Đ/A: {sub.options[0].text}</div>}
+                  </div>
+                ))}
               </div>
+            );
+          } else if (q.type === 'SA') {
+            return (
+              <div className="bg-slate-50 p-5 rounded-2xl inline-block">
+                 <ShortAnswerInput value={answers[q.id]||''} onChange={(v)=>!isShowResult&&setAnswers({...answers, [q.id]:v})} readOnly={isShowResult} showResult={isShowResult} isCorrect={checkCorrectLogic(q, answers[q.id])} />
+                 {isShowResult && !checkCorrectLogic(q, answers[q.id]) && <div className="text-sm font-bold text-green-700 mt-2">Đ/A: {q.options[0].text}</div>}
+              </div>
+            )
+          } else {
+             return (
+               <div className="space-y-3">
+                 {q.options.map((opt, oIdx) => {
+                   const isRadio = q.options.filter(o=>o.isCorrect).length <= 1;
+                   const isSelected = (answers[q.id]||[]).includes(opt.id);
+                   return <label key={opt.id} onClick={()=>handleSelect(q.id, opt.id, isRadio)} className={`block p-4 border-2 rounded-xl cursor-pointer ${getOptClass(opt, isSelected, isShowResult)}`}><div className="flex"><input type={isRadio?"radio":"checkbox"} checked={isSelected} readOnly className="mt-1 w-5 h-5 mr-3" /><span>{['A','B','C','D','E'][oIdx]}. {opt.text}</span></div></label>
+                 })}
+               </div>
+             )
+          }
+        };
+
+        return (
+          <div className="min-h-screen pb-20">
+            <Notification />
+            <div className="sticky top-0 z-50 bg-white/90 backdrop-blur shadow-sm p-4 flex justify-between">
+              <div className="font-bold">Đã làm: <span className="text-blue-600">{Object.keys(answers).length}</span> ô</div>
+              <button onClick={() => setScreen(currentUser.isGuest?'login':'dashboard')} className="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">Thoát</button>
             </div>
 
-            <div className="max-w-3xl mx-auto mt-8 px-4">
-              {/* CHẾ ĐỘ 1: LÀM TỪNG CÂU */}
-              {isModeSingle && (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 md:p-10 animate-fade-in">
-                  <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block">
-                    {activeQuiz.flat[currentIndex].type === 'MC' ? 'Trắc Nghiệm' : activeQuiz.flat[currentIndex].type === 'TF' ? 'Đúng / Sai' : 'Trả lời ngắn'}
-                  </span>
-                  <h3 className="text-xl font-medium text-slate-800 leading-relaxed mb-6 whitespace-pre-wrap"><span className="font-bold mr-1">Câu {currentIndex + 1}.</span> {activeQuiz.flat[currentIndex].text}</h3>
-                  {activeQuiz.flat[currentIndex].image && <img src={activeQuiz.flat[currentIndex].image} className="max-w-full h-auto rounded-xl mb-6 shadow-sm border" />}
-
-                  {activeQuiz.flat[currentIndex].type === 'SA' ? (
-                    <div className="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-2xl">
-                      <p className="text-sm font-bold text-slate-500 mb-4 uppercase">Nhập đáp án (Tối đa 4 ký tự):</p>
-                      <ShortAnswerInput value={answers[activeQuiz.flat[currentIndex].id] || ''} onChange={(v) => !singleQuestionConfirmed && setAnswers({...answers, [activeQuiz.flat[currentIndex].id]: v})} readOnly={singleQuestionConfirmed} showResult={singleQuestionConfirmed} isCorrect={singleQuestionConfirmed ? checkQuestionCorrect(activeQuiz.flat[currentIndex], answers[activeQuiz.flat[currentIndex].id]) : null} />
-                      {singleQuestionConfirmed && !checkQuestionCorrect(activeQuiz.flat[currentIndex], answers[activeQuiz.flat[currentIndex].id]) && (
-                        <div className="mt-4 p-3 bg-green-100 text-green-800 border border-green-200 rounded-xl text-sm font-bold">Đáp án đúng: {activeQuiz.flat[currentIndex].options[0].text}</div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3 mb-8">
-                      {activeQuiz.flat[currentIndex].options.map((opt, oIdx) => {
-                        const q = activeQuiz.flat[currentIndex]; const isRadio = q.type === 'MC'; const isSelected = (answers[q.id] || []).includes(opt.id);
-                        return (
-                          <label key={opt.id} className={`block p-4 border-2 rounded-xl transition cursor-pointer ${getOptClass(q, opt, isSelected, singleQuestionConfirmed)}`} onClick={() => handleSingleSelect(opt.id, isRadio)}>
-                            <div className="flex items-start">
-                              <input type={isRadio?"radio":"checkbox"} checked={isSelected} readOnly className="mt-1 w-5 h-5 text-blue-600 focus:ring-blue-500" />
-                              <div className="ml-3 text-lg whitespace-pre-wrap"><span className="font-bold mr-2">{isRadio ? mcLetters[oIdx]+'.' : tfLetters[oIdx]+')'}</span>{opt.text}</div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end pt-4">
-                    {!singleQuestionConfirmed ? (
-                      <button onClick={confirmSingleQuestion} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-8 rounded-xl transition shadow-md w-full md:w-auto">Xác nhận</button>
-                    ) : (
-                      <button onClick={() => currentIndex < totalQ - 1 ? (setCurrentIndex(prev => prev + 1), setSingleQuestionConfirmed(false)) : setScreen('result')} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-8 rounded-xl transition shadow-md w-full md:w-auto flex items-center justify-center gap-2">
-                        {currentIndex < totalQ - 1 ? 'Câu tiếp theo' : 'Hoàn thành'} <Icons.Check />
-                      </button>
-                    )}
+            <div className="max-w-3xl mx-auto mt-6 px-4">
+              {isModeSingle ? (
+                <div className="bg-white rounded-3xl shadow-sm p-6 md:p-8 animate-fade-in border border-slate-200">
+                  <h3 className="text-xl font-medium mb-4"><span className="font-bold">Câu {currentIndex+1}.</span> {activeQuiz.flat[currentIndex].text}</h3>
+                  {activeQuiz.flat[currentIndex].image && <img src={activeQuiz.flat[currentIndex].image} className="w-full rounded-xl mb-4" />}
+                  {renderQuestionContent(activeQuiz.flat[currentIndex], singleQuestionConfirmed, true)}
+                  <div className="mt-6 text-right">
+                    {!singleQuestionConfirmed ? <button onClick={confirmSingle} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl">Xác nhận</button> : <button onClick={() => currentIndex<activeQuiz.flat.length-1 ? (setCurrentIndex(p=>p+1),setSingleQuestionConfirmed(false)) : setScreen('result')} className="bg-green-600 text-white font-bold py-3 px-8 rounded-xl">Tiếp tục</button>}
                   </div>
                 </div>
-              )}
-
-              {/* CHẾ ĐỘ 2: LÀM TOÀN BỘ */}
-              {!isModeSingle && (
-                <div className="space-y-8">
-                  {isSubmitted && (
-                    <div className="bg-white rounded-3xl shadow-lg border-2 border-green-400 p-8 text-center animate-fade-in">
-                      <h2 className="text-3xl font-bold text-slate-800 mb-2">Kết quả</h2>
-                      <div className="text-6xl font-black text-green-600 mb-6">{score.correct} <span className="text-3xl text-slate-300">/ {totalQ}</span></div>
-                      <div className="flex justify-center gap-3">
-                        <button onClick={prepareQuiz} className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-3 px-6 rounded-xl transition">Làm lại</button>
-                        <button onClick={() => setScreen('dashboard')} className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-3 px-6 rounded-xl transition">Trang chủ</button>
-                      </div>
+              ) : (
+                <div className="space-y-6">
+                  {isSubmitted && <div className="bg-white rounded-3xl p-8 text-center shadow border border-green-400"><h2 className="text-3xl font-bold mb-2">Kết quả</h2><div className="text-6xl font-black text-green-600 mb-6">{score.correct}/{totalQ}</div><button onClick={()=>setScreen('settings')} className="bg-slate-100 px-6 py-2 rounded-xl font-bold">Xem lại cài đặt</button></div>}
+                  {activeQuiz.flat.map((q, idx) => (
+                    <div key={q.id} className="bg-white rounded-3xl shadow-sm p-6 border border-slate-200">
+                      <h3 className="text-lg font-medium mb-4"><span className="font-bold">Câu {idx+1}.</span> {q.text}</h3>
+                      {q.image && <img src={q.image} className="max-w-md w-full rounded-xl mb-4" />}
+                      {renderQuestionContent(q, isSubmitted, false)}
                     </div>
-                  )}
-
-                  {['mc', 'tf', 'sa'].map(type => {
-                    const data = activeQuiz[type]; if(data.length === 0) return null;
-                    const typeName = type === 'mc' ? 'Trắc Nghiệm' : type === 'tf' ? 'Đúng / Sai' : 'Trả Lời Ngắn';
-                    const offset = type === 'tf' ? activeQuiz.mc.length : type === 'sa' ? activeQuiz.mc.length + activeQuiz.tf.length : 0;
-                    
-                    return (
-                      <div key={type} className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="bg-slate-50 p-4 border-b border-slate-200"><h2 className="text-xl font-bold text-slate-700">Phần: {typeName}</h2></div>
-                        <div className="p-6 md:p-8 space-y-10">
-                          {data.map((q, idx) => (
-                            <div key={q.id} id={`q-${q.id}`} className="border-b border-slate-100 pb-8 last:border-0 last:pb-0">
-                              <h3 className="text-lg font-medium text-slate-800 mb-4 whitespace-pre-wrap"><span className="font-bold mr-1">Câu {offset + idx + 1}.</span> {q.text}</h3>
-                              {q.image && <img src={q.image} className="max-w-md w-full rounded-xl mb-4 border" />}
-                              
-                              {type === 'sa' ? (
-                                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl inline-block">
-                                  <p className="text-xs font-bold text-slate-500 mb-3 uppercase">Đáp án (4 ký tự):</p>
-                                  <ShortAnswerInput value={answers[q.id] || ''} onChange={(v) => !isSubmitted && setAnswers({...answers, [q.id]: v})} readOnly={isSubmitted} showResult={isSubmitted} isCorrect={checkQuestionCorrect(q, answers[q.id])} />
-                                  {isSubmitted && !checkQuestionCorrect(q, answers[q.id]) && <div className="mt-3 text-sm font-bold text-green-700">Đáp án: {q.options[0].text}</div>}
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-1 gap-3">
-                                  {q.options.map((opt, oIdx) => {
-                                    const isSelected = (answers[q.id] || []).includes(opt.id); const isRadio = type === 'mc';
-                                    return (
-                                      <label key={opt.id} onClick={() => handleMultiSelect(q.id, opt.id, isRadio)} className={`flex items-start p-4 border-2 rounded-xl transition cursor-pointer ${getOptClass(q, opt, isSelected, isSubmitted)}`}>
-                                        <input type={isRadio?"radio":"checkbox"} checked={isSelected} readOnly className={`mt-1 w-5 h-5 ${isRadio?'text-blue-600 rounded-full':'text-indigo-600 rounded'}`} />
-                                        <div className="ml-3 whitespace-pre-wrap"><span className="font-bold mr-2">{isRadio ? mcLetters[oIdx]+'.' : tfLetters[oIdx]+')'}</span> {opt.text}</div>
-                                      </label>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {!isSubmitted && <button onClick={submitAllQuiz} className="w-full bg-green-600 hover:bg-green-700 text-white text-lg font-bold py-4 rounded-2xl transition shadow-lg mt-8">Nộp Bài</button>}
+                  ))}
+                  {!isSubmitted && <button onClick={submitAll} className="w-full bg-green-600 text-white text-lg font-bold py-4 rounded-2xl shadow-lg mt-8">Nộp Bài</button>}
                 </div>
               )}
             </div>
@@ -919,18 +739,12 @@
 
       if (screen === 'result') {
         return (
-          <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
+          <div className="min-h-screen flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-xl p-10 max-w-sm w-full text-center">
-              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"><Icons.Check /></div>
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">Hoàn thành!</h1>
-              <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100 mt-6">
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Điểm số</p>
-                <div className="text-6xl font-black text-blue-600">{score.correct} <span className="text-3xl text-slate-300">/ {score.total}</span></div>
-              </div>
-              <div className="space-y-3">
-                <button onClick={prepareQuiz} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition">Làm lại bài này</button>
-                <button onClick={() => setScreen('dashboard')} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition">Về Trang chủ</button>
-              </div>
+              <h1 className="text-3xl font-bold mb-2">Hoàn thành!</h1>
+              <div className="text-6xl font-black text-blue-600 my-6">{score.correct}/{score.total}</div>
+              <button onClick={prepareQuiz} className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mb-3">Làm lại</button>
+              <button onClick={() => setScreen(currentUser.isGuest?'login':'dashboard')} className="w-full bg-slate-100 font-bold py-3 rounded-xl">Về Trang chủ</button>
             </div>
           </div>
         );
