@@ -1,3 +1,4 @@
+<!--Tạo trắc nghiệm V5 Update-->
 <!DOCTYPE html>
 <html lang="vi" class="light">
 <head>
@@ -23,10 +24,15 @@
   
   <style>
     body { -webkit-font-smoothing: antialiased; }
-    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    .animate-bounce-in { animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes bounceIn {
+      0% { opacity: 0; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
     }
     textarea::-webkit-scrollbar { width: 8px; }
     textarea::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
@@ -37,7 +43,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useMemo, useRef } = React;
     
     // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
     const MY_FIREBASE_CONFIG = {
@@ -51,27 +57,27 @@
     };
 
     // GIỚI HẠN LƯU ĐỀ CHO NGƯỜI DÙNG THƯỜNG
-    const MAX_QUIZZES_PER_USER = 10;
+    const MAX_QUIZZES_PER_USER = 5;
     const ADMIN_USERNAME = "huy20022k8";
 
     // ==========================================
-    // NƠI HUY THÊM BỚT CÁC CÂU NHẬN XÉT ĐIỂM THI
+    // NHẬN XÉT ĐIỂM THI
     // ==========================================
     const RESULT_REMARKS = {
-      bad: [ // Từ 0% đến 49%
+      bad: [
         "🗣Alo Vũ à Vũ",
         "Nhìn cái điểm xong dính c2 Điêu Thuyền mịa luôn🗿",
         "Hết cứu🤡",
         "Học hành đỉnh cao thực sự, đúng là 'thiên tài' có khác🐧",
         "Thôi kiếp này coi như bỏ🙃"
       ],
-      average: [ // Từ 50% đến 84%
+      average: [
         "Thôi thì cũng có nỗ lực, đồng ý cho qua 👍",
         "Trộm vía vẫn còn thở được, ko sao, ko sao 😀",
         "Ủa sao điểm lại ra thế này ta 🌝",
         "Cũng tàm tạm vừa đủ qua môn rồi😛"
       ],
-      good: [ // Từ 85% đến 100%
+      good: [
         "Đù vuýp🤯",
         "Đù, học kiểu đéo gì mà điểm cháy vailon thế☠️",
         "Làm lại mấy lần rồi mà điểm chất thế💩",
@@ -126,7 +132,7 @@
       Upload: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
       Image: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
       Check: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
-      Logout: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
+      Logout: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
       Share: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>,
       Play: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
       Copy: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
@@ -139,7 +145,8 @@
       UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>,
       Edit: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>,
       Key: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>,
-      Plus: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+      Plus: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
+      Alert: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
     };
 
     // --- COMPONENT HƯỚNG DẪN SETUP ---
@@ -214,11 +221,12 @@
       const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [], rc: [] });
       const [editingQ, setEditingQ] = useState(null); 
       
-      // UI Modals State for Input
-      const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-      const [showSaveConfirm, setShowSaveConfirm] = useState(false);
-      // UI Modal for Adding new Question in Settings
+      // Modal State
       const [showAddSectionSelector, setShowAddSectionSelector] = useState(false);
+      const [customAlert, setCustomAlert] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: null, confirmText: 'Đồng ý', cancelText: 'Hủy' });
+
+      // Cooldown State
+      const [saveCooldown, setSaveCooldown] = useState(0);
 
       const [config, setConfig] = useState({ mode: 'single', shuffle: 'none' });
       const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], rc: [], flat: [] });
@@ -236,6 +244,25 @@
         localStorage.setItem('quiz_theme', theme);
       }, [theme]);
       const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+
+      // COOLDOWN EFFECT (Chỉ chạy khi ở màn hình Tạo đề mới)
+      useEffect(() => {
+        if (screen === 'input' && !currentQuizCode) {
+            setSaveCooldown(10); // Khóa 10s khi tạo đề mới
+            const timerId = setInterval(() => {
+                setSaveCooldown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timerId);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            return () => clearInterval(timerId);
+        } else {
+            setSaveCooldown(0);
+        }
+      }, [screen, currentQuizCode]);
 
       // MESSAGE HELPER
       const showMessage = (text, type = 'error') => {
@@ -313,17 +340,26 @@
         } catch (error) { showMessage("Lỗi kết nối mạng."); }
       };
 
-      const handleDeleteAccount = async () => {
+      const handleDeleteAccount = () => {
         if (!currentUser || !db) return;
-        if (!window.confirm("CẢNH BÁO: Xóa tài khoản sẽ xóa vĩnh viễn mọi đề thi của bạn. Tiếp tục?")) return;
-        try {
-          const usernameLower = currentUser.username.toLowerCase();
-          const userQuizzes = allQuizzes.filter(q => q.owner === usernameLower);
-          for (const q of userQuizzes) await db.doc(`${quizzesPath}/${q.id}`).delete();
-          await db.doc(`${usersPath}/${usernameLower}`).delete();
-          showMessage("Đã xóa tài khoản và dọn dẹp dữ liệu!", "success");
-          setCurrentUser(null); setShowUserMenu(false); setScreen('home');
-        } catch (error) { showMessage("Lỗi khi xóa tài khoản!"); }
+        setCustomAlert({
+            isOpen: true,
+            title: "CẢNH BÁO",
+            message: "Xóa tài khoản sẽ xóa vĩnh viễn mọi đề thi của bạn. Bạn chắc chắn chứ?",
+            type: 'danger',
+            confirmText: 'Xóa tài khoản',
+            cancelText: 'Hủy',
+            onConfirm: async () => {
+                try {
+                  const usernameLower = currentUser.username.toLowerCase();
+                  const userQuizzes = allQuizzes.filter(q => q.owner === usernameLower);
+                  for (const q of userQuizzes) await db.doc(`${quizzesPath}/${q.id}`).delete();
+                  await db.doc(`${usersPath}/${usernameLower}`).delete();
+                  showMessage("Đã xóa tài khoản và dọn dẹp dữ liệu!", "success");
+                  setCurrentUser(null); setShowUserMenu(false); setScreen('home');
+                } catch (error) { showMessage("Lỗi khi xóa tài khoản!"); }
+            }
+        });
       };
 
       const handleChangePassword = async (e) => {
@@ -443,6 +479,8 @@
       };
 
       const processAndSaveQuizzes = async () => {
+        if(saveCooldown > 0) return; // Prevent saving if cooldown is active
+        
         let allMC = [], allTF = [], allSA = [], allRC = [];
         
         if (inputTab === 'file') {
@@ -498,11 +536,19 @@
       };
 
       const handleParseAndSave = () => {
+        if (saveCooldown > 0) return;
+        
         if (currentQuizCode) {
-           // Nếu đang sửa đề cũ, hiện cảnh báo Lưu
-           setShowSaveConfirm(true);
+           setCustomAlert({
+               isOpen: true,
+               title: "Bạn có muốn lưu text này không?",
+               message: "Tất cả những gì bạn đã làm trong phần \"Chi tiết các câu hỏi\" sẽ mất",
+               type: 'warning',
+               confirmText: 'Vẫn Lưu',
+               cancelText: 'Hủy bỏ',
+               onConfirm: processAndSaveQuizzes
+           });
         } else {
-           // Nếu tạo đề mới, lưu luôn
            processAndSaveQuizzes();
         }
       };
@@ -527,10 +573,8 @@
          const newData = {...parsedData};
          
          if (editingQ.isNew) {
-             // Thêm câu hỏi mới
              newData[editingQ.sectionId].push(editingQ.data);
          } else {
-             // Sửa câu hỏi cũ
              const index = newData[editingQ.sectionId].findIndex(q => q.id === editingQ.data.id);
              if (index !== -1) newData[editingQ.sectionId][index] = editingQ.data;
          }
@@ -546,19 +590,28 @@
          }
       };
 
-      const removeInlineQuestion = async () => {
-         if (!window.confirm("Xác nhận XÓA HOÀN TOÀN câu hỏi này?")) return;
-         const newData = {...parsedData};
-         newData[editingQ.sectionId] = newData[editingQ.sectionId].filter(q => q.id !== editingQ.data.id);
-         setParsedData(newData);
-         setEditingQ(null);
-         
-         if (currentUser && currentQuizCode && db) {
-            try {
-                await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
-                showMessage("Đã xóa câu hỏi!", "success");
-            } catch(e) {}
-         }
+      const removeInlineQuestion = () => {
+         setCustomAlert({
+             isOpen: true,
+             title: "Xóa câu hỏi",
+             message: "Xác nhận XÓA HOÀN TOÀN câu hỏi này?",
+             type: 'danger',
+             confirmText: 'Xóa ngay',
+             cancelText: 'Hủy',
+             onConfirm: async () => {
+                 const newData = {...parsedData};
+                 newData[editingQ.sectionId] = newData[editingQ.sectionId].filter(q => q.id !== editingQ.data.id);
+                 setParsedData(newData);
+                 setEditingQ(null);
+                 
+                 if (currentUser && currentQuizCode && db) {
+                    try {
+                        await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
+                        showMessage("Đã xóa câu hỏi!", "success");
+                    } catch(e) {}
+                 }
+             }
+         });
       };
 
       const handleAddNewQuestion = (sectionId) => {
@@ -591,7 +644,7 @@
 
         setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, rc: finalRc, flat: [...finalMc, ...finalTf, ...finalSa, ...finalRc] });
         setAnswers({}); setCurrentIndex(0); setIsSubmitted(false); setSingleQuestionConfirmed(false);
-        setEndRemark(''); // Xóa nhận xét cũ
+        setEndRemark(''); 
         
         let rcQCount = finalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
         setScore({ correct: 0, total: finalMc.length + finalTf.length + finalSa.length + rcQCount });
@@ -649,6 +702,25 @@
         )
       );
 
+      const CustomConfirmModal = () => {
+        if (!customAlert.isOpen) return null;
+        return (
+          <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center animate-bounce-in border border-slate-200 dark:border-slate-700">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${customAlert.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-500' : 'bg-red-100 dark:bg-red-900/40 text-red-500'}`}>
+                   <Icons.Alert />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">{customAlert.title}</h3>
+                <p className={`mb-8 font-medium ${customAlert.type === 'warning' ? 'text-amber-600 dark:text-amber-500 text-sm' : 'text-slate-600 dark:text-slate-400'}`}>{customAlert.message}</p>
+                <div className="flex gap-3">
+                   <button onClick={() => { customAlert.onConfirm(); setCustomAlert({isOpen: false}); }} className={`flex-1 text-white font-bold py-3 rounded-xl shadow-md transition ${customAlert.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-600 hover:bg-red-700'}`}>{customAlert.confirmText}</button>
+                   <button onClick={() => setCustomAlert({isOpen: false})} className="flex-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold py-3 rounded-xl transition">{customAlert.cancelText}</button>
+                </div>
+             </div>
+          </div>
+        );
+      };
+
       const ThemeToggleBtn = () => (
         <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition" title="Đổi giao diện Tối/Sáng">
           {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
@@ -665,7 +737,7 @@
               <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl p-8 text-white shadow-xl flex flex-col justify-center">
                 <div className="mb-8">
                   <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block">Dành cho Người thi</span>
-                  <h1 className="text-4xl font-black mb-2">Vào Thi Ngay</h1>
+                  <h2 className="text-3xl md:text-4xl font-black mb-2">Vào Thi Ngay</h2>
                   <p className="text-blue-100">Không cần đăng nhập. Nhập mã đề 6 ký tự để bắt đầu làm bài.</p>
                 </div>
                 <form onSubmit={handleGuestJoin} className="bg-white/10 p-2 rounded-2xl flex gap-2 border border-white/20 backdrop-blur-sm">
@@ -676,13 +748,13 @@
               <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-center transition-colors">
                 <div className="mb-6">
                   <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block transition-colors">Dành cho Người ra đề</span>
-                  <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-2">Quản Lý Đề Thi</h2>
+                  <h2 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white mb-2">Quản Lý Đề Thi</h2>
                   <p className="text-slate-500 dark:text-slate-400">Đăng nhập để tạo đề, lưu trữ và lấy mã chia sẻ.</p>
                 </div>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên tài khoản</label>
-                    <input type="text" name="username" placeholder="Viết liền không dấu..." required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
+                    <input type="text" name="username" placeholder="Tên đăng nhập" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Mật khẩu</label>
@@ -714,6 +786,7 @@
         return (
           <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-50 dark:bg-slate-900 transition-colors">
             <Notification />
+            <CustomConfirmModal />
             
             {showChangePwd && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -730,19 +803,20 @@
             )}
 
             <div className="max-w-5xl mx-auto">
+              {/* KHU VỰC TÀI KHOẢN ĐƯỢC CHỈNH LẠI FLEX ĐỂ KHÔNG BỊ LỆCH */}
               <div className="flex flex-col md:flex-row justify-between md:items-center mb-8 bg-white dark:bg-slate-800 p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 gap-4 transition-colors">
                 
-                <div className="flex justify-between items-center w-full md:w-auto gap-4 md:border-r border-slate-200 dark:border-slate-700 md:pr-6">
+                <div className="flex flex-wrap sm:flex-nowrap justify-between items-center w-full md:w-auto gap-3 md:gap-4 md:border-r border-slate-200 dark:border-slate-700 md:pr-6">
                   {/* Dropdown User */}
-                  <div className="relative">
-                    <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80 transition w-full md:w-auto">
-                      <Icons.User /> <span className="text-blue-600 dark:text-blue-400">{currentUser?.username}</span> ▾
-                      {isAdmin && <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase">VIP</span>}
+                  <div className="relative flex-1 min-w-[140px]">
+                    <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-lg md:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80 transition w-full text-left truncate">
+                      <Icons.User /> <span className="text-blue-600 dark:text-blue-400 truncate">{currentUser?.username}</span> ▾
+                      {isAdmin && <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase shrink-0">VIP</span>}
                     </button>
                     {showUserMenu && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
-                        <div className="absolute left-0 mt-2 w-56 md:w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
+                        <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
                           <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition"><Icons.Key /> Đổi mật khẩu</button>
                           <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium transition"><Icons.UserX /> Xóa tài khoản</button>
                         </div>
@@ -750,10 +824,10 @@
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <ThemeToggleBtn />
-                    <button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm font-bold">
-                      Đăng xuất
+                    <button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="flex items-center gap-1.5 px-3 py-2 md:py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm font-bold">
+                      <Icons.Logout /> Đăng xuất
                     </button>
                   </div>
                 </div>
@@ -805,14 +879,17 @@
                           
                           <button onClick={() => db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000) })} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800 transition text-sm">+7 Ngày</button>
                           
-                          {confirmDeleteId === q.id ? (
-                            <div className="absolute right-0 bottom-12 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-xl border border-red-200 dark:border-red-800 flex gap-2">
-                              <button onClick={() => { db.doc(`${quizzesPath}/${q.id}`).delete(); setConfirmDeleteId(null); }} className="bg-red-500 text-white px-3 py-1 font-bold rounded text-sm transition">Xóa</button>
-                              <button onClick={() => setConfirmDeleteId(null)} className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 px-3 py-1 font-bold rounded text-sm transition">Hủy</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setConfirmDeleteId(q.id)} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-500 hover:text-white transition"><Icons.Trash /></button>
-                          )}
+                          <button onClick={() => {
+                              setCustomAlert({
+                                  isOpen: true,
+                                  title: "Xóa đề thi",
+                                  message: "Bạn có chắc chắn muốn xóa đề thi này không? Hành động này không thể hoàn tác.",
+                                  type: 'danger',
+                                  confirmText: 'Xóa ngay',
+                                  cancelText: 'Hủy',
+                                  onConfirm: () => db.doc(`${quizzesPath}/${q.id}`).delete()
+                              });
+                          }} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-500 hover:text-white transition"><Icons.Trash /></button>
                         </div>
                       </div>
                     );
@@ -853,41 +930,28 @@
         return (
           <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
             <Notification />
-            
-            {/* Modal cảnh báo HỦY */}
-            {showCancelConfirm && (
-              <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-xl max-w-sm text-center">
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Bạn có muốn hủy sửa text gốc hay không?</h3>
-                  <p className="text-sm text-red-500 mb-6 font-medium">Tất cả những gì bạn sửa ở đây sẽ không được lưu</p>
-                  <div className="flex gap-3">
-                    <button onClick={() => { setShowCancelConfirm(false); setScreen('settings'); }} className="flex-1 bg-red-600 text-white font-bold py-2 rounded-xl">Đồng ý Hủy</button>
-                    <button onClick={() => setShowCancelConfirm(false)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-xl">Quay lại</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Modal cảnh báo LƯU */}
-            {showSaveConfirm && (
-              <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-xl max-w-sm text-center">
-                  <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Bạn có muốn lưu text này không?</h3>
-                  <p className="text-sm text-orange-500 mb-6 font-medium">Tất cả những gì bạn đã làm trong phần "Chi tiết các câu hỏi" sẽ mất</p>
-                  <div className="flex gap-3">
-                    <button onClick={() => { setShowSaveConfirm(false); processAndSaveQuizzes(); }} className="flex-1 bg-green-600 text-white font-bold py-2 rounded-xl">Vẫn Lưu</button>
-                    <button onClick={() => setShowSaveConfirm(false)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-xl">Hủy bỏ</button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <CustomConfirmModal />
 
             <div className="max-w-5xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 transition-colors border border-slate-200 dark:border-slate-700">
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-black text-slate-800 dark:text-white">Soạn Thảo Đề Thi</h1>
                 <div className="flex items-center gap-4">
                   <ThemeToggleBtn />
-                  <button onClick={() => currentQuizCode ? setShowCancelConfirm(true) : setScreen('dashboard')} className="text-slate-500 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition">Thoát</button>
+                  <button onClick={() => {
+                      if (currentQuizCode) {
+                          setCustomAlert({
+                              isOpen: true,
+                              title: "Bạn có muốn hủy sửa text gốc hay không?",
+                              message: "Tất cả những gì bạn sửa ở đây sẽ không được lưu",
+                              type: 'danger',
+                              confirmText: 'Đồng ý Hủy',
+                              cancelText: 'Quay lại',
+                              onConfirm: () => setScreen('settings')
+                          });
+                      } else {
+                          setScreen('dashboard');
+                      }
+                  }} className="text-slate-500 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition">Thoát</button>
                 </div>
               </div>
 
@@ -927,12 +991,31 @@
 
               <div className="flex gap-4">
                 {currentQuizCode && (
-                  <button onClick={() => setShowCancelConfirm(true)} className="flex-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-black text-lg py-4 rounded-2xl shadow transition">
+                  <button onClick={() => {
+                      setCustomAlert({
+                          isOpen: true,
+                          title: "Bạn có muốn hủy sửa text gốc hay không?",
+                          message: "Tất cả những gì bạn sửa ở đây sẽ không được lưu",
+                          type: 'danger',
+                          confirmText: 'Đồng ý Hủy',
+                          cancelText: 'Quay lại',
+                          onConfirm: () => setScreen('settings')
+                      });
+                  }} className="flex-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-black text-lg py-4 rounded-2xl shadow transition">
                     HỦY
                   </button>
                 )}
-                <button onClick={handleParseAndSave} className={`${currentQuizCode ? 'flex-[2]' : 'w-full'} bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform hover:-translate-y-1`}>
-                  <Icons.Check /> LƯU LẠI & TIẾP TỤC
+                
+                <button 
+                  onClick={saveCooldown > 0 ? null : handleParseAndSave} 
+                  disabled={saveCooldown > 0}
+                  className={`${currentQuizCode ? 'flex-[2]' : 'w-full'} ${saveCooldown > 0 ? 'bg-slate-400 dark:bg-slate-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform ${saveCooldown > 0 ? '' : 'hover:-translate-y-1'}`}
+                >
+                  {saveCooldown > 0 ? (
+                    `VUI LÒNG ĐỢI (${saveCooldown}s)`
+                  ) : (
+                    <><Icons.Check /> LƯU</>
+                  )}
                 </button>
               </div>
             </div>
@@ -952,19 +1035,20 @@
         return (
           <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
             <Notification />
+            <CustomConfirmModal />
             
             {/* Modal chọn loại câu hỏi để THÊM MỚI */}
             {showAddSectionSelector && (
               <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 dark:border-slate-700">
-                    <h3 className="text-xl font-black text-slate-800 dark:text-white mb-4">Bạn muốn thêm câu hỏi gì?</h3>
+                 <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-700 animate-bounce-in">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white mb-4 text-center">Bạn muốn thêm câu hỏi gì?</h3>
                     <div className="space-y-3">
-                       <button onClick={() => handleAddNewQuestion('mc')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">Trắc nghiệm</button>
-                       <button onClick={() => handleAddNewQuestion('tf')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">Đúng / Sai</button>
-                       <button onClick={() => handleAddNewQuestion('sa')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">Trả lời ngắn</button>
-                       <button onClick={() => handleAddNewQuestion('rc')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">Đọc hiểu / Đoạn văn chung</button>
+                       <button onClick={() => handleAddNewQuestion('mc')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">I. Trắc nghiệm</button>
+                       <button onClick={() => handleAddNewQuestion('tf')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">II. Đúng / Sai</button>
+                       <button onClick={() => handleAddNewQuestion('sa')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">III. Trả lời ngắn</button>
+                       <button onClick={() => handleAddNewQuestion('rc')} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">IV. Đọc hiểu / Nhóm</button>
                     </div>
-                    <button onClick={() => setShowAddSectionSelector(false)} className="w-full mt-4 py-2 bg-slate-200 dark:bg-slate-700 font-bold rounded-xl dark:text-white hover:bg-slate-300 transition">Hủy</button>
+                    <button onClick={() => setShowAddSectionSelector(false)} className="w-full mt-4 py-3 bg-slate-200 dark:bg-slate-700 font-bold rounded-xl dark:text-white hover:bg-slate-300 transition">Hủy</button>
                  </div>
               </div>
             )}
@@ -1111,10 +1195,13 @@
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="sm:w-auto w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-6 py-3 rounded-xl transition">Thoát</button>
-                  {!isReadOnly && <button onClick={() => setScreen('input')} className="sm:w-auto w-full bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 font-bold px-6 py-3 rounded-xl transition">Sửa Text Gốc</button>}
-                  <button onClick={prepareQuiz} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Play /> BẮT ĐẦU THI</button>
+                {/* SẮP XẾP LẠI NÚT CHỨC NĂNG */}
+                <div className="flex flex-col gap-3">
+                  <button onClick={prepareQuiz} className="w-full bg-green-600 hover:bg-green-700 text-white font-black px-6 py-4 rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-lg transform hover:-translate-y-1"><Icons.Play /> BẮT ĐẦU THI</button>
+                  <div className="flex gap-3">
+                     <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-4 py-3 rounded-xl transition">Thoát</button>
+                     {!isReadOnly && <button onClick={() => setScreen('input')} className="flex-1 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 font-bold px-4 py-3 rounded-xl transition">Sửa Text Gốc</button>}
+                  </div>
                 </div>
               </div>
 
@@ -1251,7 +1338,6 @@
           }
           setSingleQuestionConfirmed(true);
           
-          // Kiểm tra xem đây có phải câu cuối không, nếu phải thì generate nhận xét luôn
           if (currentIndex === activeQuiz.flat.length - 1) {
               setEndRemark(generateRandomRemark(score.correct + isCorrectThisTime, totalQ));
           }
@@ -1294,6 +1380,7 @@
         return (
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-20 animate-fade-in transition-colors">
             <Notification />
+            <CustomConfirmModal />
             
             <div className="sticky top-0 z-40 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 transition-colors">
               <div className="max-w-4xl mx-auto flex items-center justify-between p-4">
@@ -1302,7 +1389,17 @@
                 </div>
                 <div className="flex items-center gap-3">
                   <ThemeToggleBtn />
-                  <button onClick={() => { if(window.confirm("Thoát sẽ mất kết quả đang làm. Vẫn thoát?")) setScreen(currentUser ? 'dashboard' : 'home')}} className="font-bold text-red-500 dark:text-red-400 hover:text-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/50">Thoát</button>
+                  <button onClick={() => { 
+                      setCustomAlert({
+                          isOpen: true,
+                          title: "CẢNH BÁO",
+                          message: "Thoát sẽ mất kết quả đang làm. Vẫn thoát?",
+                          type: 'warning',
+                          confirmText: 'Vẫn thoát',
+                          cancelText: 'Hủy',
+                          onConfirm: () => setScreen(currentUser ? 'dashboard' : 'home')
+                      });
+                  }} className="font-bold text-red-500 dark:text-red-400 hover:text-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/50">Thoát</button>
                 </div>
               </div>
               <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700">
@@ -1441,3 +1538,5 @@
   </script>
 </body>
 </html>
+
+
