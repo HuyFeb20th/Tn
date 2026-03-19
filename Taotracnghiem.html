@@ -7,14 +7,10 @@
   
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      darkMode: 'class', // Kích hoạt dark mode qua class 'dark'
-    }
+    tailwind.config = { darkMode: 'class' }
   </script>
   
   <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
@@ -23,11 +19,8 @@
   
   <style>
     body { -webkit-font-smoothing: antialiased; }
-    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     textarea::-webkit-scrollbar { width: 8px; }
     textarea::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     .dark textarea::-webkit-scrollbar-thumb { background-color: #475569; }
@@ -39,7 +32,7 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
     
-    // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
+    // CẤU HÌNH FIREBASE CỦA HUY
     const MY_FIREBASE_CONFIG = {
       apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
       authDomain: "tracnghiem-31c44.firebaseapp.com",
@@ -50,15 +43,12 @@
       measurementId: "G-VNXTHZV6ZH"
     };
 
-    // GIỚI HẠN LƯU ĐỀ CHO NGƯỜI DÙNG THƯỜNG
     const MAX_QUIZZES_PER_USER = 5;
     const ADMIN_USERNAME = "huy20022k8";
 
-    // --- KHỞI TẠO HỆ THỐNG ---
+    // KHỞI TẠO FIREBASE
     let finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
-    let auth = null;
-    let db = null;
-    let isSetupNeeded = false;
+    let auth = null, db = null, isSetupNeeded = false;
     let appId = typeof __app_id !== 'undefined' ? __app_id : 'quiz-app-huy-github';
 
     if (!finalConfig || !finalConfig.apiKey) {
@@ -68,16 +58,13 @@
         if (!firebase.apps.length) firebase.initializeApp(finalConfig);
         auth = firebase.auth();
         db = firebase.firestore();
-      } catch(e) {
-        console.error("Lỗi khởi tạo Firebase:", e);
-        isSetupNeeded = true;
-      }
+      } catch(e) { isSetupNeeded = true; }
     }
 
     const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
     const usersPath = `artifacts/${appId}/public/data/users`;
 
-    // --- TIỆN ÍCH ---
+    // TIỆN ÍCH
     const shuffleArray = (array) => {
       const newArr = [...array];
       for (let i = newArr.length - 1; i > 0; i--) {
@@ -86,17 +73,13 @@
       }
       return newArr;
     };
-
     const generateShareCode = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let result = '';
-      for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-      return result;
+      return Array.from({length: 6}).map(() => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
     };
-
     const generateId = () => Math.random().toString(36).substr(2, 9);
 
-    // --- ICONS ---
+    // ICONS
     const Icons = {
       Upload: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
       Image: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
@@ -111,22 +94,12 @@
       Moon: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>,
       Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
       EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>,
-      UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>
+      UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>,
+      Edit: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>,
+      Key: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
     };
 
-    // --- COMPONENT HƯỚNG DẪN SETUP ---
-    function SetupScreen() {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 font-sans">
-          <div className="max-w-2xl bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center">
-            <h1 className="text-3xl font-black text-red-600 mb-4">Chưa có kết nối Database!</h1>
-            <p className="text-slate-600 mb-4">Hãy dán đoạn mã <code>firebaseConfig</code> của bạn vào dòng số 42 trong code nhé.</p>
-          </div>
-        </div>
-      );
-    }
-
-    // --- COMPONENT TRẢ LỜI NGẮN ---
+    // COMPONENT NHẬP TRẢ LỜI NGẮN
     const ShortAnswerInput = ({ value = '', onChange, readOnly, isCorrect, showResult }) => {
       const chars = (value || '').split('');
       const boxes = [0, 1, 2, 3];
@@ -162,29 +135,31 @@
 
     // ================= APP CHÍNH =================
     function MainApp() {
+      // User State
       const [fbUser, setFbUser] = useState(null);
       const [currentUser, setCurrentUser] = useState(null); 
-      const [showPassword, setShowPassword] = useState(false);
       
+      // UI State
       const [screen, setScreen] = useState('home'); 
-      const [allQuizzes, setAllQuizzes] = useState([]);
+      const [showPassword, setShowPassword] = useState(false);
+      const [showUserMenu, setShowUserMenu] = useState(false);
+      const [showChangePwd, setShowChangePwd] = useState(false);
       const [globalMessage, setGlobalMessage] = useState({ text: '', type: 'error' });
-      const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-
-      // Theme State (Dark/Light Mode)
       const [theme, setTheme] = useState(localStorage.getItem('quiz_theme') || 'light');
-
-      // Input State
+      
+      // Data State
+      const [allQuizzes, setAllQuizzes] = useState([]);
+      const [confirmDeleteId, setConfirmDeleteId] = useState(null);
       const [inputTab, setInputTab] = useState('mc'); 
       const [rawTexts, setRawTexts] = useState({ mc: '', tf: '', sa: '', rc: '', file: '' });
 
-      // Quiz State
+      // Quiz Edit & Play State
       const [isReadOnly, setIsReadOnly] = useState(false);
       const [currentQuizCode, setCurrentQuizCode] = useState(null);
       const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [], rc: [] });
+      const [editingQ, setEditingQ] = useState(null); // Cho Inline Editing
       const [config, setConfig] = useState({ mode: 'single', shuffle: 'none' });
       
-      // Gameplay State
       const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], rc: [], flat: [] });
       const [answers, setAnswers] = useState({}); 
       const [currentIndex, setCurrentIndex] = useState(0); 
@@ -192,19 +167,15 @@
       const [singleQuestionConfirmed, setSingleQuestionConfirmed] = useState(false); 
       const [score, setScore] = useState({ correct: 0, total: 0 });
 
-      // --- EFFECT: Xử lý Giao diện Tối/Sáng ---
+      // THEME EFFECT
       useEffect(() => {
-        if (theme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
         localStorage.setItem('quiz_theme', theme);
       }, [theme]);
-
       const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
-      // --- Các hàm tiện ích khác ---
+      // MESSAGE HELPER
       const showMessage = (text, type = 'error') => {
         setGlobalMessage({ text, type });
         setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
@@ -214,23 +185,20 @@
         try {
           if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
-            showMessage("Đã copy mã: " + text, "success");
-            return;
+            showMessage("Đã copy mã: " + text, "success"); return;
           }
         } catch (err) {}
-        const textArea = document.createElement("textarea");
-        textArea.value = text; textArea.style.position = "fixed"; textArea.style.opacity = "0";
-        document.body.appendChild(textArea); textArea.focus(); textArea.select();
+        const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.focus(); ta.select();
         try { document.execCommand('copy'); showMessage("Đã copy mã: " + text, "success"); } 
         catch (err) { showMessage("Bôi đen để copy mã nhé.", "error"); }
-        document.body.removeChild(textArea);
+        document.body.removeChild(ta);
       };
 
+      // FIREBASE EFFECTS
       useEffect(() => {
         if (!auth) return;
-        const initAuth = async () => {
-          try { await auth.signInAnonymously(); } catch (error) { console.error(error); }
-        };
+        const initAuth = async () => { try { await auth.signInAnonymously(); } catch (error) {} };
         initAuth();
         const unsub = auth.onAuthStateChanged((u) => setFbUser(u));
         return () => unsub();
@@ -260,91 +228,102 @@
         });
       }, [allQuizzes, currentUser]);
 
-      // --- LOGIN / GUEST ---
+      // --- LOGIC TÀI KHOẢN ---
       const handleLogin = async (e) => {
         e.preventDefault();
         const uname = e.target.username.value.trim();
         const pwd = e.target.password.value;
         if (!uname || !pwd) return showMessage("Vui lòng nhập đủ thông tin.");
-
         const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
         try {
           const userSnap = await userRef.get();
           if (userSnap.exists) {
             if (userSnap.data().password === pwd) {
-              setCurrentUser({ username: userSnap.data().username });
-              setScreen('dashboard');
+              setCurrentUser({ username: userSnap.data().username }); setScreen('dashboard');
             } else showMessage("Sai mật khẩu!");
           } else {
             await userRef.set({ username: uname, password: pwd });
-            setCurrentUser({ username: uname });
-            setScreen('dashboard');
+            setCurrentUser({ username: uname }); setScreen('dashboard');
             showMessage("Tạo tài khoản thành công!", "success");
           }
         } catch (error) { showMessage("Lỗi kết nối mạng."); }
       };
 
-      // --- LOGIC XÓA TÀI KHOẢN ---
       const handleDeleteAccount = async () => {
         if (!currentUser || !db) return;
-        
-        const confirmMsg = "CẢNH BÁO: Bạn có chắc chắn muốn xóa tài khoản này không?\n\nToàn bộ đề thi do bạn tạo cũng sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác!";
-        if (!window.confirm(confirmMsg)) return;
-
+        if (!window.confirm("CẢNH BÁO: Xóa tài khoản sẽ xóa vĩnh viễn mọi đề thi của bạn. Tiếp tục?")) return;
         try {
           const usernameLower = currentUser.username.toLowerCase();
-          
           const userQuizzes = allQuizzes.filter(q => q.owner === usernameLower);
-          for (const q of userQuizzes) {
-            await db.doc(`${quizzesPath}/${q.id}`).delete();
-          }
-
+          for (const q of userQuizzes) await db.doc(`${quizzesPath}/${q.id}`).delete();
           await db.doc(`${usersPath}/${usernameLower}`).delete();
+          showMessage("Đã xóa tài khoản và dọn dẹp dữ liệu!", "success");
+          setCurrentUser(null); setShowUserMenu(false); setScreen('home');
+        } catch (error) { showMessage("Lỗi khi xóa tài khoản!"); }
+      };
 
-          showMessage("Đã xóa tài khoản và dọn dẹp dữ liệu thành công!", "success");
-          setCurrentUser(null);
-          setScreen('home');
-        } catch (error) {
-          showMessage("Lỗi khi xóa tài khoản: " + error.message);
-        }
+      const handleChangePassword = async (e) => {
+        e.preventDefault();
+        const oldPwd = e.target.oldPassword.value;
+        const newPwd = e.target.newPassword.value;
+        const userRef = db.doc(`${usersPath}/${currentUser.username.toLowerCase()}`);
+        try {
+          const snap = await userRef.get();
+          if (snap.data().password === oldPwd) {
+            await userRef.update({ password: newPwd });
+            showMessage("Đổi mật khẩu thành công!", "success");
+            setShowChangePwd(false);
+          } else showMessage("Mật khẩu cũ không đúng!");
+        } catch (err) { showMessage("Lỗi đổi mật khẩu!"); }
       };
 
       const handleGuestJoin = async (e) => {
         e.preventDefault();
         const code = e.target.shareCode.value.trim().toUpperCase();
         if (code.length !== 6) return showMessage("Mã đề gồm 6 ký tự.");
-
         const qDoc = allQuizzes.find(q => q.code === code && q.expiresAt > Date.now());
         if (qDoc) {
           const safeParsed = { mc: [], tf: [], sa: [], rc: [], ...qDoc.parsedData };
-          setParsedData(safeParsed);
-          setIsReadOnly(true);
-          setCurrentQuizCode(code);
-          setScreen('settings');
-        } else {
-          showMessage("Mã không đúng hoặc đề đã hết hạn!");
-        }
+          setParsedData(safeParsed); setIsReadOnly(true); setCurrentQuizCode(code); setScreen('settings');
+        } else showMessage("Mã không đúng hoặc đề đã hết hạn!");
       };
 
-      // --- PARSING ENGINE ---
+      // --- PARSING ENGINE SIÊU CẤP ---
       const parseTextEngine = (text, forcedType) => {
         let result = [];
-        let currentQ = null;
-        let currentSubQ = null;
+        let currentQ = null, currentSubQ = null;
+        let currentSectionType = forcedType; 
 
         const lines = text.split('\n');
         for (let rawLine of lines) {
           let line = rawLine.replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim();
           if (!line) continue;
 
+          // Nhận diện header Phần I, II, III, IV trong file hỗn hợp
+          if (forcedType === 'mixed') {
+              const secMatch = line.match(/^[Pp]hần\s+([IVX]+|[1-4])/i);
+              if (secMatch) {
+                  const secNum = secMatch[1].toUpperCase();
+                  if (secNum === 'I' || secNum === '1') currentSectionType = 'mc';
+                  else if (secNum === 'II' || secNum === '2') currentSectionType = 'tf';
+                  else if (secNum === 'III' || secNum === '3') currentSectionType = 'sa';
+                  else if (secNum === 'IV' || secNum === '4') currentSectionType = 'rc';
+                  continue; 
+              }
+          }
+
+          const activeType = currentSectionType === 'mixed' ? 'mc' : currentSectionType;
+
+          // 1. Nhận diện câu hỏi chính
           const qMatch = line.match(/^[Cc][âa]u\s*\d+[\.\:\)]\s*(.*)/);
           if (qMatch) {
             if (currentQ) result.push(currentQ);
-            currentQ = { id: generateId(), text: qMatch[1] || "", type: forcedType !== 'mixed' ? forcedType : null, options: [], subQuestions: [], image: null };
+            currentQ = { id: generateId(), text: qMatch[1] || "", type: activeType, options: [], subQuestions: [], image: null };
             currentSubQ = null;
             continue;
           }
 
+          // 2. Nhận diện câu hỏi phụ
           const subQMatch = line.match(/^#\d+[\.\:\)]\s*(.*)/);
           if (subQMatch && currentQ) {
             currentQ.type = 'rc';
@@ -353,18 +332,19 @@
             continue;
           }
 
-          const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\)]\s*(.*)/);
+          // 3. Nhận diện Đáp án (Đồng nhất A. A) A: a. a) a:)
+          const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\:\)]\s*(.*)/);
           if (optMatch) {
             const optObj = { id: generateId(), text: optMatch[3], isCorrect: optMatch[1] === '*' };
-            if (currentSubQ) {
-              currentSubQ.options.push(optObj);
-            } else if (currentQ) {
+            if (currentSubQ) currentSubQ.options.push(optObj);
+            else if (currentQ) {
               currentQ.options.push(optObj);
               if (!currentQ.type) currentQ.type = 'mc'; 
             }
             continue;
           }
 
+          // 4. Nhận diện Trả lời ngắn
           const saMatch = line.match(/^\*\s*(.+?)\s*\*$/);
           if (saMatch && currentQ && !currentSubQ && currentQ.options.length === 0) {
             currentQ.type = 'sa';
@@ -372,6 +352,7 @@
             continue;
           }
 
+          // 5. Nối text rớt dòng
           if (currentSubQ) {
             if (currentSubQ.options.length === 0) currentSubQ.text += '\n' + line;
             else currentSubQ.options[currentSubQ.options.length - 1].text += '\n' + line;
@@ -384,9 +365,8 @@
         return result;
       };
 
-      const handleParse = () => {
+      const handleParseAndSave = async () => {
         let allMC = [], allTF = [], allSA = [], allRC = [];
-
         allMC.push(...parseTextEngine(rawTexts.mc, 'mc'));
         allTF.push(...parseTextEngine(rawTexts.tf, 'tf'));
         allSA.push(...parseTextEngine(rawTexts.sa, 'sa'));
@@ -404,56 +384,73 @@
           return showMessage('Không tìm thấy câu hỏi đúng định dạng ở bất kỳ phần nào!');
         }
 
-        setParsedData({ mc: allMC, tf: allTF, sa: allSA, rc: allRC });
+        const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
+        setParsedData(newParsedData);
+
+        // AUTO SAVE LÊN CLOUD NGAY KHI BẤM "LƯU LẠI & TIẾP TỤC"
+        if (currentUser && db && !isReadOnly) {
+            const usernameLower = currentUser.username.toLowerCase();
+            const isAdmin = usernameLower === ADMIN_USERNAME;
+            
+            if (!isAdmin && !currentQuizCode) {
+              const userQuizzesCount = allQuizzes.filter(q => q.owner === usernameLower).length;
+              if (userQuizzesCount >= MAX_QUIZZES_PER_USER) {
+                showMessage(`Đạt giới hạn ${MAX_QUIZZES_PER_USER} đề. Đề này chỉ được lưu tạm trên máy, hãy xóa bớt đề cũ.`, "error");
+                setScreen('settings'); return;
+              }
+            }
+
+            const code = currentQuizCode || generateShareCode();
+            let titleLine = "Đề thi không tên";
+            const allText = Object.values(rawTexts).join('\n');
+            const firstLine = allText.split('\n').find(l => l.trim().length > 0);
+            if(firstLine) titleLine = firstLine.length > 50 ? firstLine.substring(0, 50) + "..." : firstLine;
+
+            try {
+              await db.doc(`${quizzesPath}/${code}`).set({ 
+                  code, owner: usernameLower, title: titleLine, parsedData: newParsedData, rawTexts, 
+                  createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 
+              }, {merge: true});
+              setCurrentQuizCode(code);
+              showMessage("Đã tự động lưu vào Kho đám mây!", "success");
+            } catch (e) { console.error(e); }
+        }
         setScreen('settings');
       };
 
-      // --- LƯU / QUẢN LÝ ---
-      const saveQuiz = async () => {
-        if (!fbUser || !currentUser || !db) return;
-        
-        // CHECK GIỚI HẠN LƯU TRỮ
-        const usernameLower = currentUser.username.toLowerCase();
-        const isAdmin = usernameLower === ADMIN_USERNAME;
-        
-        if (!isAdmin) {
-          const userQuizzesCount = allQuizzes.filter(q => q.owner === usernameLower).length;
-          if (userQuizzesCount >= MAX_QUIZZES_PER_USER) {
-            return showMessage(`Tài khoản thường chỉ được lưu tối đa ${MAX_QUIZZES_PER_USER} đề. Vui lòng xóa bớt đề cũ!`, "error");
+      const handleImageUpload = (qId, sectionId, file) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const newData = { ...parsedData };
+          const q = newData[sectionId].find(x => x.id === qId);
+          if (q) q.image = e.target.result;
+          setParsedData(newData);
+          // Auto save image changes if logged in
+          if (currentUser && currentQuizCode && db) {
+              db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
           }
-        }
-
-        const dataStr = JSON.stringify(parsedData);
-        if (dataStr.length > 900000) return showMessage("Đề có chứa ảnh quá lớn!");
-
-        const code = generateShareCode();
-        let titleLine = "Đề thi không tên";
-        const allText = Object.values(rawTexts).join('\n');
-        const firstLine = allText.split('\n').find(l => l.trim().length > 0);
-        if(firstLine) titleLine = firstLine.length > 50 ? firstLine.substring(0, 50) + "..." : firstLine;
-
-        const docRef = db.doc(`${quizzesPath}/${code}`);
-        const now = Date.now();
-        const expiresAt = now + 30 * 24 * 60 * 60 * 1000;
-
-        try {
-          await docRef.set({ code, owner: usernameLower, title: titleLine, parsedData, rawTexts, createdAt: now, expiresAt });
-          setCurrentQuizCode(code);
-          copyToClipboard(code); 
-        } catch (error) { showMessage("Lỗi khi lưu đề!"); }
+        };
+        reader.readAsDataURL(file);
       };
 
-      const handleDeleteQuiz = async (quizId) => {
-        try { await db.doc(`${quizzesPath}/${quizId}`).delete(); setConfirmDeleteId(null); } catch (e) {}
-      };
-      const handleExtendQuiz = async (q) => {
-        const max = q.createdAt + 50 * 24 * 60 * 60 * 1000; 
-        let newEx = q.expiresAt + 7 * 24 * 60 * 60 * 1000;
-        if (newEx > max) newEx = max;
-        try { await db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: newEx }); showMessage("Đã gia hạn!", "success"); } catch (e) {}
+      // Inline Editing Save
+      const saveInlineEdit = async () => {
+         const newData = {...parsedData};
+         const index = newData[editingQ.sectionId].findIndex(q => q.id === editingQ.data.id);
+         if (index !== -1) newData[editingQ.sectionId][index] = editingQ.data;
+         setParsedData(newData);
+         setEditingQ(null);
+         
+         if (currentUser && currentQuizCode && db) {
+            try {
+                await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
+                showMessage("Đã lưu chỉnh sửa!", "success");
+            } catch(e) {}
+         }
       };
 
-      // --- LOGIC LÀM ĐỀ ---
+      // --- LOGIC LÀM ĐỀ & PROGRESS ---
       const prepareQuiz = () => {
         let finalMc = [...parsedData.mc], finalTf = [...parsedData.tf], finalSa = [...parsedData.sa], finalRc = [...(parsedData.rc || [])];
         const shuffleOpts = config.shuffle === 'options' || config.shuffle === 'both';
@@ -493,8 +490,20 @@
         return false;
       };
 
-      // ================= CÁC MÀN HÌNH (RENDER) =================
+      const getAnsweredCount = () => {
+        let count = 0;
+        activeQuiz.flat.forEach(q => {
+          if (q.type === 'rc') {
+            q.subQuestions.forEach(sq => { if (answers[sq.id] && answers[sq.id].length > 0) count++; });
+          } else {
+            const ans = answers[q.id];
+            if (ans && ((Array.isArray(ans) && ans.length > 0) || (typeof ans === 'string' && ans.trim()))) count++;
+          }
+        });
+        return count;
+      };
 
+      // ================= CÁC MÀN HÌNH (RENDER) =================
       const Notification = () => (
         globalMessage.text && (
           <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
@@ -503,14 +512,13 @@
         )
       );
 
-      // Component Theme Toggle
       const ThemeToggleBtn = () => (
         <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition" title="Đổi giao diện Tối/Sáng">
           {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
         </button>
       );
 
-      // --- MÀN HÌNH CHÍNH TÁCH BIỆT ---
+      // --- MÀN HÌNH CHÍNH (HOME) ---
       if (screen === 'home') {
         return (
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 transition-colors flex items-center justify-center p-4 relative">
@@ -521,10 +529,10 @@
                 <div className="mb-8">
                   <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block">Dành cho Người thi</span>
                   <h1 className="text-4xl font-black mb-2">Vào Thi Ngay</h1>
-                  <p className="text-blue-100">Không cần đăng nhập. Chỉ cần nhập mã đề được chia sẻ để bắt đầu làm bài.</p>
+                  <p className="text-blue-100">Không cần đăng nhập. Nhập mã đề 6 ký tự để bắt đầu làm bài.</p>
                 </div>
                 <form onSubmit={handleGuestJoin} className="bg-white/10 p-2 rounded-2xl flex gap-2 border border-white/20 backdrop-blur-sm">
-                  <input type="text" name="shareCode" placeholder="Nhập mã 6 ký tự..." maxLength="6" className="w-full bg-transparent px-4 py-3 text-xl font-bold uppercase placeholder-blue-200 text-white outline-none" required />
+                  <input type="text" name="shareCode" placeholder="Nhập mã..." maxLength="6" className="w-full bg-transparent px-4 py-3 text-xl font-bold uppercase placeholder-blue-200 text-white outline-none" required />
                   <button type="submit" className="bg-white text-blue-600 px-6 font-bold rounded-xl shadow hover:bg-slate-50 transition">VÀO</button>
                 </form>
               </div>
@@ -532,28 +540,18 @@
                 <div className="mb-6">
                   <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block transition-colors">Dành cho Người ra đề</span>
                   <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-2">Quản Lý Đề Thi</h2>
-                  <p className="text-slate-500 dark:text-slate-400">Đăng nhập để tạo đề, lưu trữ đám mây và chia sẻ mã cho mọi người.</p>
+                  <p className="text-slate-500 dark:text-slate-400">Đăng nhập để tạo đề, lưu trữ và lấy mã chia sẻ.</p>
                 </div>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên tài khoản</label>
-                    <input type="text" name="username" placeholder="Tên để quản lý đề..." required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
+                    <input type="text" name="username" placeholder="Tên tùy ý..." required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Mật khẩu</label>
                     <div className="relative">
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        name="password" 
-                        placeholder="••••••••" 
-                        required 
-                        className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" 
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2"
-                      >
+                      <input type={showPassword ? "text" : "password"} name="password" placeholder="••••••••" required className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2">
                         {showPassword ? <Icons.EyeOff /> : <Icons.Eye />}
                       </button>
                     </div>
@@ -579,20 +577,43 @@
         return (
           <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-50 dark:bg-slate-900 transition-colors">
             <Notification />
+            
+            {/* Modal Đổi mật khẩu */}
+            {showChangePwd && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <form onSubmit={handleChangePassword} className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                  <h3 className="text-xl font-bold mb-4 dark:text-white">Đổi Mật Khẩu</h3>
+                  <input type="password" name="oldPassword" placeholder="Mật khẩu cũ" required className="w-full mb-3 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                  <input type="password" name="newPassword" placeholder="Mật khẩu mới" required className="w-full mb-5 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                  <div className="flex gap-3">
+                    <button type="submit" className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700">Xác nhận</button>
+                    <button type="button" onClick={() => setShowChangePwd(false)} className="flex-1 bg-slate-200 text-slate-800 font-bold py-2 rounded-lg hover:bg-slate-300">Hủy</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             <div className="max-w-5xl mx-auto">
               <div className="flex justify-between items-center mb-8 bg-white dark:bg-slate-800 p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-                <div className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  Xin chào, <span className="text-blue-600 dark:text-blue-400">{currentUser?.username}</span>!
-                  {isAdmin && <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase">VIP</span>}
+                <div className="relative">
+                  <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80">
+                    Xin chào, <span className="text-blue-600 dark:text-blue-400">{currentUser?.username}</span> ▾
+                    {isAdmin && <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase">VIP</span>}
+                  </button>
+                  {/* Dropdown Menu User */}
+                  {showUserMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
+                      <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
+                        <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium"><Icons.Key /> Đổi mật khẩu</button>
+                        <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium"><Icons.UserX /> Xóa tài khoản</button>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 sm:gap-4">
                   <ThemeToggleBtn />
-                  <button onClick={handleDeleteAccount} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-800 transition text-sm font-bold" title="Xóa tài khoản này">
-                    <Icons.UserX /> Xóa TK
-                  </button>
-                  <button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm font-bold">
-                    Đăng xuất
-                  </button>
+                  <button onClick={() => { setCurrentUser(null); setScreen('home'); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition text-sm font-bold">Đăng xuất</button>
                 </div>
               </div>
 
@@ -631,13 +652,13 @@
                             setParsedData(q.parsedData); 
                             if(q.rawTexts) setRawTexts(q.rawTexts); else setRawTexts({...rawTexts, file: q.rawText});
                             setIsReadOnly(false); setCurrentQuizCode(q.code); setScreen('settings'); 
-                          }} className="flex-1 bg-slate-100 dark:bg-slate-700 py-2 rounded-lg font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Sửa Đề</button>
+                          }} className="flex-1 bg-slate-100 dark:bg-slate-700 py-2 rounded-lg font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Xem / Sửa</button>
                           
-                          <button onClick={() => handleExtendQuiz(q)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800 transition text-sm">+7 Ngày</button>
+                          <button onClick={() => db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000) })} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800 transition text-sm">+7 Ngày</button>
                           
                           {confirmDeleteId === q.id ? (
                             <div className="absolute right-0 bottom-12 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-xl border border-red-200 dark:border-red-800 flex gap-2">
-                              <button onClick={() => handleDeleteQuiz(q.id)} className="bg-red-500 text-white px-3 py-1 font-bold rounded text-sm">Xóa</button>
+                              <button onClick={() => { db.doc(`${quizzesPath}/${q.id}`).delete(); setConfirmDeleteId(null); }} className="bg-red-500 text-white px-3 py-1 font-bold rounded text-sm">Xóa</button>
                               <button onClick={() => setConfirmDeleteId(null)} className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 px-3 py-1 font-bold rounded text-sm">Hủy</button>
                             </div>
                           ) : (
@@ -669,7 +690,7 @@
           tf: "Câu 2: Nội dung câu hỏi đúng sai\na) Mệnh đề 1\n*b) Mệnh đề 2 (Đúng)\nc) Mệnh đề 3",
           sa: "Câu 3. Nội dung câu hỏi trả lời ngắn\n*4.5* \n(Lưu ý: Đáp án để giữa 2 dấu sao)",
           rc: "Câu 4. Đây là đoạn văn chung dùng cho các câu hỏi phụ bên dưới.\n#1. Câu hỏi phụ 1 của đoạn văn?\nA. Lựa chọn\n*B) Lựa chọn đúng\n#2: Câu hỏi phụ số 2\n*a. Đúng\nb. Sai",
-          file: "Dán toàn bộ nội dung hỗn hợp vào đây hoặc tải file .txt lên.\nHệ thống sẽ tự nhận diện cấu trúc."
+          file: "Dán toàn bộ nội dung hỗn hợp vào đây hoặc tải file .txt lên.\nHệ thống sẽ tự nhận diện cấu trúc. Nhớ ghi rõ Phần I, Phần II... nếu có."
         };
 
         const tips = {
@@ -677,7 +698,7 @@
           tf: "Tương tự trắc nghiệm, thường dùng 'a)', 'b)'.",
           sa: "Hệ thống sẽ tự hiện bàn phím số trên điện thoại. Đáp án phải để giữa 2 dấu * (VD: *123*).",
           rc: "Dùng 'Câu X.' cho Đoạn văn/Yêu cầu chung. Dùng '#1.', '#2.' cho các câu hỏi con thuộc đoạn văn đó.",
-          file: "Bấm nút bên dưới để tải lên file .txt có chứa sẵn cấu trúc chuẩn."
+          file: "Bấm nút bên dưới để tải lên file .txt có chứa sẵn cấu trúc chuẩn. Có thể bắt đầu bằng Phần I, Phần II..."
         };
 
         return (
@@ -692,7 +713,6 @@
                 </div>
               </div>
 
-              {/* TABS */}
               <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">
                 {tabs.map(t => (
                   <button key={t.id} onClick={() => setInputTab(t.id)} 
@@ -702,7 +722,6 @@
                 ))}
               </div>
 
-              {/* Hướng dẫn & Nút Upload */}
               <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl mb-4 border border-blue-100 dark:border-blue-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">💡 <b>Hướng dẫn:</b> {tips[inputTab]}</p>
                 {inputTab === 'file' && (
@@ -724,13 +743,15 @@
                 onChange={(e) => setRawTexts({...rawTexts, [inputTab]: e.target.value})}
               />
 
-              <button onClick={handleParse} className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition">LƯU LẠI & TIẾP TỤC</button>
+              <button onClick={handleParseAndSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2">
+                <Icons.Check /> LƯU LẠI & TIẾP TỤC
+              </button>
             </div>
           </div>
         );
       }
 
-      // --- MÀN HÌNH SETTINGS (TỔNG QUAN) ---
+      // --- MÀN HÌNH SETTINGS (TỔNG QUAN VÀ CHỈNH SỬA TỪNG CÂU) ---
       if (screen === 'settings') {
         const sections = [
           { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: parsedData.mc },
@@ -742,9 +763,80 @@
         return (
           <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
             <Notification />
+            
+            {/* MODAL INLINE EDITING */}
+            {editingQ && (
+              <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-start pt-10 px-4 overflow-y-auto">
+                <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-2xl shadow-2xl mb-10 animate-fade-in border border-slate-200 dark:border-slate-700">
+                  <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-4">Sửa câu hỏi</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-1">Nội dung câu hỏi / Đoạn văn:</label>
+                      <textarea value={editingQ.data.text} onChange={e => setEditingQ({...editingQ, data: {...editingQ.data, text: e.target.value}})} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none" rows="3" />
+                    </div>
+                    
+                    {/* Render Edit Options if not RC */}
+                    {editingQ.data.type !== 'rc' && (
+                      <div>
+                        <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">Đáp án:</label>
+                        {editingQ.data.options.map((opt, oIdx) => (
+                          <div key={opt.id} className="flex items-center gap-3 mb-2">
+                            {editingQ.data.type !== 'sa' && (
+                              <input type="radio" name="editIsCorrect" checked={opt.isCorrect} onChange={() => {
+                                const newOpts = editingQ.data.options.map(o => ({...o, isCorrect: o.id === opt.id}));
+                                setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                              }} className="w-5 h-5 text-blue-600 cursor-pointer" />
+                            )}
+                            <input value={opt.text} onChange={e => {
+                              const newOpts = [...editingQ.data.options]; newOpts[oIdx].text = e.target.value;
+                              setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                            }} className="flex-1 p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Render SubQuestions if RC */}
+                    {editingQ.data.type === 'rc' && (
+                      <div className="space-y-6 border-t pt-4 dark:border-slate-700">
+                        <label className="block text-sm font-bold text-slate-600 dark:text-slate-400">Các câu hỏi phụ:</label>
+                        {editingQ.data.subQuestions.map((sq, sqIdx) => (
+                          <div key={sq.id} className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border dark:border-slate-700">
+                            <input value={sq.text} onChange={e => {
+                                const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].text = e.target.value;
+                                setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
+                            }} className="w-full p-2 mb-3 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 font-bold" />
+                            {sq.options.map((opt, oIdx) => (
+                              <div key={opt.id} className="flex items-center gap-3 mb-2 pl-4">
+                                <input type="radio" name={`editIsCorrect_sq_${sq.id}`} checked={opt.isCorrect} onChange={() => {
+                                    const newSqs = [...editingQ.data.subQuestions];
+                                    newSqs[sqIdx].options = sq.options.map(o => ({...o, isCorrect: o.id === opt.id}));
+                                    setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
+                                }} className="w-4 h-4 text-blue-600 cursor-pointer" />
+                                <input value={opt.text} onChange={e => {
+                                    const newSqs = [...editingQ.data.subQuestions];
+                                    newSqs[sqIdx].options[oIdx].text = e.target.value;
+                                    setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
+                                }} className="flex-1 p-2 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 text-sm" />
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow">Lưu lại</button>
+                    <button onClick={() => setEditingQ(null)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600">Hủy</button>
+                  </div>
+                  <p className="text-xs text-orange-500 mt-3 text-center">Lưu ý: Chỉnh sửa tại đây sẽ được lưu trực tiếp vào Kho (nếu có mạng) nhưng văn bản gốc ở tab "Soạn Thảo" sẽ không đổi.</p>
+                </div>
+              </div>
+            )}
+
             <div className="max-w-4xl mx-auto space-y-6">
               
-              {/* TOP CARD: ACTIONS */}
               <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 transition-colors">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
                   <h2 className="text-2xl font-black text-slate-800 dark:text-white">Tổng Quan Đề Thi</h2>
@@ -779,22 +871,29 @@
 
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="sm:w-auto w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-6 py-3 rounded-xl transition">Thoát</button>
-                  {!isReadOnly && <button onClick={() => setScreen('input')} className="sm:w-auto w-full bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 font-bold px-6 py-3 rounded-xl transition">Sửa nội dung</button>}
-                  {!isReadOnly && <button onClick={saveQuiz} className="sm:w-auto w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Share /> Lưu & Chia sẻ</button>}
+                  {!isReadOnly && <button onClick={() => setScreen('input')} className="sm:w-auto w-full bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 font-bold px-6 py-3 rounded-xl transition">Sửa Text Gốc</button>}
+                  {!isReadOnly && <button onClick={saveQuiz} className="sm:w-auto w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Share /> Copy Link Chia sẻ</button>}
                   <button onClick={prepareQuiz} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Play /> BẮT ĐẦU THI</button>
                 </div>
               </div>
 
-              {/* LIST OF QUESTIONS */}
               <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 transition-colors">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">Chi tiết các câu hỏi {!isReadOnly && "(Thêm ảnh)"}</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">Chi tiết các câu hỏi</h2>
                 {sections.length === 0 ? <div className="text-center text-slate-400 py-10">Đề trống.</div> : sections.map(section => (
                   <div key={section.id} className="mb-10 last:mb-0">
                     <h3 className="font-bold text-lg text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg mb-4 inline-block border border-blue-100 dark:border-blue-800/50">{section.title}</h3>
                     <div className="space-y-4">
                       {section.data.map((q, idx) => (
-                        <div key={q.id} className="border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-600 transition-colors">
-                          <div className="flex-1">
+                        <div key={q.id} className="border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-600 transition-colors relative">
+                          
+                          {/* NÚT SỬA */}
+                          {!isReadOnly && (
+                            <button onClick={() => setEditingQ({ sectionId: section.id, data: JSON.parse(JSON.stringify(q)) })} className="absolute top-4 right-4 bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+                               <Icons.Edit /> Sửa
+                            </button>
+                          )}
+
+                          <div className="flex-1 pr-12">
                             <div className="font-black text-slate-700 dark:text-slate-300 mb-1">Câu {idx + 1}:</div>
                             <div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium">{q.text}</div>
                             
@@ -805,7 +904,7 @@
                                 {q.subQuestions.map((sq, sIdx) => (
                                   <div key={sq.id}>
                                     <div className="font-bold text-slate-600 dark:text-slate-400">#{sIdx + 1}: {sq.text}</div>
-                                    {!isReadOnly && sq.options.filter(o=>o.isCorrect).map(o => <div key={o.id} className="text-sm text-green-600 dark:text-green-400 font-medium">Đ.án: {o.text}</div>)}
+                                    {!isReadOnly && sq.options.filter(o=>o.isCorrect).map(o => <div key={o.id} className="text-sm text-green-600 dark:text-green-400 font-medium inline-block mr-2">Đ.án: {o.text}</div>)}
                                   </div>
                                 ))}
                               </div>
@@ -838,7 +937,7 @@
         );
       }
 
-      // --- MÀN HÌNH LÀM BÀI ---
+      // --- MÀN HÌNH LÀM BÀI (VỚI PROGRESS BAR) ---
       if (screen === 'quiz') {
         const totalQ = score.total;
         const isModeSingle = config.mode === 'single';
@@ -920,19 +1019,39 @@
           window.scrollTo(0,0);
         };
 
+        // TINH TOAN TIẾN TRÌNH
+        let answeredCount = 0;
+        if (isModeSingle) {
+            let rcCountBefore = 0;
+            for(let i=0; i<currentIndex; i++) {
+               if(activeQuiz.flat[i].type === 'rc') rcCountBefore += activeQuiz.flat[i].subQuestions.length;
+               else rcCountBefore++;
+            }
+            let currentQWeight = activeQuiz.flat[currentIndex].type === 'rc' ? activeQuiz.flat[currentIndex].subQuestions.length : 1;
+            answeredCount = rcCountBefore + (singleQuestionConfirmed ? currentQWeight : 0);
+        } else {
+            answeredCount = getAnsweredCount();
+        }
+        const progressPercent = totalQ > 0 ? (answeredCount / totalQ) * 100 : 0;
+
         return (
           <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-20 animate-fade-in transition-colors">
             <Notification />
-            <div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 p-4 transition-colors">
-              <div className="max-w-4xl mx-auto flex items-center justify-between">
-                <div className="font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors">
-                  {isModeSingle ? ( <>Khối câu: <span className="text-blue-600 dark:text-blue-400">{currentIndex + 1}</span> / {activeQuiz.flat.length}</> ) 
-                  : ( <>Tiến trình làm bài</> )}
+            
+            {/* HEADER CÓ PROGRESS BAR */}
+            <div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 transition-colors">
+              <div className="max-w-4xl mx-auto flex items-center justify-between p-4">
+                <div className="font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors text-sm md:text-base">
+                  Tiến độ: <span className="text-blue-600 dark:text-blue-400">{answeredCount}</span> / {totalQ}
                 </div>
                 <div className="flex items-center gap-3">
                   <ThemeToggleBtn />
-                  <button onClick={() => setScreen(currentUser ? 'dashboard' : 'home')} className="font-bold text-red-500 dark:text-red-400 hover:text-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/50">Thoát</button>
+                  <button onClick={() => { if(window.confirm("Thoát sẽ mất kết quả đang làm. Vẫn thoát?")) setScreen(currentUser ? 'dashboard' : 'home')}} className="font-bold text-red-500 dark:text-red-400 hover:text-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/50">Thoát</button>
                 </div>
+              </div>
+              {/* THANH PROGRESS */}
+              <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700">
+                <div className="h-full bg-blue-600 dark:bg-blue-500 transition-all duration-500 ease-out" style={{ width: `${progressPercent}%` }}></div>
               </div>
             </div>
 
@@ -1051,3 +1170,5 @@
   </script>
 </body>
 </html>
+
+
