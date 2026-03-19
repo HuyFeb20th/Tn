@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trắc Nghiệm Đám Mây</title>
+  <title>Tạo Trắc Nghiệm</title>
   
   <!-- Tải React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -42,21 +42,20 @@
 
   <script type="text/babel">
     const { useState, useEffect } = React;
-
-    // ==========================================
+    
     // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
-    // ==========================================
     const MY_FIREBASE_CONFIG = {
-      apiKey: "",
-      authDomain: "",
-      projectId: "",
-      storageBucket: "",
-      messagingSenderId: "",
-      appId: ""
-    };
+  apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
+  authDomain: "tracnghiem-31c44.firebaseapp.com",
+  projectId: "tracnghiem-31c44",
+  storageBucket: "tracnghiem-31c44.firebasestorage.app",
+  messagingSenderId: "742429088050",
+  appId: "1:742429088050:web:9ff00733cc280a1e49df2b",
+  measurementId: "G-VNXTHZV6ZH"
+};
 
     // GIỚI HẠN LƯU ĐỀ CHO NGƯỜI DÙNG THƯỜNG
-    const MAX_QUIZZES_PER_USER = 10;
+    const MAX_QUIZZES_PER_USER = 5;
     const ADMIN_USERNAME = "huy20022k8";
 
     // --- KHỞI TẠO HỆ THỐNG ---
@@ -115,18 +114,6 @@
       Sun: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
       Moon: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
     };
-
-    // --- COMPONENT HƯỚNG DẪN SETUP ---
-    function SetupScreen() {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 font-sans">
-          <div className="max-w-2xl bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center">
-            <h1 className="text-3xl font-black text-red-600 mb-4">Chưa có kết nối Database!</h1>
-            <p className="text-slate-600 mb-4">Hãy dán đoạn mã <code>firebaseConfig</code> của bạn vào dòng số 42 trong code nhé.</p>
-          </div>
-        </div>
-      );
-    }
 
     // --- COMPONENT TRẢ LỜI NGẮN ---
     const ShortAnswerInput = ({ value = '', onChange, readOnly, isCorrect, showResult }) => {
@@ -1007,5 +994,3 @@
   </script>
 </body>
 </html>
-
-
