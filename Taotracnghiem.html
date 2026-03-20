@@ -8,11 +8,19 @@
   <title>Tạo & Chia Sẻ Đề Trắc Nghiệm Online</title>
   <meta name="title" content="Tạo & Chia Sẻ Đề Trắc Nghiệm Online">
   <meta name="description" content="Công cụ tạo trắc nghiệm thông minh dành riêng cho bạn. Tự tạo bộ đề ôn luyện cá nhân hoặc chia sẻ link để nhóm bạn cùng ôn tập ngay lập tức.">
-<image">
+  
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://huyfeb20th.github.io/Tn/Taotracnghiem">
+  <meta property="og:title" content="Tạo & Chia Sẻ Đề Trắc Nghiệm Online">
+  <meta property="og:description" content="Công cụ tạo trắc nghiệm thông minh dành riêng cho bạn. Tự tạo bộ đề ôn luyện cá nhân hoặc chia sẻ link để nhóm bạn cùng ôn tập ngay lập tức.">
+  
+  <meta property="og:image" content="https://huyfeb20th.github.io/Tn/logo.png">
+
+  <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:title" content="Tạo & Chia Sẻ Đề Trắc Nghiệm Online">
   <meta property="twitter:description" content="Công cụ tạo trắc nghiệm thông minh dành riêng cho bạn. Tự tạo bộ đề ôn luyện cá nhân hoặc chia sẻ link để nhóm bạn cùng ôn tập ngay lập tức.">
-  
-  <meta property="twitter:image" content="./logo.png">
+ 
+  <meta property="twitter:image" content="https://huyfeb20th.github.io/Tn/logo.png">
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   
@@ -236,7 +244,17 @@
       const [isGlobalLoading, setIsGlobalLoading] = useState(true);
       const [isFetchingQuiz, setIsFetchingQuiz] = useState(false);
 
-      const [hash, setHash] = useState(() => window.location.hash.replace(/^#\/?/, '') || 'Login');
+      // CẬP NHẬT: Kiểm tra localStorage ngay từ khi nạp URL để xác định nếu đã lưu phiên thì chuyển thẳng qua Home
+      const [hash, setHash] = useState(() => {
+          const initialHash = window.location.hash.replace(/^#\/?/, '');
+          if (!initialHash || initialHash.toLowerCase() === 'login') {
+              try {
+                  if (localStorage.getItem('quiz_current_user')) return 'Home';
+              } catch(e) {}
+              return 'Login';
+          }
+          return initialHash;
+      });
       
       useEffect(() => {
         const handleHashChange = () => setHash(window.location.hash.replace(/^#\/?/, '') || 'Login');
@@ -286,6 +304,13 @@
           if (currentUser) localStorage.setItem('quiz_current_user', JSON.stringify(currentUser));
           else localStorage.removeItem('quiz_current_user');
       }, [currentUser]);
+
+      // CẬP NHẬT: Hook điều hướng tự động chuyển về Home nếu người dùng cố quay lại trang Login khi đã đăng nhập
+      useEffect(() => {
+          if (currentUser && currentRoute === 'login') {
+              navigate('Home');
+          }
+      }, [currentUser, currentRoute, navigate]);
       
       const [showPassword, setShowPassword] = useState(false);
       const [showUserMenu, setShowUserMenu] = useState(false);
@@ -313,7 +338,7 @@
       const [saveCooldown, setSaveCooldown] = useState(0);
       const [isSaving, setIsSaving] = useState(false);
 
-      const [showTypeMenu, setShowTypeMenu] = useState(false); // MỚI: State cho Dropdown chọn phần
+      const [showTypeMenu, setShowTypeMenu] = useState(false); 
 
       const [config, setConfig] = useState({ mode: 'single', shuffle: 'none' });
       const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], rc: [], flat: [] });
@@ -478,7 +503,6 @@
         setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
       };
 
-      // CẬP NHẬT: Cho phép truyền codeToShow để thu gọn thông báo hiển thị
       const copyToClipboard = async (text, codeToShow = '') => {
         const successMsg = codeToShow ? `ĐÃ COPY: ${codeToShow}` : `Đã copy: ${text}`;
         try {
@@ -696,7 +720,6 @@
 
       const handleParseAndSave = () => {
         if (saveCooldown > 0 || isSaving) return;
-        // CẬP NHẬT: Chỉ hiện cảnh báo này nếu đang vào trang từ chế độ "Sửa Text Gốc" của 1 đề có sẵn
         if (currentRoute === 'overview' && urlAction === 'edittext') {
            setCustomAlert({
                isOpen: true, title: "Bạn có muốn lưu text này không?", message: "Tất cả những gì bạn đã làm trong phần \"Sửa câu hỏi\" sẽ mất",
@@ -991,7 +1014,6 @@
                           
                           <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-xl border border-blue-100 dark:border-blue-800/50 min-w-0 mb-4">
                               <span className="text-blue-800 dark:text-blue-300 font-mono font-black text-lg truncate min-w-0 pl-2 tracking-widest">{q.code}</span>
-                              {/* CẬP NHẬT: Truyền q.code vào copyToClipboard để hiện thông báo gọn */}
                               <button onClick={() => copyToClipboard(fullLink, q.code)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-bold transition text-sm shrink-0 whitespace-nowrap shadow-sm">Copy Link</button>
                           </div>
 
@@ -1107,7 +1129,6 @@
                     </div>
                     {currentQuizCode && (
                         <div className="flex justify-end">
-                            {/* CẬP NHẬT: Truyền currentQuizCode vào copyToClipboard để hiện thông báo gọn */}
                             <div onClick={() => copyToClipboard(fullLink, currentQuizCode)} className="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono font-bold px-3 py-1.5 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 transition text-sm">
                                 Mã: <span className="tracking-widest">{currentQuizCode}</span> <Icons.Copy />
                             </div>
@@ -1757,3 +1778,4 @@
   </script>
 </body>
 </html>
+Hướng dẫn tôi tự thay thế đường link chia sẻ qua các ứng dụng khác (messenger, zalo,...) nó sẽ hiển thị ảnh có tên" logo.png" trong thư mục "https://huyfeb20th.github.io/Tn" chứ không phải đơn giản thế này (hình ảnh là khi tôi chia sẻ qua messenger)
