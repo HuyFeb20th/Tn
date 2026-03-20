@@ -1317,8 +1317,15 @@
           const [adminTab, setAdminTab] = useState('quizzes');
           const [adminSearch, setAdminSearch] = useState('');
 
-          const filteredAdminQuizzes = allQuizzes.filter(q => q.title.toLowerCase().includes(adminSearch.toLowerCase()) || q.code.includes(adminSearch.toUpperCase()) || q.owner.includes(adminSearch.toLowerCase()));
-          const filteredAdminUsers = allUsers.filter(u => u.username.toLowerCase().includes(adminSearch.toLowerCase()));
+          const filteredAdminQuizzes = allQuizzes.filter(q => 
+              (q.title || '').toLowerCase().includes(adminSearch.toLowerCase()) || 
+              (q.code || '').toUpperCase().includes(adminSearch.toUpperCase()) || 
+              (q.owner || '').toLowerCase().includes(adminSearch.toLowerCase())
+          );
+          
+          const filteredAdminUsers = allUsers.filter(u => 
+              (u.username || '').toLowerCase().includes(adminSearch.toLowerCase())
+          );
 
           return (
             <div className="min-h-screen p-4 md:p-8 bg-slate-900 text-white animate-fade-in transition-colors">
