@@ -68,7 +68,7 @@
       Shield: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
       Search: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
       Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
-      UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>,
+      UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>,
       Alert: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
       Sun: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
       Moon: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>,
@@ -92,21 +92,19 @@
       const [customAlert, setCustomAlert] = useState({ isOpen: false });
       const [theme, setTheme] = useState(localStorage.getItem('quiz_theme') || 'dark');
       const [adminSearch, setAdminSearch] = useState('');
+      
+      const [revealedPasswords, setRevealedPasswords] = useState({});
 
-      // Chỉ load danh sách User lúc đầu để chống lag
       useEffect(() => {
         auth.signInAnonymously().catch(console.error);
-        
         const unsubUsers = db.collection(usersPath).onSnapshot(snap => {
             const list = [];
             snap.forEach(d => list.push({ id: d.id, ...d.data() }));
             setAllUsers(list);
         });
-
         return () => { unsubUsers(); };
       }, []);
 
-      // Chỉ load Quizzes khi bấm vào 1 User cụ thể
       useEffect(() => {
         if (!selectedUser) {
             setUserQuizzes([]);
@@ -124,7 +122,6 @@
                 console.error(error);
                 setIsLoadingQuizzes(false);
             });
-
         return () => { unsubQuizzes(); };
       }, [selectedUser]);
 
@@ -135,6 +132,13 @@
       }, [theme]);
 
       const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+
+      const togglePasswordVisibility = (username) => {
+          setRevealedPasswords(prev => ({
+              ...prev,
+              [username]: !prev[username]
+          }));
+      };
 
       const showMessage = useCallback((text, type = 'error') => {
         setGlobalMessage({ text, type });
@@ -153,9 +157,17 @@
               });
               showMessage("Nhân bản thành công vào kho của bạn!", "success");
           } catch(e) { showMessage("Lỗi nhân bản!"); }
-      }, [currentUser]);
+      }, [currentUser, showMessage]);
 
-      // Tối ưu xóa bằng batch, xóa triệt để đề của user trước khi xóa user
+      const toggleVipStatus = useCallback(async (user) => {
+          try {
+              await db.doc(`${usersPath}/${user.id}`).update({ isVip: !user.isVip });
+              showMessage(`Đã ${user.isVip ? 'hủy' : 'cấp'} VIP cho tài khoản "${user.username}"!`, "success");
+          } catch(e) { 
+              showMessage("Lỗi khi cập nhật trạng thái VIP!"); 
+          }
+      }, [showMessage]);
+
       const handleDeleteAccount = useCallback((usernameTarget) => {
         setCustomAlert({
             isOpen: true, title: "CẢNH BÁO", message: `Bạn chắc chắn muốn xóa tài khoản "${usernameTarget}" chứ? Toàn bộ đề thi của họ sẽ mất.`,
@@ -163,20 +175,14 @@
             onConfirm: async () => {
                 try {
                   const targetLower = usernameTarget.toLowerCase();
-                  
-                  // Tìm và xóa toàn bộ đề của user này
                   const qs = await db.collection(quizzesPath).where("owner", "==", targetLower).get();
                   const batch = db.batch();
                   qs.forEach(doc => batch.delete(doc.ref));
-                  
-                  // Xóa tài khoản
                   batch.delete(db.doc(`${usersPath}/${targetLower}`));
                   await batch.commit();
 
                   showMessage("Đã dọn dẹp dữ liệu tài khoản!", "success");
-                  if (selectedUser && selectedUser.username === usernameTarget) {
-                      setSelectedUser(null);
-                  }
+                  if (selectedUser && selectedUser.username === usernameTarget) setSelectedUser(null);
                 } catch (error) { showMessage("Lỗi khi thực hiện!"); }
             }
         });
@@ -193,7 +199,6 @@
          });
       }, [showMessage]);
 
-      // Dùng useMemo để tối ưu tìm kiếm
       const filteredAdminUsers = useMemo(() => {
           return allUsers.filter(u => (u.username || '').toLowerCase().includes(adminSearch.toLowerCase()));
       }, [allUsers, adminSearch]);
@@ -208,7 +213,7 @@
       if (!currentUser || currentUser.username.toLowerCase() !== ADMIN_USERNAME) {
           return (
              <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                <div className="text-white text-center">
+                <div className="text-white text-center p-4">
                    <Icons.Shield />
                    <p className="mt-4 font-bold text-red-400">Bạn không có quyền truy cập khu vực này.</p>
                    <button onClick={() => window.location.href = 'Taotracnghiem.html'} className="mt-4 text-indigo-400 underline">Quay lại trang chủ</button>
@@ -218,9 +223,9 @@
       }
 
       return (
-        <div className="min-h-screen p-4 md:p-8 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white animate-fade-in transition-colors">
+        <div className="min-h-screen p-3 sm:p-4 md:p-8 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white animate-fade-in transition-colors">
             {globalMessage.text && (
-              <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+              <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in whitespace-nowrap ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
                 {globalMessage.text}
               </div>
             )}
@@ -240,54 +245,86 @@
             )}
 
             <div className="max-w-6xl mx-auto">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-indigo-500/30">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg"><Icons.Shield /></div>
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-black tracking-tighter uppercase">Admin Control Panel</h1>
-                            <p className="text-indigo-600 dark:text-indigo-400 text-xs font-bold">Quản trị hệ thống trắc nghiệm</p>
+                <div className="flex flex-row justify-between items-center gap-2 mb-6 sm:mb-8 bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-indigo-500/30">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg shrink-0"><Icons.Shield /></div>
+                        <div className="min-w-0">
+                            <h1 className="text-[16px] sm:text-2xl font-black tracking-tighter uppercase truncate">Admin Panel</h1>
+                            <p className="text-indigo-600 dark:text-indigo-400 text-[10px] sm:text-xs font-bold truncate">Quản trị hệ thống</p>
                         </div>
                     </div>
-                    <div className="flex gap-2 w-full sm:w-auto justify-end">
-                        <button onClick={toggleTheme} className="p-2 sm:p-2.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center justify-center">
+                    <div className="flex gap-2 shrink-0">
+                        <button onClick={toggleTheme} className="p-2 sm:p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center justify-center shrink-0">
                           {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
                         </button>
-                        <button onClick={() => window.location.href = 'Taotracnghiem.html'} className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition">Thoát</button>
+                        <button onClick={() => window.location.href = 'Taotracnghiem.html'} className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white px-3 sm:px-6 py-2 rounded-xl font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition text-sm sm:text-base whitespace-nowrap shrink-0">Thoát</button>
                     </div>
                 </div>
 
-                <div className="flex mb-8">
+                <div className="flex mb-6 sm:mb-8">
                     <div className="relative flex-1">
-                        <input type="text" placeholder={`Tìm kiếm ${selectedUser ? 'tên đề, mã đề' : 'tên người dùng'}...`} value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} 
-                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-12 py-4 rounded-2xl outline-none focus:border-indigo-500 transition font-medium shadow-sm" />
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Search /></div>
+                        <input type="text" placeholder={`Tìm ${selectedUser ? 'tên đề, mã đề' : 'tên người dùng'}...`} value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} 
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 pl-10 sm:pl-12 pr-4 py-3 sm:py-4 rounded-2xl outline-none focus:border-indigo-500 transition font-medium shadow-sm text-sm sm:text-base" />
+                        <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Search /></div>
                     </div>
                 </div>
 
                 {!selectedUser ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 overflow-x-auto shadow-sm">
-                        <table className="w-full text-left text-sm min-w-[500px]">
-                            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 uppercase font-black text-xs">
-                                <tr>
-                                    <th className="px-6 py-4 w-16 text-center">STT</th>
-                                    <th className="px-6 py-4 w-1/3">Tài khoản</th>
-                                    <th className="px-6 py-4 w-1/3">Mật khẩu</th>
-                                    <th className="px-6 py-4 text-center w-1/3">Hành động</th>
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm w-full">
+                        <table className="w-full text-left text-sm table-fixed border-collapse">
+                            <thead className="bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 uppercase font-black text-[10px] sm:text-xs border-b border-slate-200 dark:border-slate-700">
+                                <tr className="divide-x divide-slate-200 dark:divide-slate-700">
+                                    <th className="p-2 sm:px-4 sm:py-4 w-[15%] sm:w-20 text-center align-middle">STT</th>
+                                    <th className="p-2 sm:px-4 sm:py-4 w-[42%] sm:w-[45%] text-center align-middle">Tài khoản</th>
+                                    <th className="p-2 sm:px-4 sm:py-4 text-center align-middle">Hành động</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {filteredAdminUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan="4" className="px-6 py-10 text-center text-slate-400 italic">Không tìm thấy người dùng nào.</td>
+                                        <td colSpan="3" className="px-4 py-8 text-center text-slate-400 italic text-sm">Không tìm thấy người dùng nào.</td>
                                     </tr>
                                 ) : filteredAdminUsers.map((u, index) => (
-                                    <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
-                                        <td className="px-6 py-4 text-center font-bold text-slate-500 dark:text-slate-400">{index + 1}</td>
-                                        <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-300">@{u.username}</td>
-                                        <td className="px-6 py-4 font-mono text-slate-500 dark:text-slate-400">{u.password}</td>
-                                        <td className="px-6 py-4 flex justify-center gap-2">
-                                            <button onClick={() => { setSelectedUser({...u, stt: index + 1}); setAdminSearch(''); }} className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg font-bold hover:bg-indigo-100 dark:hover:bg-indigo-800 transition text-xs whitespace-nowrap">Xem Đề</button>
-                                            <button onClick={() => handleDeleteAccount(u.username)} className="p-2 bg-red-50 dark:bg-red-900/30 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition shrink-0" title="Xóa tài khoản"><Icons.UserX /></button>
+                                    <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition divide-x divide-slate-200 dark:divide-slate-700">
+                                        {/* Cột STT */}
+                                        <td className="p-2 sm:px-4 sm:py-4 text-center font-bold text-slate-500 dark:text-slate-400 align-middle">
+                                            <div className="w-6 h-6 sm:w-8 sm:h-8 mx-auto bg-slate-100 dark:bg-slate-700 rounded-md flex items-center justify-center text-[10px] sm:text-xs">
+                                                {index + 1}
+                                            </div>
+                                        </td>
+                                        
+                                        {/* Cột Tài khoản (Kéo sang phải thêm) */}
+                                        <td className="p-2 sm:px-4 sm:py-4 text-center pl-6 sm:pl-10 align-middle">
+                                            <div onClick={() => togglePasswordVisibility(u.username)} className="cursor-pointer select-none group flex flex-col items-center">
+                                                <div className="font-bold text-indigo-600 dark:text-indigo-300 flex flex-wrap items-center justify-center gap-1.5 text-xs sm:text-sm text-center">
+                                                    <span className="truncate group-hover:underline">@{u.username}</span>
+                                                    {u.username.toLowerCase() === ADMIN_USERNAME.toLowerCase() && <span className="bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded uppercase font-black shrink-0">Admin</span>}
+                                                    {u.isVip && <span className="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded uppercase font-black shrink-0">VIP</span>}
+                                                </div>
+                                                {revealedPasswords[u.username] && (
+                                                    <div className="mt-1.5 text-[10px] sm:text-xs font-mono bg-slate-100 dark:bg-slate-800 p-1.5 sm:p-2 rounded border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 break-all animate-fade-in flex items-center justify-center gap-1 w-full max-w-xs text-center">
+                                                        <span className="text-slate-400">🔑</span> {u.password}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        
+                                        {/* Cột Hành động */}
+                                        <td className="p-2 sm:px-4 sm:py-4 align-middle">
+                                            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+                                                <button onClick={() => { setSelectedUser({...u, stt: index + 1}); setAdminSearch(''); }} className="px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-md font-bold hover:bg-indigo-100 dark:hover:bg-indigo-800 transition text-[10px] sm:text-xs whitespace-nowrap">Xem</button>
+                                                
+                                                {u.username.toLowerCase() !== ADMIN_USERNAME.toLowerCase() && (
+                                                    <button 
+                                                        onClick={() => toggleVipStatus(u)} 
+                                                        className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded-md font-bold transition text-[10px] sm:text-xs whitespace-nowrap ${u.isVip ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/50 dark:text-amber-400' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300'}`}
+                                                    >
+                                                        {u.isVip ? "Hủy VIP" : "Cấp VIP"}
+                                                    </button>
+                                                )}
+
+                                                <button onClick={() => handleDeleteAccount(u.username)} className="p-1.5 sm:p-2 bg-red-50 dark:bg-red-900/30 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition shrink-0 flex items-center justify-center" title="Xóa tài khoản"><Icons.UserX /></button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -296,42 +333,45 @@
                     </div>
                 ) : (
                     <div className="animate-fade-in">
-                        <div className="flex items-center gap-4 mb-6">
+                        <div className="flex items-center gap-3 sm:gap-4 mb-6">
                             <button onClick={() => { setSelectedUser(null); setAdminSearch(''); }} className="p-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-full transition shrink-0 shadow-sm"><Icons.ArrowLeft /></button>
-                            <h2 className="text-xl font-black text-slate-800 dark:text-white truncate">Chi tiết tài khoản</h2>
+                            <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white truncate">Chi tiết tài khoản</h2>
                         </div>
                         
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 mb-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
+                        <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 mb-6 sm:mb-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
                             <div>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">STT: {selectedUser.stt}</p>
-                                <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">@{selectedUser.username}</div>
+                                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">STT: {selectedUser.stt}</p>
+                                <div className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+                                    @{selectedUser.username}
+                                    {selectedUser.isVip && <span className="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 text-xs px-2 py-0.5 rounded-full uppercase shrink-0 shadow-sm">VIP</span>}
+                                </div>
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-700">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Mật khẩu</p>
-                                <p className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedUser.password}</p>
+                                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Mật khẩu</p>
+                                <p className="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm sm:text-base">{selectedUser.password}</p>
                             </div>
                         </div>
 
-                        <h3 className="text-lg font-black mb-4 text-slate-800 dark:text-white">Danh sách đề đã tạo ({userQuizzes.length})</h3>
+                        <h3 className="text-base sm:text-lg font-black mb-4 text-slate-800 dark:text-white">Danh sách đề đã tạo ({userQuizzes.length})</h3>
                         
                         {isLoadingQuizzes ? (
-                             <div className="text-center text-indigo-500 font-bold py-10 animate-pulse">Đang tải danh sách đề...</div>
+                             <div className="text-center text-indigo-500 font-bold py-10 animate-pulse text-sm">Đang tải danh sách đề...</div>
                         ) : filteredUserQuizzes.length === 0 ? (
-                             <div className="bg-white dark:bg-slate-800 rounded-2xl p-10 text-center text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">Tài khoản này chưa tạo đề nào.</div>
+                             <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 sm:p-10 text-center text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 shadow-sm text-sm">Tài khoản này chưa tạo đề nào.</div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                                 {filteredUserQuizzes.map((q, idx) => (
-                                    <div key={q.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500/50 transition flex flex-col justify-between min-w-0 shadow-sm relative pt-6">
-                                        <div className="absolute -top-3 -left-3 w-8 h-8 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full flex items-center justify-center font-black text-xs shadow-md border border-indigo-200 dark:border-indigo-700">{idx + 1}</div>
+                                    <div key={q.id} className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500/50 transition flex flex-col justify-between min-w-0 shadow-sm relative pt-5 sm:pt-6">
+                                        <div className="absolute -top-3 -left-3 w-7 h-7 sm:w-8 sm:h-8 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-md border border-indigo-200 dark:border-indigo-700">{idx + 1}</div>
                                         <div>
                                             <div className="flex justify-between items-start mb-2 gap-2 mt-1">
-                                                <h3 className="font-bold text-indigo-700 dark:text-indigo-300 truncate">{q.title}</h3>
-                                                <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-black shrink-0">{q.code}</span>
+                                                <h3 className="font-bold text-indigo-700 dark:text-indigo-300 text-sm sm:text-base truncate">{q.title}</h3>
+                                                <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 px-1.5 py-0.5 sm:px-2 rounded text-[9px] sm:text-[10px] font-black shrink-0">{q.code}</span>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-700/50 mt-4">
-                                            <button onClick={() => cloneQuizAdmin(q.parsedData, q.title, q.rawTexts)} className="flex-1 bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 py-2 rounded-lg font-bold hover:bg-indigo-600 hover:text-white transition text-xs">Copy Về Kho</button>
-                                            <button onClick={() => handleDeleteQuiz(q)} className="px-4 py-2 bg-red-50 dark:bg-red-900/30 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition shrink-0"><Icons.Trash /></button>
+                                        <div className="flex gap-2 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-700/50 mt-3 sm:mt-4">
+                                            <button onClick={() => cloneQuizAdmin(q.parsedData, q.title, q.rawTexts)} className="flex-1 bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 py-1.5 sm:py-2 rounded-lg font-bold hover:bg-indigo-600 hover:text-white transition text-[10px] sm:text-xs">Copy Về Kho</button>
+                                            <button onClick={() => handleDeleteQuiz(q)} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-50 dark:bg-red-900/30 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition shrink-0 flex items-center justify-center"><Icons.Trash /></button>
                                         </div>
                                     </div>
                                 ))}
