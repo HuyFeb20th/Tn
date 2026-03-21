@@ -280,7 +280,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <ThemeToggleBtn />
-                  <button onClick={() => { setCurrentUser(null); navigate('Login'); }} title="Đăng xuất" className="p-2 sm:p-2.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center justify-center shrink-0"><Icons.Logout /></button>
+                  <button onClick={() => { setCurrentUser(null); navigate('Login'); }} title="Đăng xuất" className="p-2 sm:p-2.5 rounded-full text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-600 dark:hover:text-white transition flex items-center justify-center shrink-0"><Icons.Logout /></button>
+
                 </div>
               </div>
               <form onSubmit={handleGuestJoin} className="flex-1 flex gap-2 w-full mt-2 sm:mt-0 min-w-0">
