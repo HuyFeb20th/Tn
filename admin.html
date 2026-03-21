@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="vi" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Control Panel</title>
+  
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', }
+  </script>
+  
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+  
+  <style>
+    body { -webkit-font-smoothing: antialiased; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    .animate-bounce-in { animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes bounceIn {
+      0% { opacity: 0; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen transition-colors duration-300">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+    
+    // CẤU HÌNH FIREBASE 
+    const MY_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
+      authDomain: "tracnghiem-31c44.firebaseapp.com",
+      projectId: "tracnghiem-31c44",
+      storageBucket: "tracnghiem-31c44.firebasestorage.app",
+      messagingSenderId: "742429088050",
+      appId: "1:742429088050:web:9ff00733cc280a1e49df2b",
+      measurementId: "G-VNXTHZV6ZH"
+    };
+
+    const ADMIN_USERNAME = "huy20022k8";
+    let appId = 'quiz-app-huy-github';
+    const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
+    const usersPath = `artifacts/${appId}/public/data/users`;
+
+    if (!firebase.apps.length) firebase.initializeApp(MY_FIREBASE_CONFIG);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const generateShareCode = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+      return result;
+    };
+
+    const Icons = {
+      Shield: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
+      Search: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
+      Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+      UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>,
+      Alert: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
+      Sun: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+      Moon: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>,
+      ArrowLeft: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+    };
+
+    function AdminApp() {
+      const [currentUser, setCurrentUser] = useState(() => {
+          try {
+              const saved = localStorage.getItem('quiz_current_user');
+              return saved ? JSON.parse(saved) : null;
+          } catch(e) { return null; }
+      });
+      
+      const [allUsers, setAllUsers] = useState([]);
+      const [selectedUser, setSelectedUser] = useState(null);
+      const [userQuizzes, setUserQuizzes] = useState([]);
+      const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(false);
+
+      const [globalMessage, setGlobalMessage] = useState({ text: '', type: 'error' });
+      const [customAlert, setCustomAlert] = useState({ isOpen: false });
+      const [theme, setTheme] = useState(localStorage.getItem('quiz_theme') || 'dark');
+      const [adminSearch, setAdminSearch] = useState('');
+
+      // Chỉ load danh sách User lúc đầu để chống lag
+      useEffect(() => {
+        auth.signInAnonymously().catch(console.error);
+        
+        const unsubUsers = db.collection(usersPath).onSnapshot(snap => {
+            const list = [];
+            snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+            setAllUsers(list);
+        });
+
+        return () => { unsubUsers(); };
+      }, []);
+
+      // Chỉ load Quizzes khi bấm vào 1 User cụ thể
+      useEffect(() => {
+        if (!selectedUser) {
+            setUserQuizzes([]);
+            return;
+        }
+        setIsLoadingQuizzes(true);
+        const unsubQuizzes = db.collection(quizzesPath)
+            .where("owner", "==", selectedUser.username.toLowerCase())
+            .onSnapshot(snap => {
+                const list = [];
+                snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+                setUserQuizzes(list);
+                setIsLoadingQuizzes(false);
+            }, (error) => {
+                console.error(error);
+                setIsLoadingQuizzes(false);
+            });
+
+        return () => { unsubQuizzes(); };
+      }, [selectedUser]);
+
+      useEffect(() => {
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+        localStorage.setItem('quiz_theme', theme);
+      }, [theme]);
+
+      const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+
+      const showMessage = useCallback((text, type = 'error') => {
+        setGlobalMessage({ text, type });
+        setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
+      }, []);
+
+      const cloneQuizAdmin = useCallback(async (customParsed, customTitle, customRaw) => {
+          const newCode = generateShareCode();
+          const usernameLower = currentUser.username.toLowerCase();
+          const clonedTitle = `${customTitle || 'Đề thi'} (Copy)`;
+          try {
+              await db.doc(`${quizzesPath}/${newCode}`).set({
+                  code: newCode, owner: usernameLower, title: clonedTitle, 
+                  parsedData: customParsed, rawTexts: customRaw,
+                  createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+              });
+              showMessage("Nhân bản thành công vào kho của bạn!", "success");
+          } catch(e) { showMessage("Lỗi nhân bản!"); }
+      }, [currentUser]);
+
+      // Tối ưu xóa bằng batch, xóa triệt để đề của user trước khi xóa user
+      const handleDeleteAccount = useCallback((usernameTarget) => {
+        setCustomAlert({
+            isOpen: true, title: "CẢNH BÁO", message: `Bạn chắc chắn muốn xóa tài khoản "${usernameTarget}" chứ? Toàn bộ đề thi của họ sẽ mất.`,
+            type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy',
+            onConfirm: async () => {
+                try {
+                  const targetLower = usernameTarget.toLowerCase();
+                  
+                  // Tìm và xóa toàn bộ đề của user này
+                  const qs = await db.collection(quizzesPath).where("owner", "==", targetLower).get();
+                  const batch = db.batch();
+                  qs.forEach(doc => batch.delete(doc.ref));
+                  
+                  // Xóa tài khoản
+                  batch.delete(db.doc(`${usersPath}/${targetLower}`));
+                  await batch.commit();
+
+                  showMessage("Đã dọn dẹp dữ liệu tài khoản!", "success");
+                  if (selectedUser && selectedUser.username === usernameTarget) {
+                      setSelectedUser(null);
+                  }
+                } catch (error) { showMessage("Lỗi khi thực hiện!"); }
+            }
+        });
+      }, [selectedUser, showMessage]);
+
+      const handleDeleteQuiz = useCallback((q) => {
+         setCustomAlert({
+            isOpen: true, title: "XÓA ĐỀ (ADMIN)", message: `Xác nhận xóa đề "${q.title}" của @${q.owner}?`,
+            type: 'danger', confirmText: 'Xóa', cancelText: 'Hủy', 
+            onConfirm: () => {
+                db.doc(`${quizzesPath}/${q.id}`).delete();
+                showMessage("Đã xóa đề thi thành công!", "success");
+            }
+         });
+      }, [showMessage]);
+
+      // Dùng useMemo để tối ưu tìm kiếm
+      const filteredAdminUsers = useMemo(() => {
+          return allUsers.filter(u => (u.username || '').toLowerCase().includes(adminSearch.toLowerCase()));
+      }, [allUsers, adminSearch]);
+
+      const filteredUserQuizzes = useMemo(() => {
+          return userQuizzes.filter(q => 
+              (q.title || '').toLowerCase().includes(adminSearch.toLowerCase()) || 
+              (q.code || '').toUpperCase().includes(adminSearch.toUpperCase())
+          );
+      }, [userQuizzes, adminSearch]);
+
+      if (!currentUser || currentUser.username.toLowerCase() !== ADMIN_USERNAME) {
+          return (
+             <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+                <div className="text-white text-center">
+                   <Icons.Shield />
+                   <p className="mt-4 font-bold text-red-400">Bạn không có quyền truy cập khu vực này.</p>
+                   <button onClick={() => window.location.href = 'Taotracnghiem.html'} className="mt-4 text-indigo-400 underline">Quay lại trang chủ</button>
+                </div>
+             </div>
+          );
+      }
+
+      return (
+        <div className="min-h-screen p-4 md:p-8 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white animate-fade-in transition-colors">
+            {globalMessage.text && (
+              <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                {globalMessage.text}
+              </div>
+            )}
+            
+            {customAlert.isOpen && (
+              <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 animate-fade-in">
+                 <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center border border-slate-200 dark:border-slate-700">
+                    <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shrink-0"><Icons.Alert /></div>
+                    <h3 className="text-xl font-black mb-2">{customAlert.title}</h3>
+                    <p className="mb-8 font-medium text-slate-600 dark:text-slate-400 break-words">{customAlert.message}</p>
+                    <div className="flex gap-3">
+                       <button onClick={() => { customAlert.onConfirm(); setCustomAlert({isOpen: false}); }} className="flex-1 text-white font-bold py-3 rounded-xl shadow-md transition whitespace-nowrap bg-red-600 hover:bg-red-700">{customAlert.confirmText}</button>
+                       <button onClick={() => setCustomAlert({isOpen: false})} className="flex-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold py-3 rounded-xl transition whitespace-nowrap">{customAlert.cancelText}</button>
+                    </div>
+                 </div>
+              </div>
+            )}
+
+            <div className="max-w-6xl mx-auto">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-indigo-500/30">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg"><Icons.Shield /></div>
+                        <div>
+                            <h1 className="text-xl sm:text-2xl font-black tracking-tighter uppercase">Admin Control Panel</h1>
+                            <p className="text-indigo-600 dark:text-indigo-400 text-xs font-bold">Quản trị hệ thống trắc nghiệm</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto justify-end">
+                        <button onClick={toggleTheme} className="p-2 sm:p-2.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center justify-center">
+                          {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
+                        </button>
+                        <button onClick={() => window.location.href = 'Taotracnghiem.html'} className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition">Thoát</button>
+                    </div>
+                </div>
+
+                <div className="flex mb-8">
+                    <div className="relative flex-1">
+                        <input type="text" placeholder={`Tìm kiếm ${selectedUser ? 'tên đề, mã đề' : 'tên người dùng'}...`} value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} 
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-12 py-4 rounded-2xl outline-none focus:border-indigo-500 transition font-medium shadow-sm" />
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Search /></div>
+                    </div>
+                </div>
+
+                {!selectedUser ? (
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 overflow-x-auto shadow-sm">
+                        <table className="w-full text-left text-sm min-w-[500px]">
+                            <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 uppercase font-black text-xs">
+                                <tr>
+                                    <th className="px-6 py-4 w-16 text-center">STT</th>
+                                    <th className="px-6 py-4 w-1/3">Tài khoản</th>
+                                    <th className="px-6 py-4 w-1/3">Mật khẩu</th>
+                                    <th className="px-6 py-4 text-center w-1/3">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {filteredAdminUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-10 text-center text-slate-400 italic">Không tìm thấy người dùng nào.</td>
+                                    </tr>
+                                ) : filteredAdminUsers.map((u, index) => (
+                                    <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                                        <td className="px-6 py-4 text-center font-bold text-slate-500 dark:text-slate-400">{index + 1}</td>
+                                        <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-300">@{u.username}</td>
+                                        <td className="px-6 py-4 font-mono text-slate-500 dark:text-slate-400">{u.password}</td>
+                                        <td className="px-6 py-4 flex justify-center gap-2">
+                                            <button onClick={() => { setSelectedUser({...u, stt: index + 1}); setAdminSearch(''); }} className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg font-bold hover:bg-indigo-100 dark:hover:bg-indigo-800 transition text-xs whitespace-nowrap">Xem Đề</button>
+                                            <button onClick={() => handleDeleteAccount(u.username)} className="p-2 bg-red-50 dark:bg-red-900/30 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition shrink-0" title="Xóa tài khoản"><Icons.UserX /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="animate-fade-in">
+                        <div className="flex items-center gap-4 mb-6">
+                            <button onClick={() => { setSelectedUser(null); setAdminSearch(''); }} className="p-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-full transition shrink-0 shadow-sm"><Icons.ArrowLeft /></button>
+                            <h2 className="text-xl font-black text-slate-800 dark:text-white truncate">Chi tiết tài khoản</h2>
+                        </div>
+                        
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 mb-8 flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
+                            <div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">STT: {selectedUser.stt}</p>
+                                <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">@{selectedUser.username}</div>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Mật khẩu</p>
+                                <p className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedUser.password}</p>
+                            </div>
+                        </div>
+
+                        <h3 className="text-lg font-black mb-4 text-slate-800 dark:text-white">Danh sách đề đã tạo ({userQuizzes.length})</h3>
+                        
+                        {isLoadingQuizzes ? (
+                             <div className="text-center text-indigo-500 font-bold py-10 animate-pulse">Đang tải danh sách đề...</div>
+                        ) : filteredUserQuizzes.length === 0 ? (
+                             <div className="bg-white dark:bg-slate-800 rounded-2xl p-10 text-center text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 shadow-sm">Tài khoản này chưa tạo đề nào.</div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                {filteredUserQuizzes.map((q, idx) => (
+                                    <div key={q.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500/50 transition flex flex-col justify-between min-w-0 shadow-sm relative pt-6">
+                                        <div className="absolute -top-3 -left-3 w-8 h-8 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full flex items-center justify-center font-black text-xs shadow-md border border-indigo-200 dark:border-indigo-700">{idx + 1}</div>
+                                        <div>
+                                            <div className="flex justify-between items-start mb-2 gap-2 mt-1">
+                                                <h3 className="font-bold text-indigo-700 dark:text-indigo-300 truncate">{q.title}</h3>
+                                                <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-black shrink-0">{q.code}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-700/50 mt-4">
+                                            <button onClick={() => cloneQuizAdmin(q.parsedData, q.title, q.rawTexts)} className="flex-1 bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 py-2 rounded-lg font-bold hover:bg-indigo-600 hover:text-white transition text-xs">Copy Về Kho</button>
+                                            <button onClick={() => handleDeleteQuiz(q)} className="px-4 py-2 bg-red-50 dark:bg-red-900/30 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition shrink-0"><Icons.Trash /></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<AdminApp />);
+  </script>
+</body>
+</html>
