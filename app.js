@@ -14,7 +14,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // ĐÃ THÊM API KEY IMGBB CỦA HUY
     const IMGBB_API_KEY = "f20580866c25ba3e4cf065d604ff1fc5";
 
-    const MAX_QUIZZES_PER_USER = 30; // Đã tăng giới hạn lên để tránh lỗi đầy kho lưu trữ
+    const MAX_QUIZZES_PER_USER = 3; // Đã tăng giới hạn lên để tránh lỗi đầy kho lưu trữ
+    const MAX_QUIZZES_PER_VIP = 7; // Giới hạn đề cho tài khoản VIP
     const ADMIN_USERNAME = "huy20022k8";
 
     const RESULT_REMARKS = {
@@ -233,7 +234,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       const now = Date.now();
       const usernameLower = currentUser?.username.toLowerCase();
       const isAdmin = usernameLower === ADMIN_USERNAME;
-      const limitText = isAdmin ? "Admin Không giới hạn" : `${myQuizzes.length}/${MAX_QUIZZES_PER_USER} đề`;
+      const isVip = currentUser?.isVip || false;
+      const limitText = isAdmin ? "Admin Không giới hạn" : (isVip ? `${myQuizzes.length}/${MAX_QUIZZES_PER_VIP} đề` : `${myQuizzes.length}/${MAX_QUIZZES_PER_USER} đề`);
 
       return (
         <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-50 dark:bg-slate-900 transition-colors">
@@ -261,6 +263,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                     <span className="text-blue-600 dark:text-blue-400 truncate min-w-0">{currentUser?.username}</span> 
                     <span className="shrink-0">▾</span>
                     {isAdmin && <span className="text-[10px] sm:text-xs bg-red-600 text-white font-bold px-2 py-0.5 rounded-full uppercase shrink-0 shadow-sm">ADMIN</span>}
+                    {!isAdmin && isVip && <span className="text-[10px] sm:text-xs bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full uppercase shrink-0 shadow-sm">VIP</span>}
                   </button>
                   {showUserMenu && (
                     <>
@@ -411,6 +414,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       const [showSecondMenu, setShowSecondMenu] = useState(false);
 
       const isAdmin = currentUser?.username.toLowerCase() === ADMIN_USERNAME;
+      const isVip = currentUser?.isVip || false;
+
       const shuffleOptions = [
           { id: 'none', label: 'Giữ nguyên thứ tự' },
           { id: 'questions', label: 'Chỉ trộn câu hỏi' },
@@ -559,8 +564,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                       <button onClick={() => navigate(`Overview/${currentQuizCode}/EditQuestion`)} className="flex-1 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow transition text-sm">Sửa Câu Hỏi</button>
                   </div>
                 )}
-                {isReadOnly && isAdmin && (
-                      <button onClick={() => cloneQuizAdmin()} className="w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold py-4 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Copy /> Nhân bản thành đề của tôi (Admin)</button>
+                {isReadOnly && (isAdmin || isVip) && (
+                      <button onClick={() => cloneQuizAdmin()} className="w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold py-4 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Copy /> Nhân bản thành đề của tôi {isAdmin ? '(Admin)' : '(VIP)'}</button>
                 )}
                 <button onClick={() => navigate(currentUser ? 'Home' : 'Login')} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold py-4 rounded-xl border border-slate-200 dark:border-slate-700 transition">Thoát</button>
               </div>
@@ -1173,6 +1178,21 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           } catch(e) { return null; }
       }); 
 
+      // ĐỒNG BỘ TRẠNG THÁI VIP TỪ FIREBASE
+      useEffect(() => {
+          if (!currentUser || !db) return;
+          const usernameLower = currentUser.username.toLowerCase();
+          const unsub = db.doc(`${usersPath}/${usernameLower}`).onSnapshot(snap => {
+              if (snap.exists) {
+                  const data = snap.data();
+                  if (currentUser.isVip !== !!data.isVip) {
+                      setCurrentUser(prev => ({...prev, isVip: !!data.isVip}));
+                  }
+              }
+          });
+          return () => unsub();
+      }, [currentUser?.username, db]);
+
       useEffect(() => {
           if (currentUser) localStorage.setItem('quiz_current_user', JSON.stringify(currentUser));
           else localStorage.removeItem('quiz_current_user');
@@ -1372,11 +1392,11 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           const userSnap = await userRef.get();
           if (userSnap.exists) {
             if (userSnap.data().password === pwd) {
-              setCurrentUser({ username: userSnap.data().username }); navigate('Home');
+              setCurrentUser({ username: userSnap.data().username, isVip: !!userSnap.data().isVip }); navigate('Home');
             } else showMessage("Sai mật khẩu!");
           } else {
-            await userRef.set({ username: uname, password: pwd });
-            setCurrentUser({ username: uname }); navigate('Home');
+            await userRef.set({ username: uname, password: pwd, isVip: false });
+            setCurrentUser({ username: uname, isVip: false }); navigate('Home');
             showMessage("Tạo tài khoản thành công!", "success");
           }
         } catch (error) { showMessage("Lỗi kết nối mạng."); }
@@ -1545,10 +1565,13 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         if (currentUser && db && !isReadOnly) {
             const usernameLower = currentUser.username.toLowerCase();
             const isAdmin = usernameLower === ADMIN_USERNAME;
+            const isVip = currentUser.isVip || false;
+            
             if (!isAdmin && !currentQuizCode) {
               const userQuizzesCount = myQuizzes.length; 
-              if (userQuizzesCount >= MAX_QUIZZES_PER_USER) {
-                showMessage(`Đạt giới hạn ${MAX_QUIZZES_PER_USER} đề. Đề này chỉ được lưu tạm trên máy.`, "error");
+              const currentLimit = isVip ? MAX_QUIZZES_PER_VIP : MAX_QUIZZES_PER_USER;
+              if (userQuizzesCount >= currentLimit) {
+                showMessage(`Đạt giới hạn ${currentLimit} đề. Đề này chỉ được lưu tạm trên máy.`, "error");
                 setIsSaving(false); navigate(`Overview/${currentQuizCode || 'draft'}`); return;
               }
             }
@@ -1823,7 +1846,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       
       if (activeScreen === 'overview') return <OverviewScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} quizTitle={quizTitle} timeLimit={timeLimit} setTimeLimit={setTimeLimit} currentQuizCode={currentQuizCode} copyToClipboard={copyToClipboard} config={config} setConfig={setConfig} prepareQuiz={prepareQuiz} isReadOnly={isReadOnly} navigate={navigate} cloneQuizAdmin={cloneQuizAdmin} currentUser={currentUser} />;
       
-      if (activeScreen === 'settings') return <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={removeInlineQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} />;
+      if (activeScreen === 'settings') return <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={handleAddNewQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} />;
       
       if (activeScreen === 'quiz') return <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} />;
       
