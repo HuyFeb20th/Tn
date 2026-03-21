@@ -258,12 +258,12 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
             <div className="flex flex-col md:flex-row justify-between md:items-center mb-8 bg-white dark:bg-slate-800 p-4 px-4 sm:px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 gap-4 transition-colors">
               <div className="flex justify-between items-center w-full sm:w-auto gap-3 sm:gap-4 sm:border-r border-slate-200 dark:border-slate-700 sm:pr-6">
                 <div className="relative flex-1 min-w-0">
-                  <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 hover:opacity-80 transition w-full text-left">
+                  <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition w-full text-left">
                     <Icons.User /> 
                     <span className="text-blue-600 dark:text-blue-400 truncate min-w-0">{currentUser?.username}</span> 
-                    <span className="shrink-0">▾</span>
-                    {isAdmin && <span className="text-[10px] sm:text-xs bg-red-600 text-white font-bold px-2 py-0.5 rounded-full uppercase shrink-0 shadow-sm">ADMIN</span>}
-                    {!isAdmin && isVip && <span className="text-[10px] sm:text-xs bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full uppercase shrink-0 shadow-sm">VIP</span>}
+                    {isAdmin && <span className="text-[9px] sm:text-[10px] bg-red-600 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">ADMIN</span>}
+                    {!isAdmin && isVip && <span className="text-[9px] sm:text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">VIP</span>}
+                    <span className="shrink-0 text-sm ml-0.5">▾</span>
                   </button>
                   {showUserMenu && (
                     <>
@@ -280,9 +280,11 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <ThemeToggleBtn />
-                  <button onClick={() => { setCurrentUser(null); navigate('Login'); }} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg font-bold text-sm whitespace-nowrap hover:bg-slate-200 dark:hover:bg-slate-600 transition">
-                    <Icons.Logout /> Đăng xuất
+                  <button onClick={() => { setCurrentUser(null); navigate('Login'); }} title="Đăng xuất" className="flex items-center justify-center p-2 sm:p-2.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shrink-0">
+                    <Icons.Logout />
                   </button>
+                </div>
+              </div>
                 </div>
               </div>
               <form onSubmit={handleGuestJoin} className="flex-1 flex gap-2 w-full mt-2 sm:mt-0 min-w-0">
