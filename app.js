@@ -1589,6 +1589,15 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               setCurrentQuizCode(finalCode);
               savedToCloud = true;
               showMessage("Đã lưu vào Kho đám mây!", "success");
+              
+              // KHẮC PHỤC LỖI TẠO MÃ ẢO RỒI NHẢY TRANG:
+              // Đảm bảo state đã được cập nhật hoàn chỉnh trước khi chuyển trang
+              setTimeout(() => {
+                  setIsSaving(false); 
+                  navigate(`Overview/${finalCode}`); 
+              }, 150);
+              return;
+              
             } catch (e) {
                 if (e.message === "TIMEOUT_ERROR") {
                     showMessage("Kiểm tra đường truyền kết nối của bạn", "error");
