@@ -14,7 +14,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // ĐÃ THÊM API KEY IMGBB CỦA HUY
     const IMGBB_API_KEY = "f20580866c25ba3e4cf065d604ff1fc5";
 
-    const MAX_QUIZZES_PER_USER = 30; // Đã tăng giới hạn lên để tránh lỗi đầy kho lưu trữ
+    const MAX_QUIZZES_PER_USER = 3;
     const ADMIN_USERNAME = "huy20022k8";
 
     const RESULT_REMARKS = {
