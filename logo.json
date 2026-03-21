@@ -1,21 +1,17 @@
 {
-  "name": "Tạo & Chia Sẻ Đề Thi",
   "short_name": "Đề Thi",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "https://huyfeb20th.github.io/Tn/logo2.jpg",
+      "src": "https://huyfeb20th.github.io/Tn/logo2.png",
       "sizes": "192x192",
-      "type": "image/jpeg"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "https://huyfeb20th.github.io/Tn/logo2.jpg",
+      "src": "https://huyfeb20th.github.io/Tn/logo2.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
