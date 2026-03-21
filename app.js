@@ -1140,7 +1140,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
       const navigate = useCallback((path) => {
         window.location.hash = `/${path}`;
-        setHash(path);
+        setHash(path); // Update state instantly to prevent race conditions!
       }, []);
 
       const hashParts = hash.split('/');
@@ -1549,7 +1549,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
         setParsedData(newParsedData);
         let finalCode = currentQuizCode;
-        let savedToCloud = false;
+        let isSavedToCloud = false;
 
         if (currentUser && db && !isReadOnly) {
             const usernameLower = currentUser.username.toLowerCase();
@@ -1587,31 +1587,22 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               await Promise.race([savePromise, timeoutPromise]);
 
               setCurrentQuizCode(finalCode);
-              savedToCloud = true;
+              isSavedToCloud = true;
               showMessage("Đã lưu vào Kho đám mây!", "success");
-              
-              // KHẮC PHỤC LỖI TẠO MÃ ẢO RỒI NHẢY TRANG:
-              // Đảm bảo state đã được cập nhật hoàn chỉnh trước khi chuyển trang
-              setTimeout(() => {
-                  setIsSaving(false); 
-                  navigate(`Overview/${finalCode}`); 
-              }, 150);
-              return;
-              
             } catch (e) {
                 if (e.message === "TIMEOUT_ERROR") {
                     showMessage("Kiểm tra đường truyền kết nối của bạn", "error");
                     setIsSaving(false);
-                    return;
+                    return; // Dừng lại, không nhảy trang
                 } else {
                     console.error("Lỗi khi lưu lên Firestore:", e);
                     showMessage("Có lỗi xảy ra khi lưu lên đám mây!", "error");
-                    finalCode = currentQuizCode; // Tránh chuyển hướng đến mã ảo nếu lưu lỗi
+                    finalCode = currentQuizCode; 
                 }
             }
         }
         
-        if (!savedToCloud) {
+        if (!isSavedToCloud) {
             showMessage("Đã lưu thành công!", "success");
         }
 
