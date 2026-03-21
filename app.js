@@ -764,7 +764,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                   )}
                 </div>
                 <div className="flex flex-wrap gap-3 mt-6 border-t dark:border-slate-700 pt-4">
-                  <button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl shadow hover:bg-green-700 transition">Lưu Thay Đổi</button>
+                  <button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl shadow hover:bg-green-700 transition">Lưu Lên Cloud</button>
                   {!editingQ.isNew && <button onClick={removeInlineQuestion} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl shadow hover:bg-red-700 transition">Xóa Câu Này</button>}
                   <button onClick={() => setEditingQ(null)} className="w-full sm:flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-bold py-3 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
                 </div>
@@ -889,7 +889,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         setIsSubmitted(true);
         setSingleQuestionConfirmed(true);
         if (isModeSingle) {
-           navigate(`Overview/${currentQuizCode || 'draft'}/Result`);
+           setTimeout(() => navigate(`Overview/${currentQuizCode || 'draft'}/Result`), 100);
         } else {
            window.scrollTo(0,0);
         }
@@ -1034,7 +1034,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                     {!singleQuestionConfirmed ? (
                       <button onClick={confirmSingle} className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto transform hover:-translate-y-1 transition truncate min-w-0">XÁC NHẬN</button>
                     ) : (
-                      <button onClick={() => currentIndex < activeQuiz.flat.length - 1 ? (setCurrentIndex(p=>p+1), setSingleQuestionConfirmed(false)) : navigate(`Overview/${currentQuizCode || 'draft'}/Result`)} className="bg-green-600 hover:bg-green-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto flex items-center justify-center gap-2 transition truncate min-w-0">
+                      <button onClick={() => currentIndex < activeQuiz.flat.length - 1 ? (setCurrentIndex(p=>p+1), setSingleQuestionConfirmed(false)) : setTimeout(() => navigate(`Overview/${currentQuizCode || 'draft'}/Result`), 100)} className="bg-green-600 hover:bg-green-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto flex items-center justify-center gap-2 transition truncate min-w-0">
                         {currentIndex < activeQuiz.flat.length - 1 ? 'CÂU TIẾP THEO' : 'XEM KẾT QUẢ'} <Icons.Check />
                       </button>
                     )}
@@ -1479,6 +1479,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         let result = []; let currentQ = null, currentSubQ = null; let currentSectionType = forcedType; 
         const lines = (text || '').split('\n');
         for (let rawLine of lines) {
+          // Xóa khoảng trắng thừa ở đầu/cuối dòng, NHƯNG KHÔNG xóa toàn bộ cấu trúc xuống dòng bên trong nội dung.
           let line = rawLine.replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim();
           if (!line) continue;
           if (forcedType === 'mixed') {
@@ -1515,6 +1516,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           if (saMatch && currentQ && !currentSubQ && currentQ.options.length === 0) {
             currentQ.type = 'sa'; currentQ.options.push({ id: generateId(), text: saMatch[1], isCorrect: true }); continue;
           }
+          // Giữ nguyên dấu xuống dòng khi gộp nhiều dòng vào câu hỏi/đáp án
           if (currentSubQ) {
             if (currentSubQ.options.length === 0) currentSubQ.text += '\n' + line;
             else currentSubQ.options[currentSubQ.options.length - 1].text += '\n' + line;
@@ -1579,13 +1581,13 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               setCurrentQuizCode(finalCode);
               showMessage("Đã lưu vào Kho đám mây!", "success");
             } catch (e) {
-                showMessage("Có lỗi xảy ra khi lưu lên đám mây!", "error");
+                showMessage("Lỗi khi lưu đề thi!", "error");
             }
         } else {
-            showMessage("Đã lưu thành công!", "success");
+            showMessage("Đã lưu nháp thành công!", "success");
         }
         setIsSaving(false); 
-        navigate(`Overview/${finalCode || 'draft'}`); 
+        setTimeout(() => navigate(`Overview/${finalCode || 'draft'}`), 50); 
       };
 
       const handleParseAndSave = () => {
@@ -1683,8 +1685,17 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
              }
          }
          setParsedData(newData); setEditingQ(null);
+         
+         // Update trực tiếp lên Database ngay khi bấm "Lưu Thay Đổi"
          if (currentUser && currentQuizCode && db) {
-            try { await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); showMessage("Đã lưu thành công!", "success"); } catch(e) {}
+            try { 
+                await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); 
+                showMessage("Đã lưu trực tiếp lên Cloud!", "success"); 
+            } catch(e) {
+                showMessage("Lỗi khi lưu lên Cloud!", "error"); 
+            }
+         } else {
+            showMessage("Đã lưu nháp!", "success"); 
          }
       };
 
