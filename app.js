@@ -14,7 +14,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // ĐÃ THÊM API KEY IMGBB CỦA HUY
     const IMGBB_API_KEY = "f20580866c25ba3e4cf065d604ff1fc5";
 
-    const MAX_QUIZZES_PER_USER = 3;
+    const MAX_QUIZZES_PER_USER = 30; // Đã tăng giới hạn lên để tránh lỗi đầy kho lưu trữ
     const ADMIN_USERNAME = "huy20022k8";
 
     const RESULT_REMARKS = {
@@ -227,7 +227,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       );
     });
 
-    const DashboardScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, currentUser, setCurrentUser, navigate, resetQuiz, myQuizzes, db, quizzesPath, handleGuestJoin, handleCodeInputChange, handleDeleteAccount, handleChangePassword, copyToClipboard }) => {
+    const DashboardScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, currentUser, setCurrentUser, navigate, resetQuiz, myQuizzes, db, quizzesPath, handleGuestJoin, handleCodeInputChange, handleDeleteAccount, handleChangePassword, copyToClipboard, setCustomAlert }) => {
       const [showUserMenu, setShowUserMenu] = useState(false);
       const [showChangePwd, setShowChangePwd] = useState(false);
       const now = Date.now();
@@ -866,7 +866,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       );
     });
 
-    const QuizScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, activeQuiz, answers, setAnswers, currentIndex, setCurrentIndex, isSubmitted, setIsSubmitted, singleQuestionConfirmed, setSingleQuestionConfirmed, score, setScore, endRemark, setEndRemark, navigate, currentQuizCode, currentUser, config, checkQuestionCorrect, generateRandomRemark, showMessage, timeLimit }) => {
+    const QuizScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, activeQuiz, answers, setAnswers, currentIndex, setCurrentIndex, isSubmitted, setIsSubmitted, singleQuestionConfirmed, setSingleQuestionConfirmed, score, setScore, endRemark, setEndRemark, navigate, currentQuizCode, currentUser, config, checkQuestionCorrect, generateRandomRemark, showMessage, timeLimit, setCustomAlert }) => {
       const isModeSingle = config.mode === 'single';
       const totalQ = score.total;
       const mcLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -1817,7 +1817,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       // --- ĐIỀU HƯỚNG BẰNG CÁC COMPONENT ĐỘC LẬP ---
       if (activeScreen === 'login') return <LoginScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleLogin={handleLogin} />;
       
-      if (activeScreen === 'dashboard') return <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={myQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} />;
+      if (activeScreen === 'dashboard') return <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={myQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} setCustomAlert={setCustomAlert} />;
       
       if (activeScreen === 'input') return <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} />;
       
@@ -1825,7 +1825,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       
       if (activeScreen === 'settings') return <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={removeInlineQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} />;
       
-      if (activeScreen === 'quiz') return <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} />;
+      if (activeScreen === 'quiz') return <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} />;
       
       if (activeScreen === 'result') return <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} />;
       
