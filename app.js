@@ -14,7 +14,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // ĐÃ THÊM API KEY IMGBB CỦA HUY
     const IMGBB_API_KEY = "f20580866c25ba3e4cf065d604ff1fc5";
 
-    const MAX_QUIZZES_PER_USER = 3;
+    const MAX_QUIZZES_PER_USER = 30; // Đã tăng giới hạn lên để tránh lỗi đầy kho lưu trữ
     const ADMIN_USERNAME = "huy20022k8";
 
     const RESULT_REMARKS = {
@@ -227,7 +227,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       );
     });
 
-    const DashboardScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, currentUser, setCurrentUser, navigate, myQuizzes, db, quizzesPath, handleGuestJoin, handleCodeInputChange, handleDeleteAccount, handleChangePassword, copyToClipboard }) => {
+    const DashboardScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, currentUser, setCurrentUser, navigate, resetQuiz, myQuizzes, db, quizzesPath, handleGuestJoin, handleCodeInputChange, handleDeleteAccount, handleChangePassword, copyToClipboard }) => {
       const [showUserMenu, setShowUserMenu] = useState(false);
       const [showChangePwd, setShowChangePwd] = useState(false);
       const now = Date.now();
@@ -292,7 +292,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 <h2 className="text-2xl font-black text-slate-800 dark:text-white truncate">Kho đề thi của bạn</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Đã lưu: {limitText}</p>
               </div>
-              <button onClick={() => navigate('Create')} className="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto shrink-0 whitespace-nowrap">+ TẠO ĐỀ MỚI</button>
+              <button onClick={resetQuiz} className="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto shrink-0 whitespace-nowrap">+ TẠO ĐỀ MỚI</button>
             </div>
             {myQuizzes.length === 0 ? (
               <div className="bg-white dark:bg-slate-800 rounded-3xl p-12 text-center text-slate-400 border border-dashed border-slate-300 dark:border-slate-600 transition-colors">Chưa có đề nào.</div>
@@ -1278,15 +1278,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                       setIsFetchingQuiz(false);
                   });
               }
-          } else if (currentRoute === 'create' && (!urlCode || urlCode === 'draft')) {
-              if (currentQuizCode) {
-                  setRawTexts({ mc:'', tf:'', sa:'', rc:'', file:'' }); 
-                  setParsedData({mc:[], tf:[], sa:[], rc:[]});
-                  setQuizTitle('');
-                  setTimeLimit('');
-                  setCurrentQuizCode(null);
-                  setIsReadOnly(false);
-              }
           }
       }, [urlCode, currentRoute, db, currentUser, currentQuizCode, navigate, fbUser]);
 
@@ -1584,26 +1575,33 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                   setTimeout(() => reject(new Error("TIMEOUT_ERROR")), 150000);
               });
 
+              // CHỜ LƯU LÊN CLOUD THÀNH CÔNG HOẶC HẾT 150 GIÂY
               await Promise.race([savePromise, timeoutPromise]);
 
-              setCurrentQuizCode(finalCode);
               isSavedToCloud = true;
               showMessage("Đã lưu vào Kho đám mây!", "success");
+              
+              // KHẮC PHỤC TẬN GỐC LỖI TẠO MÃ RỒI BỊ XÓA MẤT:
+              // Gọi đồng thời Navigate và SetCurrentQuizCode để React gộp chung (batch update)
+              // TUYỆT ĐỐI KHÔNG dùng setTimeout ở đây, nếu không useEffect dọn dẹp nháp sẽ kích hoạt sai!
+              setCurrentQuizCode(finalCode);
+              setIsSaving(false); 
+              navigate(`Overview/${finalCode}`);
+              return; 
             } catch (e) {
                 if (e.message === "TIMEOUT_ERROR") {
                     showMessage("Kiểm tra đường truyền kết nối của bạn", "error");
-                    setIsSaving(false);
-                    return; // Dừng lại, không nhảy trang
                 } else {
                     console.error("Lỗi khi lưu lên Firestore:", e);
-                    showMessage("Có lỗi xảy ra khi lưu lên đám mây!", "error");
-                    finalCode = currentQuizCode; 
+                    showMessage("Lỗi: Không thể kết nối với kho dữ liệu!", "error");
                 }
+                setIsSaving(false);
+                return;
             }
         }
         
         if (!isSavedToCloud) {
-            showMessage("Đã lưu thành công!", "success");
+            showMessage("Đã lưu nháp thành công!", "success");
         }
 
         setIsSaving(false); 
@@ -1802,6 +1800,16 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         </button>
       );
 
+      const resetQuiz = useCallback(() => {
+          setRawTexts({ mc:'', tf:'', sa:'', rc:'', file:'' }); 
+          setParsedData({mc:[], tf:[], sa:[], rc:[]});
+          setQuizTitle('');
+          setTimeLimit('');
+          setCurrentQuizCode(null);
+          setIsReadOnly(false);
+          navigate('Create');
+      }, [navigate]);
+
       // --- RENDER ĐANG TẢI ---
       if (isSetupNeeded) return <SetupScreen />;
       if (isGlobalLoading || isFetchingQuiz) return <LoadingScreen />;
@@ -1809,7 +1817,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       // --- ĐIỀU HƯỚNG BẰNG CÁC COMPONENT ĐỘC LẬP ---
       if (activeScreen === 'login') return <LoginScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleLogin={handleLogin} />;
       
-      if (activeScreen === 'dashboard') return <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} myQuizzes={myQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} />;
+      if (activeScreen === 'dashboard') return <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={myQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} />;
       
       if (activeScreen === 'input') return <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} />;
       
