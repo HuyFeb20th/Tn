@@ -1,4 +1,4 @@
-const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = React;
     
     // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
     const MY_FIREBASE_CONFIG = {
@@ -14,8 +14,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // ĐÃ THÊM API KEY IMGBB CỦA HUY
     const IMGBB_API_KEY = "f20580866c25ba3e4cf065d604ff1fc5";
 
-    const MAX_QUIZZES_PER_USER = 3; // Đã tăng giới hạn lên để tránh lỗi đầy kho lưu trữ
-    const MAX_QUIZZES_PER_VIP = 7; // Giới hạn đề cho tài khoản VIP
+    const MAX_QUIZZES_PER_USER = 3; 
+    const MAX_QUIZZES_PER_VIP = 7; 
     const ADMIN_USERNAME = "huy20022k8";
 
     const RESULT_REMARKS = {
@@ -95,7 +95,34 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       Search: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
       Shield: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
       ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>,
-      Clock: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block -mt-1 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      Clock: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block -mt-1 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      ArrowUp: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>,
+      ArrowDown: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>,
+      DragHandle: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>
+    };
+
+    // Component tự động giãn độ cao cho textarea khi render
+    const AutoResizingTextarea = ({ value, onChange, className, rows }) => {
+        const ref = useRef(null);
+        useLayoutEffect(() => {
+            if (ref.current) {
+                ref.current.style.height = 'auto';
+                ref.current.style.height = ref.current.scrollHeight + 'px';
+            }
+        }, [value]);
+        return (
+            <textarea 
+                ref={ref} 
+                value={value} 
+                onChange={(e) => {
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                    onChange(e.target.value);
+                }} 
+                className={className} 
+                rows={rows} 
+            />
+        );
     };
 
     function SetupScreen() {
@@ -152,7 +179,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       );
     };
 
-    // ================= TÁCH COMPONENT ĐỒNG HỒ ĐỂ CHỐNG GIẬT LAG KHI ĐẾM NGƯỢC =================
     const CountdownTimer = React.memo(({ initialTime, isSubmitted, handleTimeUp }) => {
         const [timeLeft, setTimeLeft] = useState(initialTime);
 
@@ -182,9 +208,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         );
     });
 
-    // ================= CÁC COMPONENT GIAO DIỆN CÒN LẠI =================
-    
-    const LoginScreen = React.memo(({ ThemeToggleBtn, Notification, handleGuestJoin, handleCodeInputChange, handleLogin }) => {
+    const LoginScreen = React.memo(({ ThemeToggleBtn, Notification, handleGuestJoin, handleCodeInputChange, handleLogin, handleGuestLogin }) => {
       const [showPassword, setShowPassword] = useState(false);
       return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-900 transition-colors flex items-center justify-center p-4 relative">
@@ -210,7 +234,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               </div>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <input type="text" name="username" placeholder="Tên đăng nhập" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
+                  <input type="text" name="username" placeholder="Tên đăng nhập" maxLength={15} required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
                 </div>
                 <div className="relative">
                   <input type={showPassword ? "text" : "password"} name="password" placeholder="Mật khẩu" required className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
@@ -221,6 +245,9 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 <button type="submit" className="w-full bg-slate-800 dark:bg-blue-600 hover:bg-slate-900 dark:hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition shadow mt-2 flex items-center justify-center gap-2 whitespace-nowrap">
                   <Icons.User /> Đăng Nhập / Đăng Ký
                 </button>
+                <button type="button" onClick={handleGuestLogin} className="w-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-3.5 rounded-xl transition shadow mt-3 flex items-center justify-center gap-2 whitespace-nowrap">
+                  <Icons.User /> Đăng nhập Khách
+                </button>
               </form>
             </div>
           </div>
@@ -228,20 +255,29 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       );
     });
 
-    const DashboardScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, currentUser, setCurrentUser, navigate, resetQuiz, myQuizzes, db, quizzesPath, handleGuestJoin, handleCodeInputChange, handleDeleteAccount, handleChangePassword, copyToClipboard, setCustomAlert }) => {
+    const DashboardScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, currentUser, setCurrentUser, navigate, resetQuiz, myQuizzes, recentQuizzes, setRecentQuizzes, db, quizzesPath, handleGuestJoin, handleCodeInputChange, handleDeleteAccount, handleChangePassword, copyToClipboard, setCustomAlert, handleDeleteQuiz, handleExtendQuiz }) => {
       const [showUserMenu, setShowUserMenu] = useState(false);
       const [showChangePwd, setShowChangePwd] = useState(false);
       const now = Date.now();
       const usernameLower = currentUser?.username.toLowerCase();
       const isAdmin = usernameLower === ADMIN_USERNAME;
       const isVip = currentUser?.isVip || false;
-      const limitText = isAdmin ? "Admin Không giới hạn" : (isVip ? `${myQuizzes.length}/${MAX_QUIZZES_PER_VIP} đề` : `${myQuizzes.length}/${MAX_QUIZZES_PER_USER} đề`);
+      const isGuest = currentUser?.isGuest || false;
+      
+      const dbQuizzesCount = myQuizzes.filter(q => !q.isLocal).length;
+      const limitText = isAdmin ? "Admin Không giới hạn" : (isVip ? `${dbQuizzesCount}/${MAX_QUIZZES_PER_VIP} đề` : `${dbQuizzesCount}/${MAX_QUIZZES_PER_USER} đề`);
+
+      const handleDeleteRecent = (code) => {
+         const newRecents = recentQuizzes.filter(r => r.code !== code);
+         setRecentQuizzes(newRecents);
+         localStorage.setItem('quiz_recent_history', JSON.stringify(newRecents));
+      };
 
       return (
         <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-50 dark:bg-slate-900 transition-colors">
           <Notification />
           <CustomConfirmModal />
-          {showChangePwd && (
+          {showChangePwd && !isGuest && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
               <form onSubmit={(e) => { handleChangePassword(e); setShowChangePwd(false); }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-bounce-in">
                 <h3 className="text-xl font-bold mb-4 dark:text-white truncate">Đổi Mật Khẩu</h3>
@@ -261,19 +297,19 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                   <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition w-full text-left">
                     <Icons.User /> 
                     <span className="text-blue-600 dark:text-blue-400 truncate min-w-0">{currentUser?.username}</span> 
-                    {isAdmin && <span className="text-[9px] sm:text-[10px] bg-red-600 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">ADMIN</span>}
-                    {!isAdmin && isVip && <span className="text-[9px] sm:text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">VIP</span>}
+                    {!isGuest && isAdmin && <span className="text-[9px] sm:text-[10px] bg-red-600 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">ADMIN</span>}
+                    {!isGuest && !isAdmin && isVip && <span className="text-[9px] sm:text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">VIP</span>}
                     <span className="shrink-0 text-sm ml-0.5">▾</span>
                   </button>
                   {showUserMenu && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
                       <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
-                        <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition whitespace-nowrap"><Icons.Key /> Đổi mật khẩu</button>
+                        {!isGuest && <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition whitespace-nowrap"><Icons.Key /> Đổi mật khẩu</button>}
                         {isAdmin && (
                           <button onClick={() => window.location.href = 'admin.html'} className="w-full text-left px-4 py-2 flex items-center gap-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 font-bold transition whitespace-nowrap"><Icons.Shield /> Quản trị Admin</button>
                         )}
-                        <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium transition whitespace-nowrap"><Icons.UserX /> Xóa tài khoản</button>
+                        {!isGuest && <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium transition whitespace-nowrap"><Icons.UserX /> Xóa tài khoản</button>}
                       </div>
                     </>
                   )}
@@ -281,7 +317,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 <div className="flex items-center gap-2 shrink-0">
                   <ThemeToggleBtn />
                   <button onClick={() => { setCurrentUser(null); navigate('Login'); }} title="Đăng xuất" className="p-2 sm:p-2.5 rounded-full text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-600 dark:hover:text-white transition flex items-center justify-center shrink-0"><Icons.Logout /></button>
-
                 </div>
               </div>
               <form onSubmit={handleGuestJoin} className="flex-1 flex gap-2 w-full mt-2 sm:mt-0 min-w-0">
@@ -289,10 +324,45 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 shadow font-bold shrink-0 whitespace-nowrap transition">VÀO THI</button>
               </form>
             </div>
+
+            {/* MỤC ĐỀ LÀM GẦN ĐÂY */}
+            {recentQuizzes.length > 0 && (
+                <div className="mb-10 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-4">
+                      <div className="min-w-0">
+                        <h2 className="text-2xl font-black text-amber-600 dark:text-amber-500 truncate">Làm gần đây</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Tối đa 5 đề (tồn tại trong 24h)</p>
+                      </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recentQuizzes.map(q => {
+                        const timeLeftMs = 86400000 - (now - q.savedAt);
+                        const hoursLeft = Math.floor(timeLeftMs / 3600000);
+                        return (
+                            <div key={q.code} className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-4 shadow-sm border border-amber-200 dark:border-amber-800/50 hover:border-amber-400 transition-colors flex flex-col justify-between min-w-0 relative group">
+                                <button onClick={() => handleDeleteRecent(q.code)} className="absolute top-2 right-2 p-1.5 text-red-500 bg-white dark:bg-slate-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-red-100 dark:border-slate-700 hover:bg-red-500 hover:text-white" title="Xóa đề này khỏi lịch sử">
+                                    <Icons.Trash />
+                                </button>
+                                <div className="min-w-0 mb-3 pr-8">
+                                    <h3 className="font-bold text-slate-800 dark:text-white truncate" title={q.title}>{q.title}</h3>
+                                    <div className="text-xs text-amber-600 dark:text-amber-500 font-bold mt-1">Còn {hoursLeft} giờ</div>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-amber-800 dark:text-amber-300 font-mono font-black text-base truncate tracking-widest">{q.code}</span>
+                                    <button onClick={() => navigate(`Overview/${q.code}`)} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg font-bold transition text-sm shrink-0 whitespace-nowrap shadow-sm">Làm lại</button>
+                                </div>
+                            </div>
+                        )
+                    })}
+                  </div>
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
               <div className="min-w-0">
                 <h2 className="text-2xl font-black text-slate-800 dark:text-white truncate">Kho đề thi của bạn</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Đã lưu: {limitText}</p>
+                {!isGuest && <p className="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Đã lưu lên Cloud: {limitText}</p>}
+                {isGuest && <p className="text-sm text-amber-500 font-medium whitespace-nowrap">Đề đang lưu cục bộ, hãy Lưu vào TK để tránh mất dữ liệu</p>}
               </div>
               <button onClick={resetQuiz} className="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto shrink-0 whitespace-nowrap">+ TẠO ĐỀ MỚI</button>
             </div>
@@ -305,8 +375,9 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                   const fullLink = `${window.location.origin}${window.location.pathname}#/Overview/${q.code}`;
 
                   return (
-                    <div key={q.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 transition-colors flex flex-col justify-between min-w-0">
-                      <div className="min-w-0">
+                    <div key={q.id} className={`bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border ${q.isLocal ? 'border-amber-300 dark:border-amber-600/50' : 'border-slate-200 dark:border-slate-700'} hover:border-blue-300 dark:hover:border-blue-500 transition-colors flex flex-col justify-between min-w-0 relative`}>
+                      {q.isLocal && <span className="absolute top-0 right-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-bl-lg rounded-tr-lg uppercase">Chưa lưu Cloud</span>}
+                      <div className="min-w-0 mt-1">
                         <h3 className="font-bold text-slate-800 dark:text-white mb-2 truncate">{q.title}</h3>
                         <div className="flex justify-between text-xs mb-4">
                           <span className="text-slate-500 dark:text-slate-400">{new Date(q.createdAt).toLocaleDateString('vi-VN')}</span>
@@ -315,17 +386,21 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                         
                         <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-xl border border-blue-100 dark:border-blue-800/50 min-w-0 mb-4">
                             <span className="text-blue-800 dark:text-blue-300 font-mono font-black text-lg truncate min-w-0 pl-2 tracking-widest">{q.code}</span>
-                            <button onClick={() => copyToClipboard(fullLink, q.code)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-bold transition text-sm shrink-0 whitespace-nowrap shadow-sm">Copy Link</button>
+                            {!q.isLocal ? (
+                                <button onClick={() => copyToClipboard(fullLink, q.code)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-bold transition text-sm shrink-0 whitespace-nowrap shadow-sm">Copy Link</button>
+                            ) : (
+                                <span className="text-amber-600 font-bold text-xs pr-2">Link tạm</span>
+                            )}
                         </div>
 
                       </div>
                       <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700 relative">
                         <button onClick={() => navigate(`Overview/${q.code}`)} className="flex-1 bg-slate-100 dark:bg-slate-700 py-2 rounded-lg font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm sm:text-base min-w-0 truncate">Xem / Sửa</button>
-                        <button onClick={() => db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000) })} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800 transition text-sm shrink-0 whitespace-nowrap">+7 Ngày</button>
+                        <button onClick={() => handleExtendQuiz(q)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800 transition text-sm shrink-0 whitespace-nowrap">+7 Ngày</button>
                         <button onClick={() => {
                             setCustomAlert({
                                 isOpen: true, title: "Xóa đề thi", message: "Bạn có chắc chắn muốn xóa đề thi này không?",
-                                type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy', onConfirm: () => db.doc(`${quizzesPath}/${q.id}`).delete()
+                                type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy', onConfirm: () => handleDeleteQuiz(q)
                             });
                         }} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-500 hover:text-white transition shrink-0"><Icons.Trash /></button>
                       </div>
@@ -334,12 +409,19 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 })}
               </div>
             )}
+
+            {/* Tạo nút tạo đề mới cho khách ở ngay dưới cùng nếu là khách */}
+            {isGuest && myQuizzes.length > 0 && (
+                <div className="mt-8 text-center">
+                    <button onClick={resetQuiz} className="bg-blue-600 text-white font-bold px-8 py-4 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto shrink-0 whitespace-nowrap">+ TẠO ĐỀ MỚI NGAY</button>
+                </div>
+            )}
           </div>
         </div>
       );
     });
 
-    const InputScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, navigate, quizTitle, setQuizTitle, currentQuizCode, rawTexts, setRawTexts, handleParseAndSave, saveCooldown, isSaving }) => {
+    const InputScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, navigate, quizTitle, setQuizTitle, currentQuizCode, rawTexts, setRawTexts, handleParseAndSave, saveCooldown, isSaving, setShowGuestSaveModal, currentUser }) => {
       const [inputTab, setInputTab] = useState('mc');
       const tabs = [{ id: 'mc', label: 'I. Trắc nghiệm' }, { id: 'tf', label: 'II. Đúng sai' }, { id: 'sa', label: 'III. Trả lời ngắn' }, { id: 'rc', label: 'IV. Đọc hiểu' }, { id: 'file', label: 'Tải File / Hỗn hợp' }];
       const placeholders = { 
@@ -368,7 +450,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               </div>
             </div>
             <div className="mb-6">
-                <input type="text" placeholder="Tên Đề Thi..." value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} 
+                <input type="text" placeholder="Tên Đề Thi..." value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} maxLength={15}
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-bold dark:text-white transition-colors" />
             </div>
             <div className="grid grid-cols-2 gap-3 mb-6 border-b border-slate-200 dark:border-slate-700 pb-5">
@@ -394,11 +476,16 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
             </div>
             <textarea className="w-full h-[350px] p-5 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-blue-500 outline-none resize-none font-mono text-sm bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white transition-colors mb-6" 
               placeholder={placeholders[inputTab]} value={rawTexts[inputTab]} onChange={(e) => setRawTexts({...rawTexts, [inputTab]: e.target.value})} />
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {currentUser?.isGuest && (
+                 <button onClick={() => setShowGuestSaveModal(true)} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform hover:-translate-y-1">
+                    <Icons.User /> LƯU VÀO TK
+                 </button>
+              )}
               <button onClick={saveCooldown > 0 || isSaving ? null : handleParseAndSave} disabled={saveCooldown > 0 || isSaving}
                 className={`flex-1 ${saveCooldown > 0 || isSaving ? 'bg-slate-400 dark:bg-slate-600' : 'bg-green-600 hover:bg-green-700'} text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform ${saveCooldown > 0 || isSaving ? '' : 'hover:-translate-y-1'}`}
               >
-                {isSaving ? "ĐANG LƯU..." : saveCooldown > 0 ? `ĐỢI (${saveCooldown}s)` : <><Icons.Check /> LƯU</>}
+                {isSaving ? "ĐANG LƯU..." : saveCooldown > 0 ? `ĐỢI (${saveCooldown}s)` : <><Icons.Check /> LƯU TRÊN MÁY</>}
               </button>
             </div>
           </div>
@@ -406,11 +493,168 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       );
     });
 
-    const OverviewScreen = React.memo(({ ThemeToggleBtn, Notification, quizTitle, timeLimit, setTimeLimit, currentQuizCode, copyToClipboard, config, setConfig, prepareQuiz, isReadOnly, navigate, cloneQuizAdmin, currentUser }) => {
+    const SectionOrderModal = React.memo(({ availableParts, initialSelected, onClose, onSave, ThemeToggleBtn, quizTitle, quizCode }) => {
+        const [orderedParts, setOrderedParts] = useState(() => {
+            const selected = initialSelected || [];
+            const unselected = availableParts.filter(p => !selected.includes(p.id)).map(p => p.id);
+            return [...selected, ...unselected];
+        });
+
+        const [localSelected, setLocalSelected] = useState(initialSelected || []);
+
+        const toggleLocalSelect = (id) => {
+            setLocalSelected(prev => {
+                let newSelected = [...prev];
+                if (prev.includes(id)) {
+                    if (prev.length === 1) return prev; 
+                    newSelected = prev.filter(x => x !== id);
+                } else {
+                    newSelected = [...prev, id];
+                }
+                
+                setOrderedParts(currentOrder => {
+                    const newOrder = currentOrder.filter(x => x !== id);
+                    if (newSelected.includes(id)) {
+                        const lastSelectedIndex = newOrder.findIndex(item => !newSelected.includes(item));
+                        if (lastSelectedIndex === -1) newOrder.push(id);
+                        else newOrder.splice(lastSelectedIndex, 0, id);
+                    } else {
+                        newOrder.push(id);
+                    }
+                    return newOrder;
+                });
+                return newSelected;
+            });
+        };
+
+        const moveItem = (index, direction) => {
+            if (direction === 'up' && index > 0) {
+                setOrderedParts(prev => {
+                    const newArr = [...prev];
+                    [newArr[index - 1], newArr[index]] = [newArr[index], newArr[index - 1]];
+                    return newArr;
+                });
+            } else if (direction === 'down' && index < orderedParts.length - 1) {
+                setOrderedParts(prev => {
+                    const newArr = [...prev];
+                    [newArr[index + 1], newArr[index]] = [newArr[index], newArr[index + 1]];
+                    return newArr;
+                });
+            }
+        };
+
+        const handleDragStart = (e, index) => {
+            e.dataTransfer.setData('text/plain', index);
+            e.dataTransfer.effectAllowed = 'move';
+        };
+
+        const handleDragOver = (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        };
+
+        const handleDrop = (e, dropIndex) => {
+            e.preventDefault();
+            const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            if (dragIndex === dropIndex) return;
+
+            setOrderedParts(prev => {
+                const newArr = [...prev];
+                const [draggedItem] = newArr.splice(dragIndex, 1);
+                newArr.splice(dropIndex, 0, draggedItem);
+                return newArr;
+            });
+        };
+
+        return (
+            <div className="fixed inset-0 bg-slate-50 dark:bg-slate-900 z-[100] flex flex-col animate-fade-in overflow-hidden transition-colors">
+                <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 px-4 py-3 shrink-0 flex items-center gap-3">
+                    <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition shrink-0"><Icons.ArrowLeft /></button>
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white truncate" title={quizTitle}>{quizTitle || "Đề thi"}</h2>
+                        {quizCode && <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded uppercase inline-block mt-0.5 tracking-wider truncate max-w-full">Mã: {quizCode}</span>}
+                    </div>
+                    <ThemeToggleBtn />
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                    <div className="max-w-2xl mx-auto w-full">
+                        <div className="mb-6 text-center">
+                            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">Chọn và sắp xếp phần thi</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Đánh dấu để chọn. Bấm mũi tên hoặc kéo thả để đổi thứ tự.</p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {orderedParts.map((partId, index) => {
+                                const partInfo = availableParts.find(p => p.id === partId);
+                                if (!partInfo) return null;
+                                const isSelected = localSelected.includes(partId);
+
+                                return (
+                                    <div 
+                                        key={partId}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, index)}
+                                        onDragOver={handleDragOver}
+                                        onDrop={(e) => handleDrop(e, index)}
+                                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-move bg-white dark:bg-slate-800 ${isSelected ? 'border-indigo-500 shadow-md' : 'border-slate-200 dark:border-slate-700 opacity-60'}`}
+                                    >
+                                        <div className="shrink-0 text-slate-400 hidden sm:block"><Icons.DragHandle /></div>
+                                        <label className="flex items-center gap-3 flex-1 cursor-pointer min-w-0">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isSelected} 
+                                                onChange={() => toggleLocalSelect(partId)}
+                                                className="w-6 h-6 rounded text-indigo-600 focus:ring-indigo-500 shrink-0 cursor-pointer" 
+                                            />
+                                            <span className={`font-bold text-base sm:text-lg truncate ${isSelected ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 line-through'}`}>{partInfo.label}</span>
+                                        </label>
+
+                                        {isSelected && (
+                                            <div className="flex flex-col gap-1 shrink-0">
+                                                <button 
+                                                    onClick={() => moveItem(index, 'up')} 
+                                                    disabled={index === 0}
+                                                    className={`p-1.5 rounded-lg transition-colors ${index === 0 ? 'opacity-0 cursor-default' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                                                >
+                                                    <Icons.ArrowUp />
+                                                </button>
+                                                <button 
+                                                    onClick={() => moveItem(index, 'down')} 
+                                                    disabled={index === orderedParts.length - 1}
+                                                    className={`p-1.5 rounded-lg transition-colors ${index === orderedParts.length - 1 ? 'opacity-0 cursor-default' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                                                >
+                                                    <Icons.ArrowDown />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 shrink-0">
+                    <div className="max-w-2xl mx-auto w-full flex gap-3">
+                        <button onClick={onClose} className="flex-1 py-4 font-bold rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
+                        <button 
+                            onClick={() => {
+                                const finalOrder = orderedParts.filter(id => localSelected.includes(id));
+                                onSave(finalOrder);
+                            }} 
+                            className="flex-1 py-4 font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-md transition"
+                        >
+                            Lưu cấu hình
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    });
+
+    const OverviewScreen = React.memo(({ ThemeToggleBtn, Notification, quizTitle, timeLimit, setTimeLimit, currentQuizCode, copyToClipboard, config, setConfig, prepareQuiz, isReadOnly, navigate, cloneQuizAdmin, cloneCooldown, currentUser, parsedData }) => {
       const [showShuffleMenu, setShowShuffleMenu] = useState(false);
-      const [showHourMenu, setShowHourMenu] = useState(false);
-      const [showMinuteMenu, setShowMinuteMenu] = useState(false);
-      const [showSecondMenu, setShowSecondMenu] = useState(false);
+      const [showTimeMenu, setShowTimeMenu] = useState(false);
+      const [showOrderModal, setShowOrderModal] = useState(false);
 
       const isAdmin = currentUser?.username.toLowerCase() === ADMIN_USERNAME;
       const isVip = currentUser?.isVip || false;
@@ -423,7 +667,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       ];
       const fullLink = `${window.location.origin}${window.location.pathname}#/Overview/${currentQuizCode}`;
 
-      // Tính toán giá trị giờ, phút, giây từ state timeLimit (tổng số giây)
       const currentSeconds = parseInt(timeLimit) || 0;
       const h = Math.floor(currentSeconds / 3600);
       const m = Math.floor((currentSeconds % 3600) / 60);
@@ -438,9 +681,41 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           setTimeLimit(newH * 3600 + newM * 60 + newS);
       };
 
+      const availableParts = useMemo(() => {
+          if (!parsedData) return [];
+          const parts = [];
+          if (parsedData.mc && parsedData.mc.length > 0) parts.push({ id: 'mc', label: 'I. Trắc nghiệm' });
+          if (parsedData.tf && parsedData.tf.length > 0) parts.push({ id: 'tf', label: 'II. Đúng/Sai' });
+          if (parsedData.sa && parsedData.sa.length > 0) parts.push({ id: 'sa', label: 'III. Trả lời ngắn' });
+          if (parsedData.rc && parsedData.rc.length > 0) parts.push({ id: 'rc', label: 'IV. Đọc hiểu' });
+          return parts;
+      }, [parsedData]);
+
+      useEffect(() => {
+          if ((!config.selectedSections || config.selectedSections.length === 0) && availableParts.length > 0) {
+              setConfig(prev => ({ ...prev, selectedSections: availableParts.map(p => p.id) }));
+          }
+      }, [availableParts, config.selectedSections, setConfig]);
+
       return (
-        <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors flex items-center justify-center">
+        <div className="min-h-screen p-4 py-10 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors flex items-start sm:items-center justify-center">
           <Notification />
+          
+          {showOrderModal && (
+              <SectionOrderModal 
+                  availableParts={availableParts} 
+                  initialSelected={config.selectedSections} 
+                  onClose={() => setShowOrderModal(false)}
+                  onSave={(newOrder) => {
+                      setConfig({...config, selectedSections: newOrder});
+                      setShowOrderModal(false);
+                  }}
+                  ThemeToggleBtn={ThemeToggleBtn}
+                  quizTitle={quizTitle}
+                  quizCode={currentQuizCode}
+              />
+          )}
+
           <div className="max-w-xl w-full bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 min-w-0">
               <div className="flex flex-col mb-6 border-b border-slate-100 dark:border-slate-700 pb-4 gap-2">
                   <div className="flex justify-between items-start">
@@ -457,7 +732,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               </div>
               
               <div className="flex flex-col items-center mb-8 p-6 rounded-3xl border border-slate-100 dark:border-slate-700">
-                {/* 1. CHẾ ĐỘ THI */}
                 <div className="w-full flex flex-col items-center border-b border-slate-100 dark:border-slate-700 pb-6">
                   <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider">Chế độ thi</p>
                   <div className="flex w-full bg-slate-100 dark:bg-slate-900 rounded-2xl p-1.5 gap-1.5 border border-slate-200 dark:border-slate-700">
@@ -466,7 +740,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                   </div>
                 </div>
                 
-                {/* 2. XÁO TRỘN */}
                 <div className="w-full flex flex-col items-center relative border-b border-slate-100 dark:border-slate-700 py-6">
                   <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider">Xáo trộn</p>
                   <div className="w-full">
@@ -474,8 +747,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                           onClick={() => setShowShuffleMenu(!showShuffleMenu)} 
                           className="w-full flex items-center justify-between py-4 px-5 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-2xl font-bold border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm"
                       >
-                          <span className="truncate">{shuffleOptions.find(o => o.id === config.shuffle)?.label || 'Giữ nguyên'}</span>
-                          <div className={`transition-transform duration-200 text-slate-400 ${showShuffleMenu ? 'rotate-180' : ''}`}>
+                          <span className="truncate flex-1 text-center pl-5">{shuffleOptions.find(o => o.id === config.shuffle)?.label || 'Giữ nguyên'}</span>
+                          <div className={`transition-transform duration-200 text-slate-400 shrink-0 ${showShuffleMenu ? 'rotate-180' : ''}`}>
                               <Icons.ChevronDown />
                           </div>
                       </button>
@@ -491,7 +764,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                                               setConfig({...config, shuffle: opt.id});
                                               setShowShuffleMenu(false);
                                           }}
-                                          className={`w-full text-left px-5 py-4 font-bold transition-colors ${config.shuffle === opt.id ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                                          className={`w-full text-center px-5 py-4 font-bold transition-colors ${config.shuffle === opt.id ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                                       >
                                           {opt.label}
                                       </button>
@@ -502,57 +775,51 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                   </div>
                 </div>
 
-                {/* 3. THỜI GIAN LÀM BÀI BẰNG DROPDOWN */}
-                <div className="w-full flex flex-col items-center relative pt-6">
+                <div className="w-full flex flex-col items-center relative border-b border-slate-100 dark:border-slate-700 py-6">
                   <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider">Thời gian làm bài</p>
-                  <div className="flex w-full gap-2 sm:gap-4">
-                     <div className="relative flex-1">
-                         <button onClick={() => setShowHourMenu(!showHourMenu)} className="w-full flex items-center justify-between py-3.5 px-3 sm:px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-2xl font-bold border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm text-xs sm:text-sm">
-                             <span className="truncate">{h} Giờ</span>
-                             <div className={`transition-transform duration-200 text-slate-400 ${showHourMenu ? 'rotate-180' : ''}`}><Icons.ChevronDown /></div>
-                         </button>
-                         {showHourMenu && (
-                             <>
-                                 <div className="fixed inset-0 z-40" onClick={() => setShowHourMenu(false)}></div>
-                                 <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in max-h-60 overflow-y-auto">
-                                     <button onClick={() => { updateTime('h', 0); setShowHourMenu(false); }} className={`w-full text-center px-2 py-3 font-bold transition-colors text-xs sm:text-sm ${h === 0 ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>0 Giờ</button>
-                                     {[...Array(12)].map((_, i) => <button key={i+1} onClick={() => { updateTime('h', i+1); setShowHourMenu(false); }} className={`w-full text-center px-2 py-3 font-bold transition-colors text-xs sm:text-sm ${h === i+1 ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i+1} Giờ</button>)}
+                  <div className="w-full relative">
+                     <button onClick={() => setShowTimeMenu(!showTimeMenu)} className="w-full flex items-center justify-between py-4 px-5 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-2xl font-bold border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm text-sm sm:text-base">
+                         <span className="truncate flex-1 text-center pl-5">{h > 0 || m > 0 || s > 0 ? `${h} giờ ${m} phút ${s} giây` : 'Không giới hạn'}</span>
+                         <div className={`transition-transform duration-200 text-slate-400 shrink-0 ${showTimeMenu ? 'rotate-180' : ''}`}><Icons.ChevronDown /></div>
+                     </button>
+                     {showTimeMenu && (
+                         <>
+                             <div className="fixed inset-0 z-40" onClick={() => setShowTimeMenu(false)}></div>
+                             <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in flex p-2 gap-2 h-60">
+                                 {/* Giờ */}
+                                 <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+                                     <div className="text-center font-black text-[10px] text-slate-400 mb-2 sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur py-1 z-10">GIỜ</div>
+                                     {[...Array(13)].map((_, i) => <button key={`h${i}`} onClick={() => updateTime('h', i)} className={`w-full py-2.5 rounded-xl font-bold transition-colors text-xs sm:text-sm mb-1 ${h === i ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i}</button>)}
                                  </div>
-                             </>
-                         )}
-                     </div>
-                     <div className="relative flex-1">
-                         <button onClick={() => setShowMinuteMenu(!showMinuteMenu)} className="w-full flex items-center justify-between py-3.5 px-3 sm:px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-2xl font-bold border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm text-xs sm:text-sm">
-                             <span className="truncate">{m} Phút</span>
-                             <div className={`transition-transform duration-200 text-slate-400 ${showMinuteMenu ? 'rotate-180' : ''}`}><Icons.ChevronDown /></div>
-                         </button>
-                         {showMinuteMenu && (
-                             <>
-                                 <div className="fixed inset-0 z-40" onClick={() => setShowMinuteMenu(false)}></div>
-                                 <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in max-h-60 overflow-y-auto">
-                                     <button onClick={() => { updateTime('m', 0); setShowMinuteMenu(false); }} className={`w-full text-center px-2 py-3 font-bold transition-colors text-xs sm:text-sm ${m === 0 ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>0 Phút</button>
-                                     {[...Array(59)].map((_, i) => <button key={i+1} onClick={() => { updateTime('m', i+1); setShowMinuteMenu(false); }} className={`w-full text-center px-2 py-3 font-bold transition-colors text-xs sm:text-sm ${m === i+1 ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i+1} Phút</button>)}
+                                 {/* Phút */}
+                                 <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden border-l border-slate-100 dark:border-slate-700" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+                                     <div className="text-center font-black text-[10px] text-slate-400 mb-2 sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur py-1 z-10">PHÚT</div>
+                                     {[...Array(60)].map((_, i) => <button key={`m${i}`} onClick={() => updateTime('m', i)} className={`w-full py-2.5 rounded-xl font-bold transition-colors text-xs sm:text-sm mb-1 ${m === i ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i}</button>)}
                                  </div>
-                             </>
-                         )}
-                     </div>
-                     <div className="relative flex-1">
-                         <button onClick={() => setShowSecondMenu(!showSecondMenu)} className="w-full flex items-center justify-between py-3.5 px-3 sm:px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-2xl font-bold border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm text-xs sm:text-sm">
-                             <span className="truncate">{s} Giây</span>
-                             <div className={`transition-transform duration-200 text-slate-400 ${showSecondMenu ? 'rotate-180' : ''}`}><Icons.ChevronDown /></div>
-                         </button>
-                         {showSecondMenu && (
-                             <>
-                                 <div className="fixed inset-0 z-40" onClick={() => setShowSecondMenu(false)}></div>
-                                 <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in max-h-60 overflow-y-auto">
-                                     <button onClick={() => { updateTime('s', 0); setShowSecondMenu(false); }} className={`w-full text-center px-2 py-3 font-bold transition-colors text-xs sm:text-sm ${s === 0 ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>0 Giây</button>
-                                     {[...Array(59)].map((_, i) => <button key={i+1} onClick={() => { updateTime('s', i+1); setShowSecondMenu(false); }} className={`w-full text-center px-2 py-3 font-bold transition-colors text-xs sm:text-sm ${s === i+1 ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i+1} Giây</button>)}
+                                 {/* Giây */}
+                                 <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden border-l border-slate-100 dark:border-slate-700" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+                                     <div className="text-center font-black text-[10px] text-slate-400 mb-2 sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur py-1 z-10">GIÂY</div>
+                                     {[...Array(60)].map((_, i) => <button key={`s${i}`} onClick={() => updateTime('s', i)} className={`w-full py-2.5 rounded-xl font-bold transition-colors text-xs sm:text-sm mb-1 ${s === i ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i}</button>)}
                                  </div>
-                             </>
-                         )}
-                     </div>
+                             </div>
+                         </>
+                     )}
                   </div>
                 </div>
+
+                {availableParts.length > 0 && (
+                    <div className="w-full flex flex-col items-center relative pt-6">
+                      <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider text-center">Chọn phần thi & Thứ tự</p>
+                      
+                      <button 
+                          onClick={() => setShowOrderModal(true)}
+                          className="w-full flex items-center justify-between py-4 px-5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-2xl font-bold border border-indigo-200 dark:border-indigo-800 outline-none transition-colors shadow-sm"
+                      >
+                          <span className="truncate flex-1 text-center pl-5">Cài đặt phần thi ({config.selectedSections?.length || 0})</span>
+                          <div className="text-indigo-400 shrink-0"><Icons.Edit /></div>
+                      </button>
+                    </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-3">
@@ -564,7 +831,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                   </div>
                 )}
                 {isReadOnly && (isAdmin || isVip) && (
-                      <button onClick={() => cloneQuizAdmin()} className="w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold py-4 rounded-xl transition shadow flex items-center justify-center gap-2"><Icons.Copy /> Nhân bản thành đề của tôi {isAdmin ? '(Admin)' : '(VIP)'}</button>
+                      <button onClick={() => cloneQuizAdmin()} disabled={cloneCooldown > 0} className={`w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold py-4 rounded-xl transition shadow flex items-center justify-center gap-2 ${cloneCooldown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}><Icons.Copy /> {cloneCooldown > 0 ? `Vui lòng đợi ${cloneCooldown}s...` : `Nhân bản thành đề của tôi ${isAdmin ? '(Admin)' : '(VIP)'}`}</button>
                 )}
                 <button onClick={() => navigate(currentUser ? 'Home' : 'Login')} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold py-4 rounded-xl border border-slate-200 dark:border-slate-700 transition">Thoát</button>
               </div>
@@ -573,24 +840,19 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       );
     });
 
-    const SettingsScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, parsedData, setParsedData, editingQ, setEditingQ, navigate, currentQuizCode, isReadOnly, currentUser, db, handleImageUpload, changeQuestionType, saveInlineEdit, removeInlineQuestion, handleAddNewQuestion, showMessage, quizzesPath }) => {
+    const SettingsScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, parsedData, setParsedData, editingQ, setEditingQ, navigate, currentQuizCode, isReadOnly, currentUser, db, handleImageUpload, changeQuestionType, saveInlineEdit, removeInlineQuestion, handleAddNewQuestion, showMessage, quizzesPath, quizTitle, setShowGuestSaveModal }) => {
       const [qSearchTerm, setQSearchTerm] = useState('');
       const [showTypeMenu, setShowTypeMenu] = useState(false);
       const [showAddSectionSelector, setShowAddSectionSelector] = useState(false);
 
-      // Kỹ thuật tự động co giãn chiều cao của Textarea
-      const handleTextareaChange = (e, callback) => {
-          e.target.style.height = 'auto';
-          e.target.style.height = e.target.scrollHeight + 'px';
-          callback(e.target.value);
-      };
-      
-      const autoResizeRef = useCallback((node) => {
-          if (node) {
-              node.style.height = 'auto';
-              node.style.height = node.scrollHeight + 'px';
-          }
-      }, []);
+      const totalQuestions = useMemo(() => {
+          let count = 0;
+          if (parsedData.mc) count += parsedData.mc.length;
+          if (parsedData.tf) count += parsedData.tf.length;
+          if (parsedData.sa) count += parsedData.sa.length;
+          if (parsedData.rc) parsedData.rc.forEach(q => count += q.subQuestions.length);
+          return count;
+      }, [parsedData]);
 
       const sections = useMemo(() => [
         { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: (parsedData.mc || []).map((q, i) => ({...q, originalIndex: i + 1})) },
@@ -671,10 +933,9 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                     )}
                   </div>
                   <div>
-                    <textarea 
+                    <AutoResizingTextarea 
                         value={editingQ.data.text} 
-                        ref={autoResizeRef}
-                        onChange={e => handleTextareaChange(e, val => setEditingQ({...editingQ, data: {...editingQ.data, text: val}}))} 
+                        onChange={val => setEditingQ({...editingQ, data: {...editingQ.data, text: val}})} 
                         className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
                         rows="1" 
                     />
@@ -683,17 +944,29 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                     <div>
                       {editingQ.data.options.map((opt, oIdx) => (
                         <div key={opt.id} className="flex items-start gap-3 mb-2">
-                          {editingQ.data.type !== 'sa' && <input type="radio" checked={opt.isCorrect} onChange={() => {
-                            const newOpts = editingQ.data.options.map(o => ({...o, isCorrect: o.id === opt.id}));
-                            setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                          }} className="mt-3 w-5 h-5 text-blue-600 cursor-pointer" />}
-                          <textarea 
+                          {editingQ.data.type !== 'sa' && <input 
+  type={editingQ.data.type === 'tf' ? "checkbox" : "radio"} 
+  checked={opt.isCorrect} 
+  onChange={() => {
+    const newOpts = editingQ.data.options.map(o => {
+      if (editingQ.data.type === 'tf') {
+        // Đúng/Sai: Cho phép chọn/bỏ chọn độc lập nhiều mệnh đề đúng
+        return o.id === opt.id ? {...o, isCorrect: !o.isCorrect} : o;
+      } else {
+        // Trắc nghiệm: Chỉ cho phép 1 đáp án đúng
+        return {...o, isCorrect: o.id === opt.id};
+      }
+    });
+    setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+  }} 
+  className={`mt-3 w-5 h-5 cursor-pointer ${editingQ.data.type === 'tf' ? 'text-indigo-600 rounded' : 'text-blue-600'}`} 
+/>}
+                          <AutoResizingTextarea 
                               value={opt.text} 
-                              ref={autoResizeRef}
-                              onChange={e => handleTextareaChange(e, val => {
+                              onChange={val => {
                                 const newOpts = [...editingQ.data.options]; newOpts[oIdx].text = val;
                                 setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                              })} 
+                              }} 
                               className="flex-1 p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
                               rows="1" 
                           />
@@ -718,13 +991,12 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                               setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
                           }} className="absolute top-2 right-2 text-red-500 text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded border shadow-sm hover:bg-red-50 transition">Xóa câu phụ</button>
 
-                          <textarea 
+                          <AutoResizingTextarea 
                               value={sq.text} 
-                              ref={autoResizeRef}
-                              onChange={e => handleTextareaChange(e, val => {
+                              onChange={val => {
                                   const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].text = val;
                                   setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                              })} 
+                              }} 
                               className="w-full pr-20 p-2 mb-2 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 font-bold outline-none resize-none overflow-hidden" 
                               rows="1" 
                           />
@@ -735,14 +1007,13 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                                   newSqs[sqIdx].options = sq.options.map(o => ({...o, isCorrect: o.id === opt.id}));
                                   setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
                               }} className="mt-1 w-4 h-4 text-blue-600 cursor-pointer" />
-                              <textarea 
+                              <AutoResizingTextarea 
                                   value={opt.text} 
-                                  ref={autoResizeRef}
-                                  onChange={e => handleTextareaChange(e, val => {
+                                  onChange={val => {
                                       const newSqs = [...editingQ.data.subQuestions];
                                       newSqs[sqIdx].options[oIdx].text = val;
                                       setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                  })} 
+                                  }} 
                                   className="flex-1 text-sm p-1.5 border rounded dark:bg-slate-800 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
                                   rows="1" 
                               />
@@ -777,30 +1048,38 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           )}
           <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 transition-colors">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                  <button onClick={() => navigate(`Overview/${currentQuizCode}`)} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition"><Icons.ArrowLeft /></button>
-                  <h2 className="text-xl sm:text-2xl font-black dark:text-white truncate">Chi tiết câu hỏi</h2>
+              <div className="flex items-center gap-3 w-full md:w-auto min-w-0">
+                  <button onClick={() => navigate(`Overview/${currentQuizCode}`)} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition shrink-0"><Icons.ArrowLeft /></button>
+                  <div className="min-w-0">
+                      <h2 className="text-xl sm:text-2xl font-black dark:text-white truncate" title={quizTitle}>{quizTitle}</h2>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-1">Tổng cộng: {totalQuestions} câu hỏi</p>
+                  </div>
               </div>
               <div className="flex w-full md:w-auto gap-3 flex-1 md:justify-end">
                   <div className="relative w-full max-w-sm">
-                      <input type="text" placeholder="Tìm số hoặc tên câu..." value={qSearchTerm} onChange={(e) => setQSearchTerm(e.target.value)} 
+                      <input type="text" placeholder="Tìm số/tên câu..." value={qSearchTerm} onChange={(e) => setQSearchTerm(e.target.value)} 
                           className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
                       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Search /></div>
                   </div>
                   {!isReadOnly && (
                   <>
+                  {currentUser?.isGuest && (
+                      <button onClick={() => setShowGuestSaveModal(true)} className="flex items-center justify-center gap-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
+                          <Icons.User /> <span className="hidden sm:inline">Lưu vào TK</span>
+                      </button>
+                  )}
                   <button onClick={() => {
-                      if (currentUser && currentQuizCode && db) {
+                      if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
                           db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: parsedData })
                           .then(() => showMessage("Đã lưu đề thi thành công!", "success"))
                           .catch(() => showMessage("Lỗi khi lưu đề thi!", "error"));
                       } else {
-                          showMessage("Đã lưu trên máy (chưa đồng bộ lên Cloud)!", "success");
+                          showMessage("Đề của bạn đang ở trạng thái lưu tạm!", "success");
                       }
-                  }} className="flex items-center gap-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
+                  }} className="flex items-center justify-center gap-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
                       <Icons.Check /> <span className="hidden sm:inline">Lưu</span>
                   </button>
-                  <button onClick={() => setShowAddSectionSelector(true)} className="flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
+                  <button onClick={() => setShowAddSectionSelector(true)} className="flex items-center justify-center gap-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
                       <Icons.Plus /> <span className="hidden sm:inline">Thêm</span>
                   </button>
                   </>
@@ -860,7 +1139,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl w-full max-w-sm border dark:border-slate-700 animate-bounce-in">
                   <h3 className="text-xl font-black mb-4 text-center dark:text-white">Thêm vào phần nào?</h3>
                   <div className="space-y-3">
-                      {sections.map(s => <button key={s.id} onClick={() => handleAddNewQuestion(s.id)} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">{s.title}</button>)}
+                      {sections.map(s => <button key={s.id} onClick={() => { handleAddNewQuestion(s.id); setShowAddSectionSelector(false); }} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">{s.title}</button>)}
                   </div>
                   <button onClick={() => setShowAddSectionSelector(false)} className="w-full mt-4 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition font-bold rounded-xl dark:text-white">Hủy</button>
                 </div>
@@ -877,7 +1156,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       
       const initialTime = parseInt(timeLimit) || 0;
 
-      // Hàm xử lý khi Hết Giờ
       const handleTimeUp = useCallback(() => {
         showMessage('Hết thời gian làm bài!', 'warning');
         let correct = 0;
@@ -948,7 +1226,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           setScore(p => ({ ...p, correct: p.correct + isCorrectThisTime }));
         } else {
           const ans = answers[q.id];
-          if (!ans || (Array.isArray(ans) && ans.length===0) || (typeof ans==='string' && !ans.trim())) return showMessage('Chưa chọn đáp án!');
+          if (q.type !== 'tf' && (!ans || (Array.isArray(ans) && ans.length===0) || (typeof ans==='string' && !ans.trim()))) return showMessage('Chưa chọn đáp án!');
           if (checkQuestionCorrect(q.type, q, ans)) { isCorrectThisTime = 1; setScore(p => ({ ...p, correct: p.correct + 1 })); }
         }
         setSingleQuestionConfirmed(true);
@@ -959,7 +1237,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         let hasUnanswered = false;
         activeQuiz.flat.forEach(q => {
           if(q.type === 'rc') { q.subQuestions.forEach(sq => { if(!answers[sq.id] || answers[sq.id].length===0) hasUnanswered = true; }) }
-          else { const ans = answers[q.id]; if(!ans || (Array.isArray(ans)&&ans.length===0) || (typeof ans==='string'&&!ans.trim())) hasUnanswered = true; }
+          else { const ans = answers[q.id]; if(q.type !== 'tf' && (!ans || (Array.isArray(ans)&&ans.length===0) || (typeof ans==='string'&&!ans.trim()))) hasUnanswered = true; }
         });
         if (hasUnanswered) return showMessage('Bạn còn câu chưa làm!');
         let correct = 0;
@@ -991,6 +1269,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           answeredCount = count;
       }
       const progressPercent = totalQ > 0 ? (answeredCount / totalQ) * 100 : 0;
+      const displayOrder = (config.selectedSections && config.selectedSections.length > 0) ? config.selectedSections : ['mc', 'tf', 'sa', 'rc'];
 
       return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-20 animate-fade-in transition-colors">
@@ -1000,7 +1279,6 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
             <div className="max-w-4xl mx-auto flex items-center justify-between p-4 min-w-0 gap-2">
               <div className="font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors text-sm md:text-base whitespace-nowrap truncate min-w-0">Tiến độ: <span className="text-blue-600 dark:text-blue-400">{answeredCount}</span> / {totalQ}</div>
               
-              {/* COMPONENT ĐỒNG HỒ ĐƯỢC TÁCH RA */}
               <CountdownTimer initialTime={initialTime} isSubmitted={isSubmitted} handleTimeUp={handleTimeUp} />
 
               <div className="flex items-center gap-3 shrink-0">
@@ -1059,8 +1337,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                     <button onClick={() => navigate(currentUser ? 'Home' : 'Login')} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl transition shadow truncate min-w-0">Về Trang Chủ</button>
                   </div>
                 )}
-                {['mc', 'tf', 'sa', 'rc'].map(type => {
-                  const data = activeQuiz[type]; if(data.length === 0) return null;
+                {displayOrder.map(type => {
+                  const data = activeQuiz[type]; if(!data || data.length === 0) return null;
                   const typeName = type === 'mc' ? 'I. Trắc Nghiệm' : type === 'tf' ? 'II. Đúng / Sai' : type === 'sa' ? 'III. Trả Lời Ngắn' : 'IV. Đọc Hiểu';
                   return (
                     <div key={type} className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg overflow-hidden border border-slate-200 dark:border-slate-700 transition-colors min-w-0">
@@ -1124,6 +1402,14 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     function MainApp() {
       const [isGlobalLoading, setIsGlobalLoading] = useState(true);
       const [isFetchingQuiz, setIsFetchingQuiz] = useState(false);
+      const [cloneCooldown, setCloneCooldown] = useState(0);
+
+      useEffect(() => {
+          if (cloneCooldown > 0) {
+              const timer = setTimeout(() => setCloneCooldown(c => c - 1), 1000);
+              return () => clearTimeout(timer);
+          }
+      }, [cloneCooldown]);
 
       const [hash, setHash] = useState(() => {
           const initialHash = window.location.hash.replace(/^#\/?/, '');
@@ -1144,7 +1430,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
       const navigate = useCallback((path) => {
         window.location.hash = `/${path}`;
-        setHash(path); // Update state instantly to prevent race conditions!
+        setHash(path);
       }, []);
 
       const hashParts = hash.split('/');
@@ -1176,10 +1462,13 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               return saved ? JSON.parse(saved) : null;
           } catch(e) { return null; }
       }); 
+      
+      const [recentQuizzes, setRecentQuizzes] = useState([]);
+      const [localCreatedQuizzes, setLocalCreatedQuizzes] = useState([]);
 
       // ĐỒNG BỘ TRẠNG THÁI VIP TỪ FIREBASE
       useEffect(() => {
-          if (!currentUser || !db) return;
+          if (!currentUser || !db || currentUser.isGuest) return;
           const usernameLower = currentUser.username.toLowerCase();
           const unsub = db.doc(`${usersPath}/${usernameLower}`).onSnapshot(snap => {
               if (snap.exists) {
@@ -1190,12 +1479,43 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
               }
           });
           return () => unsub();
-      }, [currentUser?.username, db]);
+      }, [currentUser?.username, currentUser?.isGuest, db]);
 
       useEffect(() => {
           if (currentUser) localStorage.setItem('quiz_current_user', JSON.stringify(currentUser));
           else localStorage.removeItem('quiz_current_user');
       }, [currentUser]);
+
+      // LOAD VÀ LỌC ĐỀ GẦN ĐÂY VÀ ĐỀ ĐÃ TẠO TẠM LƯU
+      useEffect(() => {
+          try {
+              const savedRecents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+              const validRecents = savedRecents.filter(r => (Date.now() - r.savedAt) < 86400000);
+              if (validRecents.length !== savedRecents.length) {
+                  localStorage.setItem('quiz_recent_history', JSON.stringify(validRecents));
+              }
+              setRecentQuizzes(validRecents);
+
+              const savedLocals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+              const validLocals = savedLocals.filter(q => q.expiresAt > Date.now());
+              if (validLocals.length !== savedLocals.length) {
+                  localStorage.setItem('quiz_local_created', JSON.stringify(validLocals));
+              }
+              setLocalCreatedQuizzes(validLocals);
+          } catch(e) {}
+      }, [activeScreen]);
+
+      const saveToRecentHistory = useCallback((quizCode, title, data, timeStr) => {
+          if (!quizCode || quizCode === 'draft') return;
+          try {
+              let recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+              recents = recents.filter(r => r.code !== quizCode && (Date.now() - r.savedAt < 86400000));
+              recents.unshift({ code: quizCode, title: title || 'Đề thi', parsedData: data, timeLimit: timeStr, savedAt: Date.now() });
+              if (recents.length > 5) recents.pop();
+              localStorage.setItem('quiz_recent_history', JSON.stringify(recents));
+              setRecentQuizzes(recents);
+          } catch(e) {}
+      }, []);
 
       useEffect(() => {
           if (currentUser && currentRoute === 'login') {
@@ -1217,11 +1537,12 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       const [editingQ, setEditingQ] = useState(null); 
       
       const [customAlert, setCustomAlert] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: null, confirmText: 'Đồng ý', cancelText: 'Hủy' });
+      const [showGuestSaveModal, setShowGuestSaveModal] = useState(false);
 
       const [saveCooldown, setSaveCooldown] = useState(0);
       const [isSaving, setIsSaving] = useState(false);
 
-      const [config, setConfig] = useState({ mode: 'single', shuffle: 'none' });
+      const [config, setConfig] = useState({ mode: 'single', shuffle: 'none', selectedSections: [] });
       const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], rc: [], flat: [] });
       const [answers, setAnswers] = useState({}); 
       const [currentIndex, setCurrentIndex] = useState(0); 
@@ -1229,6 +1550,15 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       const [singleQuestionConfirmed, setSingleQuestionConfirmed] = useState(false); 
       const [score, setScore] = useState({ correct: 0, total: 0 });
       const [endRemark, setEndRemark] = useState('');
+
+      const displayQuizzes = useMemo(() => {
+          const map = new Map();
+          localCreatedQuizzes.forEach(q => map.set(q.code, {...q, isLocal: true}));
+          if (currentUser && !currentUser.isGuest) {
+              myQuizzes.forEach(q => map.set(q.code, {...q, isLocal: false}));
+          }
+          return Array.from(map.values()).sort((a,b) => b.createdAt - a.createdAt);
+      }, [myQuizzes, localCreatedQuizzes, currentUser]);
 
       useEffect(() => {
         if (theme === 'dark') document.documentElement.classList.add('dark');
@@ -1281,19 +1611,46 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                               setQuizTitle(data.title || '');
                               setTimeLimit(data.timeLimit || '');
                               setCurrentQuizCode(urlCode);
-                              const isOwner = currentUser && currentUser.username.toLowerCase() === data.owner;
+                              const isOwner = currentUser && !currentUser.isGuest && currentUser.username.toLowerCase() === data.owner;
                               setIsReadOnly(!isOwner);
                           } else {
-                              showMessage("Đề thi đã hết hạn!");
-                              navigate('Login');
+                              throw new Error("EXPIRED");
                           }
                       } else {
-                          showMessage("Không tìm thấy mã đề!");
-                          navigate('Login');
+                          throw new Error("NOT_FOUND");
                       }
                       setIsFetchingQuiz(false);
                   }).catch((err) => {
-                      console.error("Lỗi lấy đề thi:", err);
+                      // Kiểm tra xem có trong Đã tạo (Local) không
+                      const locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                      const foundLocalCreated = locals.find(q => q.code === urlCode && q.expiresAt > Date.now());
+                      
+                      if (foundLocalCreated) {
+                          setParsedData(foundLocalCreated.parsedData);
+                          if (foundLocalCreated.rawTexts) setRawTexts(foundLocalCreated.rawTexts);
+                          setQuizTitle(foundLocalCreated.title);
+                          setTimeLimit(foundLocalCreated.timeLimit);
+                          setCurrentQuizCode(urlCode);
+                          setIsReadOnly(false);
+                          showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+                      } else {
+                          // FALLBACK: KIỂM TRA ĐỀ GẦN ĐÂY
+                          const recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+                          const foundLocal = recents.find(r => r.code === urlCode && (Date.now() - r.savedAt < 86400000));
+                          
+                          if (foundLocal) {
+                              setParsedData(foundLocal.parsedData);
+                              if (foundLocal.rawTexts) setRawTexts(foundLocal.rawTexts);
+                              setQuizTitle(foundLocal.title);
+                              setTimeLimit(foundLocal.timeLimit);
+                              setCurrentQuizCode(urlCode);
+                              setIsReadOnly(true);
+                              showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+                          } else {
+                              showMessage(err.message === "EXPIRED" ? "Đề thi đã hết hạn!" : "Không tìm thấy mã đề hoặc đã bị xóa!");
+                              navigate('Login');
+                          }
+                      }
                       setIsFetchingQuiz(false);
                   });
               }
@@ -1337,7 +1694,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       }, []);
 
       useEffect(() => {
-        if (!fbUser || !currentUser || !db) return;
+        if (!fbUser || !currentUser || currentUser.isGuest || !db) return;
         const usernameLower = currentUser.username.toLowerCase();
         const unsub = db.collection(quizzesPath)
           .where("owner", "==", usernameLower)
@@ -1398,7 +1755,15 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
             setCurrentUser({ username: uname, isVip: false }); navigate('Home');
             showMessage("Tạo tài khoản thành công!", "success");
           }
-        } catch (error) { showMessage("Lỗi kết nối mạng."); }
+        } catch (error) { 
+            showMessage("Kết nối không ổn định. Vui lòng kiểm tra mạng và thử lại!", "error"); 
+        }
+      };
+
+      const handleGuestLogin = () => {
+          setCurrentUser({ username: 'Khách', isVip: false, isGuest: true });
+          navigate('Home');
+          showMessage("Đã vào bằng chế độ Khách!", "success");
       };
 
       const handleDeleteAccount = () => {
@@ -1432,6 +1797,41 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         } catch (err) { showMessage("Lỗi đổi mật khẩu!"); }
       };
 
+      const handleDeleteQuiz = (q) => {
+          if (q.isLocal) {
+              let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+              locals = locals.filter(item => item.id !== q.id);
+              localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+              setLocalCreatedQuizzes(locals);
+              showMessage("Đã xóa đề lưu tạm trên máy!", "success");
+              
+              if (currentQuizCode === q.code) {
+                  resetQuiz();
+              }
+          } else {
+              db.doc(`${quizzesPath}/${q.id}`).delete().then(() => {
+                  showMessage("Đã xóa!", "success");
+                  if (currentQuizCode === q.code) resetQuiz();
+              }).catch(() => showMessage("Lỗi xóa đề!", "error"));
+          }
+      };
+
+      const handleExtendQuiz = (q) => {
+          const newExpiry = Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000);
+          if (q.isLocal) {
+              let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+              const idx = locals.findIndex(item => item.id === q.id);
+              if (idx >= 0) {
+                  locals[idx].expiresAt = newExpiry;
+                  localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                  setLocalCreatedQuizzes(locals);
+                  showMessage("Đã gia hạn đề lưu trên máy!", "success");
+              }
+          } else {
+              db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: newExpiry }).then(() => showMessage("Đã gia hạn!", "success")).catch(() => showMessage("Lỗi gia hạn!", "error"));
+          }
+      };
+
       const handleCodeInputChange = (e) => {
           let val = e.target.value;
           const urlMatch = val.match(/([a-zA-Z0-9]{6})\/?$/);
@@ -1459,31 +1859,72 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                     showMessage("Đề thi đã hết hạn!");
                 }
             } else {
-                showMessage("Mã không đúng hoặc đề không tồn tại!");
+                throw new Error("NOT_FOUND");
             }
         } catch (error) {
-            showMessage("Lỗi kết nối máy chủ!");
+            // Check in local created
+            const locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+            const foundLocalCreated = locals.find(q => q.code === code && q.expiresAt > Date.now());
+            if (foundLocalCreated) {
+                setParsedData(foundLocalCreated.parsedData);
+                if (foundLocalCreated.rawTexts) setRawTexts(foundLocalCreated.rawTexts);
+                setQuizTitle(foundLocalCreated.title);
+                setTimeLimit(foundLocalCreated.timeLimit);
+                setCurrentQuizCode(code);
+                setIsReadOnly(false);
+                navigate(`Overview/${code}`);
+                showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+                return;
+            }
+
+            // Fallback to recent history
+            const recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+            const foundLocal = recents.find(r => r.code === code && (Date.now() - r.savedAt < 86400000));
+            if (foundLocal) {
+                setParsedData(foundLocal.parsedData);
+                if (foundLocal.rawTexts) setRawTexts(foundLocal.rawTexts);
+                setQuizTitle(foundLocal.title);
+                setTimeLimit(foundLocal.timeLimit);
+                setCurrentQuizCode(code);
+                setIsReadOnly(true);
+                navigate(`Overview/${code}`);
+                showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+            } else {
+                showMessage(error.message === "NOT_FOUND" ? "Mã không đúng hoặc đề không tồn tại!" : "Lỗi kết nối máy chủ!");
+            }
         }
       };
 
       const cloneQuizAdmin = async (customParsed, customTitle, customRaw) => {
-          if (!db || !currentUser) return;
+          if (cloneCooldown > 0) {
+              showMessage(`Vui lòng đợi ${cloneCooldown}s để tiếp tục Copy!`, "warning");
+              return;
+          }
+          if (!db || !currentUser || currentUser.isGuest) {
+              showMessage("Hãy đăng nhập tài khoản để copy đề!", "warning");
+              return;
+          }
+          
           const newCode = generateShareCode();
           const usernameLower = currentUser.username.toLowerCase();
           const clonedTitle = `${customTitle || quizTitle || 'Đề thi'} (Copy)`;
+          let trimmedTitle = clonedTitle.length > 15 ? clonedTitle.substring(0, 15) : clonedTitle;
           const dataToClone = customParsed || parsedData;
           const rawToClone = customRaw || rawTexts;
+          
+          setCloneCooldown(15); 
+          
           try {
               await db.doc(`${quizzesPath}/${newCode}`).set({
-                  code: newCode, owner: usernameLower, title: clonedTitle, parsedData: dataToClone, rawTexts: rawToClone,
+                  code: newCode, owner: usernameLower, title: trimmedTitle, parsedData: dataToClone, rawTexts: rawToClone,
                   createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, timeLimit: timeLimit
               });
               showMessage("Nhân bản thành công!", "success");
               if (!customParsed) {
-                  setCurrentQuizCode(newCode); setIsReadOnly(false); setQuizTitle(clonedTitle);
+                  setCurrentQuizCode(newCode); setIsReadOnly(false); setQuizTitle(trimmedTitle);
                   navigate(`Overview/${newCode}`);
               }
-          } catch(e) { showMessage("Lỗi nhân bản!"); }
+          } catch(e) { showMessage("Lỗi nhân bản!"); setCloneCooldown(0); }
       };
 
       const parseTextEngine = (text, forcedType) => {
@@ -1542,9 +1983,11 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         return result;
       };
 
-      const processAndSaveQuizzes = async () => {
+      const processAndSaveQuizzes = async (overrideUser = null) => {
         if(saveCooldown > 0 || isSaving) return; 
         setIsSaving(true); 
+        const activeUser = overrideUser || currentUser;
+
         let allMC = [], allTF = [], allSA = [], allRC = [];
         if (rawTexts.file) { 
             const mixedItems = parseTextEngine(rawTexts.file, 'mixed');
@@ -1558,76 +2001,84 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         }
         const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
         setParsedData(newParsedData);
-        let finalCode = currentQuizCode;
+        let finalCode = currentQuizCode || generateShareCode();
         let isSavedToCloud = false;
 
-        if (currentUser && db && !isReadOnly) {
-            const usernameLower = currentUser.username.toLowerCase();
+        let finalTitle = quizTitle.trim();
+        if (!finalTitle) {
+            const targetText = rawTexts.file ? rawTexts.file : (rawTexts.mc || rawTexts.tf || rawTexts.sa || rawTexts.rc);
+            const firstLine = (targetText || "").split('\n').find(l => l.trim().length > 0);
+            if(firstLine) finalTitle = firstLine.length > 15 ? firstLine.substring(0, 15) : firstLine;
+            else finalTitle = "Đề thi mới";
+            setQuizTitle(finalTitle);
+        }
+
+        const parsedTimeLimit = parseInt(timeLimit) || 0;
+
+        if (activeUser && !activeUser.isGuest && db && !isReadOnly) {
+            const usernameLower = activeUser.username.toLowerCase();
             const isAdmin = usernameLower === ADMIN_USERNAME;
-            const isVip = currentUser.isVip || false;
+            const isVip = activeUser.isVip || false;
             
             if (!isAdmin && !currentQuizCode) {
               const userQuizzesCount = myQuizzes.length; 
               const currentLimit = isVip ? MAX_QUIZZES_PER_VIP : MAX_QUIZZES_PER_USER;
               if (userQuizzesCount >= currentLimit) {
-                showMessage(`Đạt giới hạn ${currentLimit} đề. Đề này chỉ được lưu tạm trên máy.`, "error");
-                setIsSaving(false); navigate(`Overview/${currentQuizCode || 'draft'}`); return;
+                showMessage(`Đạt giới hạn ${currentLimit} đề. Đề thi sẽ được lưu tạm.`, "error");
+              } else {
+                  isSavedToCloud = true;
               }
+            } else {
+                isSavedToCloud = true;
             }
-            finalCode = currentQuizCode || generateShareCode();
-            let finalTitle = quizTitle.trim();
-            if (!finalTitle) {
-                const targetText = rawTexts.file ? rawTexts.file : (rawTexts.mc || rawTexts.tf || rawTexts.sa || rawTexts.rc);
-                const firstLine = (targetText || "").split('\n').find(l => l.trim().length > 0);
-                if(firstLine) finalTitle = firstLine.length > 50 ? firstLine.substring(0, 50) + "..." : firstLine;
-                else finalTitle = "Đề thi không tên";
-                setQuizTitle(finalTitle);
-            }
-            
-            const parsedTimeLimit = parseInt(timeLimit) || 0;
 
-            try {
-              const savePromise = db.doc(`${quizzesPath}/${finalCode}`).set({ 
-                  code: finalCode, owner: usernameLower, title: finalTitle, parsedData: newParsedData, rawTexts, 
-                  createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-                  timeLimit: parsedTimeLimit
-              }, {merge: true});
-
-              const timeoutPromise = new Promise((_, reject) => {
-                  setTimeout(() => reject(new Error("TIMEOUT_ERROR")), 150000);
-              });
-
-              // CHỜ LƯU LÊN CLOUD THÀNH CÔNG HOẶC HẾT 150 GIÂY
-              await Promise.race([savePromise, timeoutPromise]);
-
-              isSavedToCloud = true;
-              showMessage("Đã lưu vào Kho đám mây!", "success");
-              
-              // KHẮC PHỤC TẬN GỐC LỖI TẠO MÃ RỒI BỊ XÓA MẤT:
-              // Gọi đồng thời Navigate và SetCurrentQuizCode để React gộp chung (batch update)
-              // TUYỆT ĐỐI KHÔNG dùng setTimeout ở đây, nếu không useEffect dọn dẹp nháp sẽ kích hoạt sai!
-              setCurrentQuizCode(finalCode);
-              setIsSaving(false); 
-              navigate(`Overview/${finalCode}`);
-              return; 
-            } catch (e) {
-                if (e.message === "TIMEOUT_ERROR") {
-                    showMessage("Kiểm tra đường truyền kết nối của bạn", "error");
-                } else {
+            if (isSavedToCloud) {
+                try {
+                  const savePromise = db.doc(`${quizzesPath}/${finalCode}`).set({ 
+                      code: finalCode, owner: usernameLower, title: finalTitle, parsedData: newParsedData, rawTexts, 
+                      createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+                      timeLimit: parsedTimeLimit
+                  }, {merge: true});
+    
+                  const timeoutPromise = new Promise((_, reject) => {
+                      setTimeout(() => reject(new Error("TIMEOUT_ERROR")), 15000); 
+                  });
+    
+                  await Promise.race([savePromise, timeoutPromise]);
+                  showMessage("Đã lưu vào Kho đám mây!", "success");
+                  
+                  // Xóa khỏi local created nếu nó từng nằm ở đó
+                  let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                  locals = locals.filter(item => item.code !== finalCode);
+                  localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                  setLocalCreatedQuizzes(locals);
+                } catch (e) {
                     console.error("Lỗi khi lưu lên Firestore:", e);
-                    showMessage("Lỗi: Không thể kết nối với kho dữ liệu!", "error");
+                    isSavedToCloud = false;
                 }
-                setIsSaving(false);
-                return;
             }
         }
         
-        if (!isSavedToCloud) {
-            showMessage("Đã lưu nháp thành công!", "success");
+        if (!isSavedToCloud && !isReadOnly) {
+            try {
+                let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                const existingIdx = locals.findIndex(q => q.code === finalCode);
+                const localQuizObj = {
+                    id: finalCode, code: finalCode, owner: 'Khách', title: finalTitle,
+                    parsedData: newParsedData, rawTexts, createdAt: Date.now(),
+                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, timeLimit: parsedTimeLimit
+                };
+                if (existingIdx >= 0) locals[existingIdx] = localQuizObj;
+                else locals.unshift(localQuizObj);
+                localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                setLocalCreatedQuizzes(locals);
+                showMessage("Đề đã được lưu tạm, hãy Lưu vào TK để không bị mất dữ liệu.", "warning");
+            } catch(e) {}
         }
 
         setIsSaving(false); 
-        navigate(`Overview/${finalCode || 'draft'}`); 
+        setCurrentQuizCode(finalCode);
+        navigate(`Overview/${finalCode}`); 
       };
 
       const handleParseAndSave = () => {
@@ -1635,10 +2086,10 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         if (currentRoute === 'overview' && urlAction === 'edittext') {
            setCustomAlert({
                isOpen: true, title: "Bạn có muốn lưu text này không?", message: "Tất cả những gì bạn đã làm trong phần \"Sửa câu hỏi\" sẽ mất",
-               type: 'warning', confirmText: 'Vẫn Lưu', cancelText: 'Hủy bỏ', onConfirm: processAndSaveQuizzes
+               type: 'warning', confirmText: 'Vẫn Lưu', cancelText: 'Hủy bỏ', onConfirm: () => processAndSaveQuizzes(null)
            });
         } else {
-           processAndSaveQuizzes();
+           processAndSaveQuizzes(null);
         }
       };
 
@@ -1677,7 +2128,19 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 if (q) {
                     q.image = imageUrl;
                     setParsedData(newData);
-                    if (currentUser && db) {
+                    
+                    const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
+                    
+                    if (isLocalCreated) {
+                        let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                        const idx = locals.findIndex(item => item.code === currentQuizCode);
+                        if (idx >= 0) {
+                            locals[idx].parsedData = newData;
+                            localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                            setLocalCreatedQuizzes(locals);
+                            showMessage("Tải ảnh và lưu tạm thành công!", "success");
+                        }
+                    } else if (currentUser && !currentUser.isGuest && db) {
                         try {
                             await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
                             showMessage("Tải ảnh và lưu thành công!", "success");
@@ -1725,7 +2188,19 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
              }
          }
          setParsedData(newData); setEditingQ(null);
-         if (currentUser && currentQuizCode && db) {
+         
+         const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
+         
+         if (isLocalCreated) {
+             let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+             const idx = locals.findIndex(item => item.code === currentQuizCode);
+             if (idx >= 0) {
+                 locals[idx].parsedData = newData;
+                 localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                 setLocalCreatedQuizzes(locals);
+                 showMessage("Đã lưu tạm thành công!", "success");
+             }
+         } else if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
             try { await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); showMessage("Đã lưu thành công!", "success"); } catch(e) {}
          }
       };
@@ -1737,7 +2212,19 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                  const newData = {...parsedData};
                  newData[editingQ.sectionId] = newData[editingQ.sectionId].filter(q => q.id !== editingQ.data.id);
                  setParsedData(newData); setEditingQ(null);
-                 if (currentUser && currentQuizCode && db) {
+                 
+                 const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
+                 
+                 if (isLocalCreated) {
+                     let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                     const idx = locals.findIndex(item => item.code === currentQuizCode);
+                     if (idx >= 0) {
+                         locals[idx].parsedData = newData;
+                         localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                         setLocalCreatedQuizzes(locals);
+                         showMessage("Đã xóa!", "success");
+                     }
+                 } else if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
                     try { await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); showMessage("Đã xóa!", "success"); } catch(e) {}
                  }
              }
@@ -1745,23 +2232,66 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
       };
 
       const handleAddNewQuestion = (sectionId) => {
-          const newQ = { id: generateId(), text: "Câu hỏi mới...", type: sectionId, options: sectionId === 'rc' ? [] : [{id: generateId(), text: 'Đáp án 1', isCorrect: true}, {id: generateId(), text: 'Đáp án 2', isCorrect: false}], subQuestions: sectionId === 'rc' ? [{id: generateId(), text: '#1. Câu hỏi phụ mới', options: [{id: generateId(), text: 'Đáp án 1', isCorrect: true}]}] : [], image: null };
-          setEditingQ({ sectionId: sectionId, data: newQ, isNew: true });
-      };
+    let defaultOptions = [];
+    if (sectionId === 'tf') {
+        // Dạng Đúng/Sai thường có 4 mệnh đề để đánh giá
+        defaultOptions = [
+            {id: generateId(), text: 'Mệnh đề a', isCorrect: true},
+            {id: generateId(), text: 'Mệnh đề b', isCorrect: false},
+            {id: generateId(), text: 'Mệnh đề c', isCorrect: false},
+            {id: generateId(), text: 'Mệnh đề d', isCorrect: false}
+        ];
+    } else if (sectionId !== 'rc') {
+        // Dạng trắc nghiệm
+        defaultOptions = [
+            {id: generateId(), text: 'Đáp án A', isCorrect: true},
+            {id: generateId(), text: 'Đáp án B', isCorrect: false},
+            {id: generateId(), text: 'Đáp án C', isCorrect: false},
+            {id: generateId(), text: 'Đáp án D', isCorrect: false}
+        ];
+    }
+
+    const newQ = { 
+        id: generateId(), 
+        text: "Câu hỏi mới...", 
+        type: sectionId, 
+        options: defaultOptions, 
+        subQuestions: sectionId === 'rc' ? [{id: generateId(), text: '#1. Câu hỏi phụ mới', options: [{id: generateId(), text: 'Đáp án 1', isCorrect: true}]}] : [], 
+        image: null 
+    };
+    setEditingQ({ sectionId: sectionId, data: newQ, isNew: true });
+};
 
       const prepareQuiz = () => {
         let finalMc = [...parsedData.mc], finalTf = [...parsedData.tf], finalSa = [...parsedData.sa], finalRc = [...(parsedData.rc || [])];
         const shuffleOpts = config.shuffle === 'options' || config.shuffle === 'both';
         const shuffleQ = config.shuffle === 'questions' || config.shuffle === 'both';
+        
         if (shuffleQ) { finalMc = shuffleArray(finalMc); finalTf = shuffleArray(finalTf); finalSa = shuffleArray(finalSa); finalRc = shuffleArray(finalRc); }
         if (shuffleOpts) {
           finalMc.forEach(q => { q.options = shuffleArray(q.options); }); finalTf.forEach(q => { q.options = shuffleArray(q.options); });
           finalRc.forEach(q => { q.subQuestions.forEach(sq => { sq.options = shuffleArray(sq.options); }) });
         }
-        setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, rc: finalRc, flat: [...finalMc, ...finalTf, ...finalSa, ...finalRc] });
+
+        const selectedOrder = (config.selectedSections && config.selectedSections.length > 0) ? config.selectedSections : ['mc', 'tf', 'sa', 'rc'];
+        const newFinalMc = [], newFinalTf = [], newFinalSa = [], newFinalRc = [];
+        let flatArray = [];
+
+        selectedOrder.forEach(type => {
+            if (type === 'mc') { flatArray.push(...finalMc); newFinalMc.push(...finalMc); }
+            if (type === 'tf') { flatArray.push(...finalTf); newFinalTf.push(...finalTf); }
+            if (type === 'sa') { flatArray.push(...finalSa); newFinalSa.push(...finalSa); }
+            if (type === 'rc') { flatArray.push(...finalRc); newFinalRc.push(...finalRc); }
+        });
+
+        setActiveQuiz({ mc: newFinalMc, tf: newFinalTf, sa: newFinalSa, rc: newFinalRc, flat: flatArray });
         setAnswers({}); setCurrentIndex(0); setIsSubmitted(false); setSingleQuestionConfirmed(false); setEndRemark(''); 
-        let rcQCount = finalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
-        setScore({ correct: 0, total: finalMc.length + finalTf.length + finalSa.length + rcQCount });
+        let rcQCount = newFinalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
+        setScore({ correct: 0, total: newFinalMc.length + newFinalTf.length + newFinalSa.length + rcQCount });
+        
+        // Lưu vào bộ nhớ cục bộ để làm lại sau
+        saveToRecentHistory(currentQuizCode, quizTitle, parsedData, timeLimit);
+
         navigate(`Overview/${currentQuizCode || 'draft'}/Test`);
       };
 
@@ -1771,7 +2301,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           return Array.isArray(userAns) && userAns.length > 0 && correctIds.includes(userAns[0]);
         } else if (type === 'tf') {
           const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
-          return Array.isArray(userAns) && userAns.length === correctIds.length && userAns.every(id => correctIds.includes(id));
+          const ans = userAns || [];
+          return ans.length === correctIds.length && ans.every(id => correctIds.includes(id));
         } else if (type === 'sa') {
           if (typeof userAns !== 'string' || !userAns.trim()) return false;
           if (!qObj.options || qObj.options.length === 0) return false; 
@@ -1791,7 +2322,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
       const Notification = () => (
         globalMessage.text && (
-          <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'} whitespace-nowrap`}>
+          <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'warning' ? 'bg-amber-500' : (globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600')}`}>
             {globalMessage.text}
           </div>
         )
@@ -1832,26 +2363,62 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
           navigate('Create');
       }, [navigate]);
 
-      // --- RENDER ĐANG TẢI ---
-      if (isSetupNeeded) return <SetupScreen />;
-      if (isGlobalLoading || isFetchingQuiz) return <LoadingScreen />;
+      let ActiveScreenComponent = null;
 
-      // --- ĐIỀU HƯỚNG BẰNG CÁC COMPONENT ĐỘC LẬP ---
-      if (activeScreen === 'login') return <LoginScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleLogin={handleLogin} />;
-      
-      if (activeScreen === 'dashboard') return <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={myQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} setCustomAlert={setCustomAlert} />;
-      
-      if (activeScreen === 'input') return <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} />;
-      
-      if (activeScreen === 'overview') return <OverviewScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} quizTitle={quizTitle} timeLimit={timeLimit} setTimeLimit={setTimeLimit} currentQuizCode={currentQuizCode} copyToClipboard={copyToClipboard} config={config} setConfig={setConfig} prepareQuiz={prepareQuiz} isReadOnly={isReadOnly} navigate={navigate} cloneQuizAdmin={cloneQuizAdmin} currentUser={currentUser} />;
-      
-      if (activeScreen === 'settings') return <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={handleAddNewQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} />;
-      
-      if (activeScreen === 'quiz') return <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} />;
-      
-      if (activeScreen === 'result') return <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} />;
-      
-      return null;
+      if (isSetupNeeded) ActiveScreenComponent = <SetupScreen />;
+      else if (isGlobalLoading || isFetchingQuiz) ActiveScreenComponent = <LoadingScreen />;
+      else if (activeScreen === 'login') ActiveScreenComponent = <LoginScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleLogin={handleLogin} handleGuestLogin={handleGuestLogin} />;
+      else if (activeScreen === 'dashboard') ActiveScreenComponent = <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={displayQuizzes} recentQuizzes={recentQuizzes} setRecentQuizzes={setRecentQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} setCustomAlert={setCustomAlert} handleDeleteQuiz={handleDeleteQuiz} handleExtendQuiz={handleExtendQuiz} />;
+      else if (activeScreen === 'input') ActiveScreenComponent = <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} setShowGuestSaveModal={setShowGuestSaveModal} currentUser={currentUser} />;
+      else if (activeScreen === 'overview') ActiveScreenComponent = <OverviewScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} quizTitle={quizTitle} timeLimit={timeLimit} setTimeLimit={setTimeLimit} currentQuizCode={currentQuizCode} copyToClipboard={copyToClipboard} config={config} setConfig={setConfig} prepareQuiz={prepareQuiz} isReadOnly={isReadOnly} navigate={navigate} cloneQuizAdmin={cloneQuizAdmin} cloneCooldown={cloneCooldown} currentUser={currentUser} parsedData={parsedData} />;
+      else if (activeScreen === 'settings') ActiveScreenComponent = <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={handleAddNewQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} quizTitle={quizTitle} setShowGuestSaveModal={setShowGuestSaveModal} />;
+      else if (activeScreen === 'quiz') ActiveScreenComponent = <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} />;
+      else if (activeScreen === 'result') ActiveScreenComponent = <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} />;
+
+      return (
+        <>
+            {ActiveScreenComponent}
+            {showGuestSaveModal && (
+                <div className="fixed inset-0 bg-black/70 z-[999] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative animate-bounce-in border border-slate-200 dark:border-slate-700">
+                        <button onClick={() => setShowGuestSaveModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"><Icons.UserX /></button>
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Lưu vào Tài Khoản</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm font-medium">Đăng nhập để đồng bộ đề thi này lên máy chủ.</p>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const uname = e.target.username.value.replace(/\s+/g, '');
+                            const pwd = e.target.password.value;
+                            if (!uname || !pwd) return showMessage("Vui lòng nhập đủ thông tin.");
+                            const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
+                            try {
+                                const userSnap = await userRef.get();
+                                if (userSnap.exists) {
+                                    if (userSnap.data().password === pwd) {
+                                        const loggedInUser = { username: userSnap.data().username, isVip: !!userSnap.data().isVip };
+                                        setCurrentUser(loggedInUser);
+                                        setShowGuestSaveModal(false);
+                                        setTimeout(() => processAndSaveQuizzes(loggedInUser), 100);
+                                    } else showMessage("Sai mật khẩu!");
+                                } else {
+                                    const newUser = { username: uname, password: pwd, isVip: false };
+                                    await userRef.set(newUser);
+                                    const loggedInUser = { username: uname, isVip: false };
+                                    setCurrentUser(loggedInUser);
+                                    setShowGuestSaveModal(false);
+                                    showMessage("Tạo tài khoản và lưu thành công!", "success");
+                                    setTimeout(() => processAndSaveQuizzes(loggedInUser), 100);
+                                }
+                            } catch (error) { showMessage("Lỗi kết nối máy chủ!"); }
+                        }} className="space-y-4">
+                            <input type="text" name="username" placeholder="Tên đăng nhập" maxLength={15} required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
+                            <input type="password" name="password" placeholder="Mật khẩu" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
+                            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition shadow">Đăng Nhập & Lưu</button>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </>
+      );
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
