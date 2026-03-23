@@ -1149,12 +1149,26 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       );
     });
 
-    const QuizScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, activeQuiz, answers, setAnswers, currentIndex, setCurrentIndex, isSubmitted, setIsSubmitted, singleQuestionConfirmed, setSingleQuestionConfirmed, score, setScore, endRemark, setEndRemark, navigate, currentQuizCode, currentUser, config, checkQuestionCorrect, generateRandomRemark, showMessage, timeLimit, setCustomAlert }) => {
+    const QuizScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, activeQuiz, answers, setAnswers, currentIndex, setCurrentIndex, isSubmitted, setIsSubmitted, singleQuestionConfirmed, setSingleQuestionConfirmed, score, setScore, endRemark, setEndRemark, navigate, currentQuizCode, currentUser, config, checkQuestionCorrect, generateRandomRemark, showMessage, timeLimit, setCustomAlert, setIncorrectData }) => {
       const isModeSingle = config.mode === 'single';
       const totalQ = score.total;
       const mcLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
       
       const initialTime = parseInt(timeLimit) || 0;
+
+      const evaluateIncorrect = useCallback(() => {
+          let data = { mc: [], tf: [], sa: [], rc: [] };
+          activeQuiz.mc.forEach(q => { if (!checkQuestionCorrect('mc', q, answers[q.id])) data.mc.push(q); });
+          activeQuiz.tf.forEach(q => { if (!checkQuestionCorrect('tf', q, answers[q.id])) data.tf.push(q); });
+          activeQuiz.sa.forEach(q => { if (!checkQuestionCorrect('sa', q, answers[q.id])) data.sa.push(q); });
+          activeQuiz.rc.forEach(q => {
+              const failedSubQs = q.subQuestions.filter(sq => !checkQuestionCorrect('rc', sq, answers[sq.id]));
+              if (failedSubQs.length > 0) {
+                  data.rc.push({ ...q, subQuestions: failedSubQs });
+              }
+          });
+          setIncorrectData(data);
+      }, [activeQuiz, answers, checkQuestionCorrect, setIncorrectData]);
 
       const handleTimeUp = useCallback(() => {
         showMessage('Hết thời gian làm bài!', 'warning');
@@ -1167,6 +1181,7 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
           }
         });
         setScore({ correct, total: totalQ });
+        evaluateIncorrect();
         setEndRemark(generateRandomRemark(correct, totalQ));
         setIsSubmitted(true);
         setSingleQuestionConfirmed(true);
@@ -1175,7 +1190,7 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
         } else {
            window.scrollTo(0,0);
         }
-      }, [activeQuiz, answers, totalQ, isModeSingle, navigate, currentQuizCode, checkQuestionCorrect, generateRandomRemark, showMessage, setScore, setEndRemark, setIsSubmitted, setSingleQuestionConfirmed]);
+      }, [activeQuiz, answers, totalQ, isModeSingle, navigate, currentQuizCode, checkQuestionCorrect, generateRandomRemark, showMessage, setScore, setEndRemark, setIsSubmitted, setSingleQuestionConfirmed, evaluateIncorrect]);
 
       const getOptClass = (opt, isSelected, showResult) => {
         if (!showResult) return isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 dark:border-blue-500 text-blue-800 dark:text-blue-200' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 text-slate-800 dark:text-slate-200';
@@ -1246,6 +1261,7 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
           else { if(checkQuestionCorrect(q.type, q, answers[q.id])) correct++; }
         });
         setScore({ correct, total: totalQ });
+        evaluateIncorrect();
         setEndRemark(generateRandomRemark(correct, totalQ));
         setIsSubmitted(true);
         window.scrollTo(0,0);
@@ -1316,7 +1332,15 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
                     {!singleQuestionConfirmed ? (
                       <button onClick={confirmSingle} className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto transform hover:-translate-y-1 transition truncate min-w-0">XÁC NHẬN</button>
                     ) : (
-                      <button onClick={() => currentIndex < activeQuiz.flat.length - 1 ? (setCurrentIndex(p=>p+1), setSingleQuestionConfirmed(false)) : navigate(`Overview/${currentQuizCode || 'draft'}/Result`)} className="bg-green-600 hover:bg-green-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto flex items-center justify-center gap-2 transition truncate min-w-0">
+                      <button onClick={() => {
+                          if (currentIndex < activeQuiz.flat.length - 1) {
+                              setCurrentIndex(p=>p+1);
+                              setSingleQuestionConfirmed(false);
+                          } else {
+                              evaluateIncorrect();
+                              navigate(`Overview/${currentQuizCode || 'draft'}/Result`);
+                          }
+                      }} className="bg-green-600 hover:bg-green-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto flex items-center justify-center gap-2 transition truncate min-w-0">
                         {currentIndex < activeQuiz.flat.length - 1 ? 'CÂU TIẾP THEO' : 'XEM KẾT QUẢ'} <Icons.Check />
                       </button>
                     )}
@@ -1372,7 +1396,14 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       );
     });
 
-    const ResultScreen = React.memo(({ ThemeToggleBtn, score, prepareQuiz, navigate, currentUser, endRemark }) => {
+    const ResultScreen = React.memo(({ ThemeToggleBtn, score, prepareQuiz, navigate, currentUser, endRemark, incorrectData, prepareRedoIncorrectQuiz }) => {
+      const hasIncorrect = incorrectData && (
+          (incorrectData.mc && incorrectData.mc.length > 0) ||
+          (incorrectData.tf && incorrectData.tf.length > 0) ||
+          (incorrectData.sa && incorrectData.sa.length > 0) ||
+          (incorrectData.rc && incorrectData.rc.length > 0)
+      );
+
       return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 dark:bg-slate-900 transition-colors">
           <div className="absolute top-4 right-4"><ThemeToggleBtn /></div>
@@ -1389,7 +1420,10 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
                </div>
             )}
             <div className="space-y-3 min-w-0">
-              <button onClick={prepareQuiz} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition whitespace-nowrap truncate min-w-0 px-2">Làm lại</button>
+              {hasIncorrect && (
+                 <button onClick={prepareRedoIncorrectQuiz} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-md transition whitespace-nowrap truncate min-w-0 px-2">Làm lại những câu sai</button>
+              )}
+              <button onClick={prepareQuiz} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition whitespace-nowrap truncate min-w-0 px-2">Làm lại toàn bộ</button>
               <button onClick={() => navigate(currentUser ? 'Home' : 'Login')} className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-colors whitespace-nowrap truncate min-w-0 px-2">Thoát</button>
             </div>
           </div>
@@ -1465,6 +1499,7 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       
       const [recentQuizzes, setRecentQuizzes] = useState([]);
       const [localCreatedQuizzes, setLocalCreatedQuizzes] = useState([]);
+      const [incorrectData, setIncorrectData] = useState(null);
 
       // ĐỒNG BỘ TRẠNG THÁI VIP TỪ FIREBASE
       useEffect(() => {
@@ -2295,6 +2330,36 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
         navigate(`Overview/${currentQuizCode || 'draft'}/Test`);
       };
 
+      const prepareRedoIncorrectQuiz = useCallback(() => {
+          if (!incorrectData) return;
+          const finalMc = incorrectData.mc || [];
+          const finalTf = incorrectData.tf || [];
+          const finalSa = incorrectData.sa || [];
+          const finalRc = incorrectData.rc || [];
+
+          const flatArray = [];
+          const selectedOrder = (config.selectedSections && config.selectedSections.length > 0) ? config.selectedSections : ['mc', 'tf', 'sa', 'rc'];
+
+          selectedOrder.forEach(type => {
+              if (type === 'mc') flatArray.push(...finalMc);
+              if (type === 'tf') flatArray.push(...finalTf);
+              if (type === 'sa') flatArray.push(...finalSa);
+              if (type === 'rc') flatArray.push(...finalRc);
+          });
+
+          setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, rc: finalRc, flat: flatArray });
+          setAnswers({});
+          setCurrentIndex(0);
+          setIsSubmitted(false);
+          setSingleQuestionConfirmed(false);
+          setEndRemark('');
+
+          let rcQCount = finalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
+          setScore({ correct: 0, total: finalMc.length + finalTf.length + finalSa.length + rcQCount });
+
+          navigate(`Overview/${currentQuizCode || 'draft'}/Test`);
+      }, [incorrectData, config.selectedSections, currentQuizCode, navigate]);
+
       const checkQuestionCorrect = useCallback((type, qObj, userAns) => {
         if (type === 'mc' || type === 'rc') {
           const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
@@ -2372,8 +2437,8 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       else if (activeScreen === 'input') ActiveScreenComponent = <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} setShowGuestSaveModal={setShowGuestSaveModal} currentUser={currentUser} />;
       else if (activeScreen === 'overview') ActiveScreenComponent = <OverviewScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} quizTitle={quizTitle} timeLimit={timeLimit} setTimeLimit={setTimeLimit} currentQuizCode={currentQuizCode} copyToClipboard={copyToClipboard} config={config} setConfig={setConfig} prepareQuiz={prepareQuiz} isReadOnly={isReadOnly} navigate={navigate} cloneQuizAdmin={cloneQuizAdmin} cloneCooldown={cloneCooldown} currentUser={currentUser} parsedData={parsedData} />;
       else if (activeScreen === 'settings') ActiveScreenComponent = <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={handleAddNewQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} quizTitle={quizTitle} setShowGuestSaveModal={setShowGuestSaveModal} />;
-      else if (activeScreen === 'quiz') ActiveScreenComponent = <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} />;
-      else if (activeScreen === 'result') ActiveScreenComponent = <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} />;
+      else if (activeScreen === 'quiz') ActiveScreenComponent = <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} setIncorrectData={setIncorrectData} />;
+      else if (activeScreen === 'result') ActiveScreenComponent = <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} incorrectData={incorrectData} prepareRedoIncorrectQuiz={prepareRedoIncorrectQuiz} />;
 
       return (
         <>
