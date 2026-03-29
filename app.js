@@ -1,2511 +1,938 @@
-const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = React;
+const { useState, useEffect, useCallback, useMemo } = React;
+
+window.MainApp = function() {
+    const [isGlobalLoading, setIsGlobalLoading] = useState(true);
+    const [isFetchingQuiz, setIsFetchingQuiz] = useState(false);
+    const [cloneCooldown, setCloneCooldown] = useState(0);
+
+    useEffect(() => {
+        if (cloneCooldown > 0) {
+            const timer = setTimeout(() => setCloneCooldown(c => c - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [cloneCooldown]);
+
+    const [hash, setHash] = useState(() => {
+        const initialHash = window.location.hash.replace(/^#\/?/, '');
+        if (!initialHash || initialHash.toLowerCase() === 'login') {
+            try {
+                if (localStorage.getItem('quiz_current_user')) return 'Home';
+            } catch(e) {}
+            return 'Login';
+        }
+        return initialHash;
+    });
     
-    // NƠI ĐIỀN CẤU HÌNH FIREBASE CỦA HUY
-    const MY_FIREBASE_CONFIG = {
-      apiKey: "AIzaSyBPYnBhPME-BTST63QDyP0gUho07G9QyQc",
-      authDomain: "tracnghiem-31c44.firebaseapp.com",
-      projectId: "tracnghiem-31c44",
-      storageBucket: "tracnghiem-31c44.firebasestorage.app",
-      messagingSenderId: "742429088050",
-      appId: "1:742429088050:web:9ff00733cc280a1e49df2b",
-      measurementId: "G-VNXTHZV6ZH"
-    };
+    useEffect(() => {
+    const handleHashChange = () => setHash(window.location.hash.replace(/^#\/?/, '') || 'Login');
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
 
-    // ĐÃ THÊM API KEY IMGBB CỦA HUY
-    const IMGBB_API_KEY = "f20580866c25ba3e4cf065d604ff1fc5";
+    const navigate = useCallback((path) => {
+    window.location.hash = `/${path}`;
+    setHash(path);
+    }, []);
 
-    const MAX_QUIZZES_PER_USER = 3; 
-    const MAX_QUIZZES_PER_VIP = 7; 
-    const ADMIN_USERNAME = "huy20022k8";
-
-    const RESULT_REMARKS = {
-      bad: [
-        "🗣Alo Vũ à Vũ", "Nhìn cái điểm xong dính c2 Điêu Thuyền mịa luôn🗿", "Hết cứu🤡", 
-        "Học hành đỉnh cao thực sự, đúng là 'thiên tài' có khác🐧", "Thôi kiếp này coi như bỏ🙃"
-      ],
-      average: [
-        "Thôi thì cũng có nỗ lực, đồng ý cho qua 👍", "Trộm vía vẫn còn thở được, ko sao, ko sao 😀",
-        "Ủa sao điểm lại ra thế này ta 🌝", "Cũng tàm tạm vừa đủ qua môn rồi😛"
-      ],
-      good: [
-        "Đù vuýp🤯", "Đù, học kiểu đéo gì mà điểm cháy vailon thế☠️",
-        "Làm lại mấy lần rồi mà điểm chất thế💩", "Adu, nay đc gặp học bá luon😬"
-      ]
-    };
-
-    // KHỞI TẠO FIREBASE
-    let auth = null;
-    let db = null;
-    let isSetupNeeded = false;
-    let appId = typeof __app_id !== 'undefined' ? __app_id.replace(/\//g, '-') : 'quiz-app-huy-github';
-    let finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
-
-    if (!finalConfig || !finalConfig.apiKey) {
-      isSetupNeeded = true;
-    } else {
-      try {
-        if (!firebase.apps.length) firebase.initializeApp(finalConfig);
-        auth = firebase.auth();
-        db = firebase.firestore();
-      } catch(e) {
-        console.error("Lỗi khởi tạo Firebase:", e);
-        isSetupNeeded = true;
-      }
+    const hashParts = hash.split('/');
+    const currentRoute = hashParts[0] ? hashParts[0].toLowerCase() : 'login';
+    let urlCode = null;
+    let urlAction = null;
+    
+    if (currentRoute === 'overview' && hashParts[1]) {
+        urlCode = hashParts[1];
+        if (hashParts[2]) urlAction = hashParts[2].toLowerCase();
     }
 
-    const quizzesPath = `artifacts/${appId}/public/data/quizzes`;
-    const usersPath = `artifacts/${appId}/public/data/users`;
-
-    const shuffleArray = (array) => {
-      const newArr = [...array];
-      for (let i = newArr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
-      }
-      return newArr;
-    };
-    const generateShareCode = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let result = '';
-      for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-      return result;
-    };
-    const generateId = () => Math.random().toString(36).substr(2, 9);
-
-    const Icons = {
-      Upload: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
-      Image: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
-      Check: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
-      Logout: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
-      Share: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>,
-      Play: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-      Copy: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
-      Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
-      User: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
-      Sun: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
-      Moon: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>,
-      Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
-      EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>,
-      UserX: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" /></svg>,
-      Edit: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>,
-      Key: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>,
-      Plus: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
-      Alert: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
-      ArrowLeft: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>,
-      Search: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
-      Shield: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
-      ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>,
-      Clock: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block -mt-1 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-      ArrowUp: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>,
-      ArrowDown: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>,
-      DragHandle: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>
-    };
-
-    // Component tự động giãn độ cao cho textarea khi render
-    const AutoResizingTextarea = ({ value, onChange, className, rows }) => {
-        const ref = useRef(null);
-        useLayoutEffect(() => {
-            if (ref.current) {
-                ref.current.style.height = 'auto';
-                ref.current.style.height = ref.current.scrollHeight + 'px';
-            }
-        }, [value]);
-        return (
-            <textarea 
-                ref={ref} 
-                value={value} 
-                onChange={(e) => {
-                    e.target.style.height = 'auto';
-                    e.target.style.height = e.target.scrollHeight + 'px';
-                    onChange(e.target.value);
-                }} 
-                className={className} 
-                rows={rows} 
-            />
-        );
-    };
-
-    function SetupScreen() {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 font-sans">
-          <div className="max-w-2xl bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center">
-            <h1 className="text-3xl font-black text-red-600 mb-4">Chưa có kết nối Database!</h1>
-            <p className="text-slate-600 mb-4">Hãy kiểm tra lại cấu hình Firebase trong code nhé.</p>
-          </div>
-        </div>
-      );
+    let activeScreen = 'login';
+    if (currentRoute === 'login' || currentRoute === '') activeScreen = 'login';
+    else if (currentRoute === 'home') activeScreen = 'dashboard';
+    else if (currentRoute === 'create') activeScreen = 'input';
+    else if (currentRoute === 'overview') {
+        if (!urlAction) activeScreen = 'overview';
+        else if (urlAction === 'test') activeScreen = 'quiz';
+        else if (urlAction === 'edittext') activeScreen = 'input';
+        else if (urlAction === 'editquestion') activeScreen = 'settings';
+        else if (urlAction === 'result') activeScreen = 'result';
     }
 
-    const LoadingScreen = () => (
-      <div className="fixed inset-0 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 z-[9999] transition-colors duration-300">
-        <div className="relative w-16 h-16 mb-8">
-            <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
-        </div>
-        <p className="text-blue-600 dark:text-blue-400 font-bold tracking-widest uppercase animate-pulse text-sm">Đang tải dữ liệu...</p>
-      </div>
-    );
-
-    const ShortAnswerInput = ({ value = '', onChange, readOnly, isCorrect, showResult }) => {
-      const chars = (value || '').split('');
-      const boxes = [0, 1, 2, 3];
-      
-      let borderColorClass = 'border-slate-300 dark:border-slate-600';
-      let bgColorClass = 'bg-white dark:bg-slate-800';
-      let textColorClass = 'text-slate-800 dark:text-slate-100';
-
-      if (showResult) {
-        borderColorClass = isCorrect ? 'border-green-500' : 'border-red-500';
-        bgColorClass = isCorrect ? 'bg-green-50 dark:bg-green-900/30' : 'bg-red-50 dark:bg-red-900/30';
-        textColorClass = isCorrect ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
-      } else if (value) {
-        borderColorClass = 'border-blue-500';
-        bgColorClass = 'bg-blue-50 dark:bg-blue-900/30';
-      }
-
-      return (
-        <div className="relative inline-flex gap-2 group">
-          {boxes.map(i => (
-            <div key={i} className={`w-12 h-14 flex items-center justify-center text-2xl font-bold border-2 rounded-xl transition-colors duration-200 ${borderColorClass} ${bgColorClass} ${textColorClass} shadow-sm group-hover:border-blue-400`}>
-              {chars[i] || ''}
-            </div>
-          ))}
-          <input type="text" inputMode="decimal" pattern="[0-9\.\,\-]*" className="absolute inset-0 w-full h-full opacity-0 cursor-text z-10" value={value}
-            onChange={(e) => {
-              const filteredValue = e.target.value.replace(/[^0-9\.\,\-]/g, '').slice(0, 4);
-              onChange(filteredValue);
-            }} readOnly={readOnly} autoComplete="off" />
-        </div>
-      );
-    };
-
-    const CountdownTimer = React.memo(({ initialTime, isSubmitted, handleTimeUp }) => {
-        const [timeLeft, setTimeLeft] = useState(initialTime);
-
-        useEffect(() => {
-            if (initialTime <= 0 || isSubmitted) return;
-            if (timeLeft <= 0) {
-                handleTimeUp();
-                return;
-            }
-            const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-            return () => clearInterval(timer);
-        }, [timeLeft, isSubmitted, initialTime, handleTimeUp]);
-
-        const formatTime = (seconds) => {
-            const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-            const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-            const s = (seconds % 60).toString().padStart(2, '0');
-            return h === '00' ? `${m}:${s}` : `${h}:${m}:${s}`;
-        };
-
-        if (initialTime <= 0 || isSubmitted) return null;
-
-        return (
-             <div className={`font-mono text-lg sm:text-xl font-black px-4 py-2 rounded-xl border-2 flex items-center gap-2 transition-colors shadow-inner tracking-widest ${timeLeft <= 60 ? 'bg-red-50 text-red-600 border-red-400 dark:bg-red-900/30 dark:text-red-400 dark:border-red-500 animate-pulse' : 'bg-slate-800 text-emerald-400 border-slate-700 dark:bg-black dark:text-emerald-500 dark:border-slate-800'}`}>
-                <Icons.Clock /> <span>{formatTime(timeLeft)}</span>
-             </div>
-        );
-    });
-
-    const LoginScreen = React.memo(({ ThemeToggleBtn, Notification, handleGuestJoin, handleCodeInputChange, handleLogin, handleGuestLogin }) => {
-      const [showPassword, setShowPassword] = useState(false);
-      return (
-        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 transition-colors flex items-center justify-center p-4 relative">
-          <div className="absolute top-4 right-4"><ThemeToggleBtn /></div>
-          <Notification />
-          <div className="max-w-5xl w-full grid md:grid-cols-2 gap-6 animate-fade-in">
-            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl p-8 text-white shadow-xl flex flex-col justify-center">
-              <div className="mb-8">
-                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block whitespace-nowrap">Dành cho Người thi</span>
-                <h2 className="text-3xl font-black mb-2 truncate">Vào Thi Ngay</h2>
-                <p className="text-blue-100">Không cần đăng nhập. Bạn có thể nhập mã 6 ký tự hoặc dán nguyên link chia sẻ vào đây.</p>
-              </div>
-              <form onSubmit={handleGuestJoin} className="bg-white/10 p-2 rounded-2xl flex gap-2 border border-white/20 backdrop-blur-sm">
-                <input type="text" name="shareCode" onChange={handleCodeInputChange} placeholder="Nhập mã hoặc dán link..." className="w-full min-w-0 bg-transparent px-4 py-3 text-lg sm:text-xl font-bold placeholder-blue-200 text-white outline-none" required />
-                <button type="submit" className="bg-white text-blue-600 px-6 font-bold rounded-xl shadow hover:bg-slate-50 transition shrink-0 whitespace-nowrap">VÀO</button>
-              </form>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-center transition-colors">
-              <div className="mb-6">
-                <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block transition-colors whitespace-nowrap">Dành cho Người ra đề</span>
-                <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-2 truncate">Quản Lý Đề Thi</h2>
-                <p className="text-slate-500 dark:text-slate-400">Đăng nhập để tạo đề, lưu trữ và lấy mã chia sẻ.</p>
-              </div>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <input type="text" name="username" placeholder="Tên đăng nhập" maxLength={15} required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
-                </div>
-                <div className="relative">
-                  <input type={showPassword ? "text" : "password"} name="password" placeholder="Mật khẩu" required className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-colors" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 p-2">
-                    {showPassword ? <Icons.EyeOff /> : <Icons.Eye />}
-                  </button>
-                </div>
-                <button type="submit" className="w-full bg-slate-800 dark:bg-blue-600 hover:bg-slate-900 dark:hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition shadow mt-2 flex items-center justify-center gap-2 whitespace-nowrap">
-                  <Icons.User /> Đăng Nhập / Đăng Ký
-                </button>
-                <button type="button" onClick={handleGuestLogin} className="w-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold py-3.5 rounded-xl transition shadow mt-3 flex items-center justify-center gap-2 whitespace-nowrap">
-                  <Icons.User /> Đăng nhập Khách
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      );
-    });
-
-    const DashboardScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, currentUser, setCurrentUser, navigate, resetQuiz, myQuizzes, recentQuizzes, setRecentQuizzes, db, quizzesPath, handleGuestJoin, handleCodeInputChange, handleDeleteAccount, handleChangePassword, copyToClipboard, setCustomAlert, handleDeleteQuiz, handleExtendQuiz }) => {
-      const [showUserMenu, setShowUserMenu] = useState(false);
-      const [showChangePwd, setShowChangePwd] = useState(false);
-      const now = Date.now();
-      const usernameLower = currentUser?.username.toLowerCase();
-      const isAdmin = usernameLower === ADMIN_USERNAME;
-      const isVip = currentUser?.isVip || false;
-      const isGuest = currentUser?.isGuest || false;
-      
-      const dbQuizzesCount = myQuizzes.filter(q => !q.isLocal).length;
-      const limitText = isAdmin ? "Admin Không giới hạn" : (isVip ? `${dbQuizzesCount}/${MAX_QUIZZES_PER_VIP} đề` : `${dbQuizzesCount}/${MAX_QUIZZES_PER_USER} đề`);
-
-      const handleDeleteRecent = (code) => {
-         const newRecents = recentQuizzes.filter(r => r.code !== code);
-         setRecentQuizzes(newRecents);
-         localStorage.setItem('quiz_recent_history', JSON.stringify(newRecents));
-      };
-
-      return (
-        <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-50 dark:bg-slate-900 transition-colors">
-          <Notification />
-          <CustomConfirmModal />
-          {showChangePwd && !isGuest && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <form onSubmit={(e) => { handleChangePassword(e); setShowChangePwd(false); }} className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-bounce-in">
-                <h3 className="text-xl font-bold mb-4 dark:text-white truncate">Đổi Mật Khẩu</h3>
-                <input type="password" name="oldPassword" placeholder="Mật khẩu cũ" required className="w-full mb-3 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700 outline-none" />
-                <input type="password" name="newPassword" placeholder="Mật khẩu mới" required className="w-full mb-5 px-4 py-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-700 outline-none" />
-                <div className="flex gap-3">
-                  <button type="submit" className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition whitespace-nowrap">Xác nhận</button>
-                  <button type="button" onClick={() => setShowChangePwd(false)} className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-bold py-2 rounded-lg transition whitespace-nowrap">Hủy</button>
-                </div>
-              </form>
-            </div>
-          )}
-          <div className="max-w-5xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between md:items-center mb-8 bg-white dark:bg-slate-800 p-4 px-4 sm:px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 gap-4 transition-colors">
-                            <div className="flex justify-between items-center w-full sm:w-auto gap-3 sm:gap-4 sm:border-r border-slate-200 dark:border-slate-700 sm:pr-6">
-                <div className="relative flex-1 min-w-0">
-                  <button onClick={() => setShowUserMenu(!showUserMenu)} className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition w-full text-left">
-                    <Icons.User /> 
-                    <span className="text-blue-600 dark:text-blue-400 truncate min-w-0">{currentUser?.username}</span> 
-                    {!isGuest && isAdmin && <span className="text-[9px] sm:text-[10px] bg-red-600 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">ADMIN</span>}
-                    {!isGuest && !isAdmin && isVip && <span className="text-[9px] sm:text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 shadow-sm -mt-0.5">VIP</span>}
-                    <span className="shrink-0 text-sm ml-0.5">▾</span>
-                  </button>
-                  {showUserMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
-                      <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-2">
-                        {!isGuest && <button onClick={() => {setShowChangePwd(true); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition whitespace-nowrap"><Icons.Key /> Đổi mật khẩu</button>}
-                        {isAdmin && (
-                          <button onClick={() => window.location.href = 'admin.html'} className="w-full text-left px-4 py-2 flex items-center gap-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 font-bold transition whitespace-nowrap"><Icons.Shield /> Quản trị Admin</button>
-                        )}
-                        {!isGuest && <button onClick={() => {handleDeleteAccount(); setShowUserMenu(false);}} className="w-full text-left px-4 py-2 flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium transition whitespace-nowrap"><Icons.UserX /> Xóa tài khoản</button>}
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <ThemeToggleBtn />
-                  <button onClick={() => { setCurrentUser(null); navigate('Login'); }} title="Đăng xuất" className="p-2 sm:p-2.5 rounded-full text-red-500 bg-red-50 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-600 dark:hover:text-white transition flex items-center justify-center shrink-0"><Icons.Logout /></button>
-                </div>
-              </div>
-              <form onSubmit={handleGuestJoin} className="flex-1 flex gap-2 w-full mt-2 sm:mt-0 min-w-0">
-                <input type="text" name="shareCode" onChange={handleCodeInputChange} placeholder="Nhập mã hoặc dán link đề..." className="w-full min-w-0 bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl text-slate-800 dark:text-white font-bold outline-none border border-slate-200 dark:border-slate-700 focus:border-blue-500" required />
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 shadow font-bold shrink-0 whitespace-nowrap transition">VÀO THI</button>
-              </form>
-            </div>
-
-            {/* MỤC ĐỀ LÀM GẦN ĐÂY */}
-            {recentQuizzes.length > 0 && (
-                <div className="mb-10 animate-fade-in">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-4">
-                      <div className="min-w-0">
-                        <h2 className="text-2xl font-black text-amber-600 dark:text-amber-500 truncate">Làm gần đây</h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Tối đa 5 đề (tồn tại trong 24h)</p>
-                      </div>
-                  </div>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {recentQuizzes.map(q => {
-                        const timeLeftMs = 86400000 - (now - q.savedAt);
-                        const hoursLeft = Math.floor(timeLeftMs / 3600000);
-                        return (
-                            <div key={q.code} className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-4 shadow-sm border border-amber-200 dark:border-amber-800/50 hover:border-amber-400 transition-colors flex flex-col justify-between min-w-0 relative group">
-                                <button onClick={() => handleDeleteRecent(q.code)} className="absolute top-2 right-2 p-1.5 text-red-500 bg-white dark:bg-slate-800 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-red-100 dark:border-slate-700 hover:bg-red-500 hover:text-white" title="Xóa đề này khỏi lịch sử">
-                                    <Icons.Trash />
-                                </button>
-                                <div className="min-w-0 mb-3 pr-8">
-                                    <h3 className="font-bold text-slate-800 dark:text-white truncate" title={q.title}>{q.title}</h3>
-                                    <div className="text-xs text-amber-600 dark:text-amber-500 font-bold mt-1">Còn {hoursLeft} giờ</div>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="text-amber-800 dark:text-amber-300 font-mono font-black text-base truncate tracking-widest">{q.code}</span>
-                                    <button onClick={() => navigate(`Overview/${q.code}`)} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg font-bold transition text-sm shrink-0 whitespace-nowrap shadow-sm">Làm lại</button>
-                                </div>
-                            </div>
-                        )
-                    })}
-                  </div>
-                </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
-              <div className="min-w-0">
-                <h2 className="text-2xl font-black text-slate-800 dark:text-white truncate">Kho đề thi của bạn</h2>
-                {!isGuest && <p className="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Đã lưu lên Cloud: {limitText}</p>}
-                {isGuest && <p className="text-sm text-amber-500 font-medium whitespace-nowrap">Đề đang lưu cục bộ, hãy Lưu vào TK để tránh mất dữ liệu</p>}
-              </div>
-              <button onClick={resetQuiz} className="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto shrink-0 whitespace-nowrap">+ TẠO ĐỀ MỚI</button>
-            </div>
-            {myQuizzes.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 rounded-3xl p-12 text-center text-slate-400 border border-dashed border-slate-300 dark:border-slate-600 transition-colors">Chưa có đề nào.</div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-5">
-                {myQuizzes.map(q => {
-                  const daysLeft = Math.ceil((q.expiresAt - now) / 86400000);
-                  const fullLink = `${window.location.origin}${window.location.pathname}#/Overview/${q.code}`;
-
-                  return (
-                    <div key={q.id} className={`bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border ${q.isLocal ? 'border-amber-300 dark:border-amber-600/50' : 'border-slate-200 dark:border-slate-700'} hover:border-blue-300 dark:hover:border-blue-500 transition-colors flex flex-col justify-between min-w-0 relative`}>
-                      {q.isLocal && <span className="absolute top-0 right-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-bl-lg rounded-tr-lg uppercase">Chưa lưu Cloud</span>}
-                      <div className="min-w-0 mt-1">
-                        <h3 className="font-bold text-slate-800 dark:text-white mb-2 truncate">{q.title}</h3>
-                        <div className="flex justify-between text-xs mb-4">
-                          <span className="text-slate-500 dark:text-slate-400">{new Date(q.createdAt).toLocaleDateString('vi-VN')}</span>
-                          <span className={`${daysLeft <= 5 ? "text-red-500" : "text-amber-500"} font-bold`}>Hết hạn sau {daysLeft} ngày</span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/30 p-2.5 rounded-xl border border-blue-100 dark:border-blue-800/50 min-w-0 mb-4">
-                            <span className="text-blue-800 dark:text-blue-300 font-mono font-black text-lg truncate min-w-0 pl-2 tracking-widest">{q.code}</span>
-                            {!q.isLocal ? (
-                                <button onClick={() => copyToClipboard(fullLink, q.code)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg font-bold transition text-sm shrink-0 whitespace-nowrap shadow-sm">Copy Link</button>
-                            ) : (
-                                <span className="text-amber-600 font-bold text-xs pr-2">Link tạm</span>
-                            )}
-                        </div>
-
-                      </div>
-                      <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700 relative">
-                        <button onClick={() => navigate(`Overview/${q.code}`)} className="flex-1 bg-slate-100 dark:bg-slate-700 py-2 rounded-lg font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm sm:text-base min-w-0 truncate">Xem / Sửa</button>
-                        <button onClick={() => handleExtendQuiz(q)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800 transition text-sm shrink-0 whitespace-nowrap">+7 Ngày</button>
-                        <button onClick={() => {
-                            setCustomAlert({
-                                isOpen: true, title: "Xóa đề thi", message: "Bạn có chắc chắn muốn xóa đề thi này không?",
-                                type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy', onConfirm: () => handleDeleteQuiz(q)
-                            });
-                        }} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-500 hover:text-white transition shrink-0"><Icons.Trash /></button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Tạo nút tạo đề mới cho khách ở ngay dưới cùng nếu là khách */}
-            {isGuest && myQuizzes.length > 0 && (
-                <div className="mt-8 text-center">
-                    <button onClick={resetQuiz} className="bg-blue-600 text-white font-bold px-8 py-4 rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto shrink-0 whitespace-nowrap">+ TẠO ĐỀ MỚI NGAY</button>
-                </div>
-            )}
-          </div>
-        </div>
-      );
-    });
-
-    const InputScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, navigate, quizTitle, setQuizTitle, currentQuizCode, rawTexts, setRawTexts, handleParseAndSave, saveCooldown, isSaving, setShowGuestSaveModal, currentUser }) => {
-      const [inputTab, setInputTab] = useState('mc');
-      const tabs = [{ id: 'mc', label: 'I. Trắc nghiệm' }, { id: 'tf', label: 'II. Đúng sai' }, { id: 'sa', label: 'III. Trả lời ngắn' }, { id: 'rc', label: 'IV. Đọc hiểu' }, { id: 'file', label: 'Tải File / Hỗn hợp' }];
-      const placeholders = { 
-      mc: "Câu 1. Nội dung...\nA. Lựa chọn 1\n*B. Lựa chọn 2(đúng)",
-      tf: "Câu 2: Nội dung...\na) Mệnh đề 1\n*b) Mệnh đề 2(đúng)",
-      sa: "Câu 3. Trả lời ngắn\n*4.5*",
-      rc: "Câu 4. Đoạn văn...\n#1. Nội dung...\nA. Lựa chọn 1\n*B. Lựa chọn 2(đúng)\n#2. Nội dung...\n*A. Lựa chọn 1(đúng)\nB. Lựa chọn 2",
-      file: "Dán hỗn hợp có cấu trúc như các phần trước hoặc file .txt. Có Phần I, Phần II..." };
-      const tips = { 
-      mc: 'Dùng từ \"Câu\" để xác định câu hỏi. Đáp án \"A.\", \"B.\". Mỗi câu và mỗi đáp án để theo dòng * trước câu đúng.', 
-      tf: 'Cấu trúc tương tự trắc nghiệm. Thường dùng \"a)\", \"b)\".',
-      sa: 'Bọc đáp án giữa 2 dấu sao *đáp án*.',
-      rc: 'Cấu trúc tương tự các phần trên nhưng câu hỏi phụ dùng #1., #2.',
-      file: 'Bắt buộc phải có các Phần I, II, III, IV để hệ thống tự nhận diện được.' };
-
-      return (
-        <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
-          <Notification />
-          <CustomConfirmModal />
-          <div className="max-w-5xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 min-w-0">
-            <div className="flex justify-between items-start mb-6 gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white truncate">Tạo đề</h1>
-              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                <ThemeToggleBtn />
-                <button onClick={() => navigate(currentQuizCode ? `Overview/${currentQuizCode}` : 'Home')} className="text-slate-500 font-bold hover:text-slate-800 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-full whitespace-nowrap">Thoát</button>
-              </div>
-            </div>
-            <div className="mb-6">
-                <input type="text" placeholder="Tên Đề Thi..." value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} maxLength={15}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-bold dark:text-white transition-colors" />
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-6 border-b border-slate-200 dark:border-slate-700 pb-5">
-              {tabs.map(t => (
-                <button key={t.id} onClick={() => setInputTab(t.id)} 
-                  className={`px-4 py-3 font-bold rounded-[18px] transition-all text-sm md:text-base ${inputTab === t.id ? (t.id === 'file' ? 'bg-slate-700 dark:bg-slate-600 text-white' : 'bg-blue-600 text-white') : 'border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'} ${t.id === 'file' ? 'col-span-2' : ''}`}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl mb-4 border border-blue-100 dark:border-blue-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">💡 <b>Mẹo:</b> {tips[inputTab]}</p>
-              {inputTab === 'file' && (
-                <label className="cursor-pointer bg-white dark:bg-slate-700 border-2 border-blue-200 dark:border-slate-600 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shrink-0 transition">
-                  <Icons.Upload /> Chọn file .txt
-                  <input type="file" accept=".txt" className="hidden" onChange={(e) => {
-                    const file = e.target.files[0]; if(!file) return;
-                    const reader = new FileReader(); reader.onload = (evt) => setRawTexts({...rawTexts, file: evt.target.result});
-                    reader.readAsText(file);
-                  }} />
-                </label>
-              )}
-            </div>
-            <textarea className="w-full h-[350px] p-5 border-2 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-blue-500 outline-none resize-none font-mono text-sm bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white transition-colors mb-6" 
-              placeholder={placeholders[inputTab]} value={rawTexts[inputTab]} onChange={(e) => setRawTexts({...rawTexts, [inputTab]: e.target.value})} />
-            <div className="flex flex-col sm:flex-row gap-4">
-              {currentUser?.isGuest && (
-                 <button onClick={() => setShowGuestSaveModal(true)} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform hover:-translate-y-1">
-                    <Icons.User /> LƯU VÀO TK
-                 </button>
-              )}
-              <button onClick={saveCooldown > 0 || isSaving ? null : handleParseAndSave} disabled={saveCooldown > 0 || isSaving}
-                className={`flex-1 ${saveCooldown > 0 || isSaving ? 'bg-slate-400 dark:bg-slate-600' : 'bg-green-600 hover:bg-green-700'} text-white font-black text-lg py-4 rounded-2xl shadow-lg transition flex justify-center items-center gap-2 transform ${saveCooldown > 0 || isSaving ? '' : 'hover:-translate-y-1'}`}
-              >
-                {isSaving ? "ĐANG LƯU..." : saveCooldown > 0 ? `ĐỢI (${saveCooldown}s)` : <><Icons.Check /> LƯU TRÊN MÁY</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    });
-
-    const SectionOrderModal = React.memo(({ availableParts, initialSelected, onClose, onSave, ThemeToggleBtn, quizTitle, quizCode }) => {
-        const [orderedParts, setOrderedParts] = useState(() => {
-            const selected = initialSelected || [];
-            const unselected = availableParts.filter(p => !selected.includes(p.id)).map(p => p.id);
-            return [...selected, ...unselected];
-        });
-
-        const [localSelected, setLocalSelected] = useState(initialSelected || []);
-
-        const toggleLocalSelect = (id) => {
-            setLocalSelected(prev => {
-                let newSelected = [...prev];
-                if (prev.includes(id)) {
-                    if (prev.length === 1) return prev; 
-                    newSelected = prev.filter(x => x !== id);
-                } else {
-                    newSelected = [...prev, id];
-                }
-                
-                setOrderedParts(currentOrder => {
-                    const newOrder = currentOrder.filter(x => x !== id);
-                    if (newSelected.includes(id)) {
-                        const lastSelectedIndex = newOrder.findIndex(item => !newSelected.includes(item));
-                        if (lastSelectedIndex === -1) newOrder.push(id);
-                        else newOrder.splice(lastSelectedIndex, 0, id);
-                    } else {
-                        newOrder.push(id);
-                    }
-                    return newOrder;
-                });
-                return newSelected;
-            });
-        };
-
-        const moveItem = (index, direction) => {
-            if (direction === 'up' && index > 0) {
-                setOrderedParts(prev => {
-                    const newArr = [...prev];
-                    [newArr[index - 1], newArr[index]] = [newArr[index], newArr[index - 1]];
-                    return newArr;
-                });
-            } else if (direction === 'down' && index < orderedParts.length - 1) {
-                setOrderedParts(prev => {
-                    const newArr = [...prev];
-                    [newArr[index + 1], newArr[index]] = [newArr[index], newArr[index + 1]];
-                    return newArr;
-                });
-            }
-        };
-
-        const handleDragStart = (e, index) => {
-            e.dataTransfer.setData('text/plain', index);
-            e.dataTransfer.effectAllowed = 'move';
-        };
-
-        const handleDragOver = (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        };
-
-        const handleDrop = (e, dropIndex) => {
-            e.preventDefault();
-            const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-            if (dragIndex === dropIndex) return;
-
-            setOrderedParts(prev => {
-                const newArr = [...prev];
-                const [draggedItem] = newArr.splice(dragIndex, 1);
-                newArr.splice(dropIndex, 0, draggedItem);
-                return newArr;
-            });
-        };
-
-        return (
-            <div className="fixed inset-0 bg-slate-50 dark:bg-slate-900 z-[100] flex flex-col animate-fade-in overflow-hidden transition-colors">
-                <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 px-4 py-3 shrink-0 flex items-center gap-3">
-                    <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition shrink-0"><Icons.ArrowLeft /></button>
-                    <div className="flex-1 min-w-0">
-                        <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white truncate" title={quizTitle}>{quizTitle || "Đề thi"}</h2>
-                        {quizCode && <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded uppercase inline-block mt-0.5 tracking-wider truncate max-w-full">Mã: {quizCode}</span>}
-                    </div>
-                    <ThemeToggleBtn />
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <div className="max-w-2xl mx-auto w-full">
-                        <div className="mb-6 text-center">
-                            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">Chọn và sắp xếp phần thi</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Đánh dấu để chọn. Bấm mũi tên hoặc kéo thả để đổi thứ tự.</p>
-                        </div>
-                        
-                        <div className="space-y-3">
-                            {orderedParts.map((partId, index) => {
-                                const partInfo = availableParts.find(p => p.id === partId);
-                                if (!partInfo) return null;
-                                const isSelected = localSelected.includes(partId);
-
-                                return (
-                                    <div 
-                                        key={partId}
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, index)}
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => handleDrop(e, index)}
-                                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-move bg-white dark:bg-slate-800 ${isSelected ? 'border-indigo-500 shadow-md' : 'border-slate-200 dark:border-slate-700 opacity-60'}`}
-                                    >
-                                        <div className="shrink-0 text-slate-400 hidden sm:block"><Icons.DragHandle /></div>
-                                        <label className="flex items-center gap-3 flex-1 cursor-pointer min-w-0">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={isSelected} 
-                                                onChange={() => toggleLocalSelect(partId)}
-                                                className="w-6 h-6 rounded text-indigo-600 focus:ring-indigo-500 shrink-0 cursor-pointer" 
-                                            />
-                                            <span className={`font-bold text-base sm:text-lg truncate ${isSelected ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 line-through'}`}>{partInfo.label}</span>
-                                        </label>
-
-                                        {isSelected && (
-                                            <div className="flex flex-col gap-1 shrink-0">
-                                                <button 
-                                                    onClick={() => moveItem(index, 'up')} 
-                                                    disabled={index === 0}
-                                                    className={`p-1.5 rounded-lg transition-colors ${index === 0 ? 'opacity-0 cursor-default' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-                                                >
-                                                    <Icons.ArrowUp />
-                                                </button>
-                                                <button 
-                                                    onClick={() => moveItem(index, 'down')} 
-                                                    disabled={index === orderedParts.length - 1}
-                                                    className={`p-1.5 rounded-lg transition-colors ${index === orderedParts.length - 1 ? 'opacity-0 cursor-default' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-                                                >
-                                                    <Icons.ArrowDown />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 shrink-0">
-                    <div className="max-w-2xl mx-auto w-full flex gap-3">
-                        <button onClick={onClose} className="flex-1 py-4 font-bold rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
-                        <button 
-                            onClick={() => {
-                                const finalOrder = orderedParts.filter(id => localSelected.includes(id));
-                                onSave(finalOrder);
-                            }} 
-                            className="flex-1 py-4 font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-md transition"
-                        >
-                            Lưu cấu hình
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    });
-
-    const OverviewScreen = React.memo(({ ThemeToggleBtn, Notification, quizTitle, timeLimit, setTimeLimit, currentQuizCode, copyToClipboard, config, setConfig, prepareQuiz, isReadOnly, navigate, cloneQuizAdmin, cloneCooldown, currentUser, parsedData }) => {
-      const [showShuffleMenu, setShowShuffleMenu] = useState(false);
-      const [showTimeMenu, setShowTimeMenu] = useState(false);
-      const [showOrderModal, setShowOrderModal] = useState(false);
-
-      const isAdmin = currentUser?.username.toLowerCase() === ADMIN_USERNAME;
-      const isVip = currentUser?.isVip || false;
-
-      const shuffleOptions = [
-          { id: 'none', label: 'Giữ nguyên thứ tự' },
-          { id: 'questions', label: 'Chỉ trộn câu hỏi' },
-          { id: 'options', label: 'Chỉ trộn đáp án' },
-          { id: 'both', label: 'Trộn tất cả' }
-      ];
-      const fullLink = `${window.location.origin}${window.location.pathname}#/Overview/${currentQuizCode}`;
-
-      const currentSeconds = parseInt(timeLimit) || 0;
-      const h = Math.floor(currentSeconds / 3600);
-      const m = Math.floor((currentSeconds % 3600) / 60);
-      const s = currentSeconds % 60;
-
-      const updateTime = (type, val) => {
-          const num = parseInt(val) || 0;
-          let newH = h, newM = m, newS = s;
-          if (type === 'h') newH = num;
-          if (type === 'm') newM = num;
-          if (type === 's') newS = num;
-          setTimeLimit(newH * 3600 + newM * 60 + newS);
-      };
-
-      const availableParts = useMemo(() => {
-          if (!parsedData) return [];
-          const parts = [];
-          if (parsedData.mc && parsedData.mc.length > 0) parts.push({ id: 'mc', label: 'I. Trắc nghiệm' });
-          if (parsedData.tf && parsedData.tf.length > 0) parts.push({ id: 'tf', label: 'II. Đúng/Sai' });
-          if (parsedData.sa && parsedData.sa.length > 0) parts.push({ id: 'sa', label: 'III. Trả lời ngắn' });
-          if (parsedData.rc && parsedData.rc.length > 0) parts.push({ id: 'rc', label: 'IV. Đọc hiểu' });
-          return parts;
-      }, [parsedData]);
-
-      useEffect(() => {
-          if ((!config.selectedSections || config.selectedSections.length === 0) && availableParts.length > 0) {
-              setConfig(prev => ({ ...prev, selectedSections: availableParts.map(p => p.id) }));
-          }
-      }, [availableParts, config.selectedSections, setConfig]);
-
-      return (
-        <div className="min-h-screen p-4 py-10 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors flex items-start sm:items-center justify-center">
-          <Notification />
-          
-          {showOrderModal && (
-              <SectionOrderModal 
-                  availableParts={availableParts} 
-                  initialSelected={config.selectedSections} 
-                  onClose={() => setShowOrderModal(false)}
-                  onSave={(newOrder) => {
-                      setConfig({...config, selectedSections: newOrder});
-                      setShowOrderModal(false);
-                  }}
-                  ThemeToggleBtn={ThemeToggleBtn}
-                  quizTitle={quizTitle}
-                  quizCode={currentQuizCode}
-              />
-          )}
-
-          <div className="max-w-xl w-full bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 min-w-0">
-              <div className="flex flex-col mb-6 border-b border-slate-100 dark:border-slate-700 pb-4 gap-2">
-                  <div className="flex justify-between items-start">
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white line-clamp-2">{quizTitle || "Đề thi"}</h2>
-                      <ThemeToggleBtn />
-                  </div>
-                  {currentQuizCode && (
-                      <div className="flex justify-end">
-                          <div onClick={() => copyToClipboard(fullLink, currentQuizCode)} className="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono font-bold px-3 py-1.5 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 transition text-sm">
-                              Mã: <span className="tracking-widest">{currentQuizCode}</span> <Icons.Copy />
-                          </div>
-                      </div>
-                  )}
-              </div>
-              
-              <div className="flex flex-col items-center mb-8 p-6 rounded-3xl border border-slate-100 dark:border-slate-700">
-                <div className="w-full flex flex-col items-center border-b border-slate-100 dark:border-slate-700 pb-6">
-                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider">Chế độ thi</p>
-                  <div className="flex w-full bg-slate-100 dark:bg-slate-900 rounded-2xl p-1.5 gap-1.5 border border-slate-200 dark:border-slate-700">
-                    <button onClick={() => setConfig({...config, mode: 'single'})} className={`flex-1 py-3.5 rounded-xl font-bold transition-all ${config.mode === 'single' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Từng câu</button>
-                    <button onClick={() => setConfig({...config, mode: 'all'})} className={`flex-1 py-3.5 rounded-xl font-bold transition-all ${config.mode === 'all' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Tất cả</button>
-                  </div>
-                </div>
-                
-                <div className="w-full flex flex-col items-center relative border-b border-slate-100 dark:border-slate-700 py-6">
-                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider">Xáo trộn</p>
-                  <div className="w-full">
-                      <button 
-                          onClick={() => setShowShuffleMenu(!showShuffleMenu)} 
-                          className="w-full flex items-center justify-between py-4 px-5 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-2xl font-bold border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm"
-                      >
-                          <span className="truncate flex-1 text-center pl-5">{shuffleOptions.find(o => o.id === config.shuffle)?.label || 'Giữ nguyên'}</span>
-                          <div className={`transition-transform duration-200 text-slate-400 shrink-0 ${showShuffleMenu ? 'rotate-180' : ''}`}>
-                              <Icons.ChevronDown />
-                          </div>
-                      </button>
-
-                      {showShuffleMenu && (
-                          <>
-                              <div className="fixed inset-0 z-40" onClick={() => setShowShuffleMenu(false)}></div>
-                              <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in">
-                                  {shuffleOptions.map(opt => (
-                                      <button 
-                                          key={opt.id} 
-                                          onClick={() => {
-                                              setConfig({...config, shuffle: opt.id});
-                                              setShowShuffleMenu(false);
-                                          }}
-                                          className={`w-full text-center px-5 py-4 font-bold transition-colors ${config.shuffle === opt.id ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                                      >
-                                          {opt.label}
-                                      </button>
-                                  ))}
-                              </div>
-                          </>
-                      )}
-                  </div>
-                </div>
-
-                <div className="w-full flex flex-col items-center relative border-b border-slate-100 dark:border-slate-700 py-6">
-                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider">Thời gian làm bài</p>
-                  <div className="w-full relative">
-                     <button onClick={() => setShowTimeMenu(!showTimeMenu)} className="w-full flex items-center justify-between py-4 px-5 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-2xl font-bold border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm text-sm sm:text-base">
-                         <span className="truncate flex-1 text-center pl-5">{h > 0 || m > 0 || s > 0 ? `${h} giờ ${m} phút ${s} giây` : 'Không giới hạn'}</span>
-                         <div className={`transition-transform duration-200 text-slate-400 shrink-0 ${showTimeMenu ? 'rotate-180' : ''}`}><Icons.ChevronDown /></div>
-                     </button>
-                     {showTimeMenu && (
-                         <>
-                             <div className="fixed inset-0 z-40" onClick={() => setShowTimeMenu(false)}></div>
-                             <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in flex p-2 gap-2 h-60">
-                                 {/* Giờ */}
-                                 <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-                                     <div className="text-center font-black text-[10px] text-slate-400 mb-2 sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur py-1 z-10">GIỜ</div>
-                                     {[...Array(13)].map((_, i) => <button key={`h${i}`} onClick={() => updateTime('h', i)} className={`w-full py-2.5 rounded-xl font-bold transition-colors text-xs sm:text-sm mb-1 ${h === i ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i}</button>)}
-                                 </div>
-                                 {/* Phút */}
-                                 <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden border-l border-slate-100 dark:border-slate-700" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-                                     <div className="text-center font-black text-[10px] text-slate-400 mb-2 sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur py-1 z-10">PHÚT</div>
-                                     {[...Array(60)].map((_, i) => <button key={`m${i}`} onClick={() => updateTime('m', i)} className={`w-full py-2.5 rounded-xl font-bold transition-colors text-xs sm:text-sm mb-1 ${m === i ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i}</button>)}
-                                 </div>
-                                 {/* Giây */}
-                                 <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden border-l border-slate-100 dark:border-slate-700" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-                                     <div className="text-center font-black text-[10px] text-slate-400 mb-2 sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur py-1 z-10">GIÂY</div>
-                                     {[...Array(60)].map((_, i) => <button key={`s${i}`} onClick={() => updateTime('s', i)} className={`w-full py-2.5 rounded-xl font-bold transition-colors text-xs sm:text-sm mb-1 ${s === i ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{i}</button>)}
-                                 </div>
-                             </div>
-                         </>
-                     )}
-                  </div>
-                </div>
-
-                {availableParts.length > 0 && (
-                    <div className="w-full flex flex-col items-center relative pt-6">
-                      <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-4 tracking-wider text-center">Chọn phần thi & Thứ tự</p>
-                      
-                      <button 
-                          onClick={() => setShowOrderModal(true)}
-                          className="w-full flex items-center justify-between py-4 px-5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-2xl font-bold border border-indigo-200 dark:border-indigo-800 outline-none transition-colors shadow-sm"
-                      >
-                          <span className="truncate flex-1 text-center pl-5">Cài đặt phần thi ({config.selectedSections?.length || 0})</span>
-                          <div className="text-indigo-400 shrink-0"><Icons.Edit /></div>
-                      </button>
-                    </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button onClick={prepareQuiz} className="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-xl transition shadow-lg flex items-center justify-center gap-2 text-lg transform hover:-translate-y-1"><Icons.Play /> BẮT ĐẦU THI</button>
-                {!isReadOnly && (
-                  <div className="flex gap-3">
-                      <button onClick={() => navigate(`Overview/${currentQuizCode}/EditText`)} className="flex-1 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-bold py-4 rounded-xl shadow transition text-sm">Sửa Text Gốc</button>
-                      <button onClick={() => navigate(`Overview/${currentQuizCode}/EditQuestion`)} className="flex-1 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow transition text-sm">Sửa Câu Hỏi</button>
-                  </div>
-                )}
-                {isReadOnly && (isAdmin || isVip) && (
-                      <button onClick={() => cloneQuizAdmin()} disabled={cloneCooldown > 0} className={`w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold py-4 rounded-xl transition shadow flex items-center justify-center gap-2 ${cloneCooldown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}><Icons.Copy /> {cloneCooldown > 0 ? `Vui lòng đợi ${cloneCooldown}s...` : `Nhân bản thành đề của tôi ${isAdmin ? '(Admin)' : '(VIP)'}`}</button>
-                )}
-                <button onClick={() => navigate(currentUser ? 'Home' : 'Login')} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold py-4 rounded-xl border border-slate-200 dark:border-slate-700 transition">Thoát</button>
-              </div>
-          </div>
-        </div>
-      );
-    });
-
-    const SettingsScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, parsedData, setParsedData, editingQ, setEditingQ, navigate, currentQuizCode, isReadOnly, currentUser, db, handleImageUpload, changeQuestionType, saveInlineEdit, removeInlineQuestion, handleAddNewQuestion, showMessage, quizzesPath, quizTitle, setShowGuestSaveModal }) => {
-      const [qSearchTerm, setQSearchTerm] = useState('');
-      const [showTypeMenu, setShowTypeMenu] = useState(false);
-      const [showAddSectionSelector, setShowAddSectionSelector] = useState(false);
-
-      const totalQuestions = useMemo(() => {
-          let count = 0;
-          if (parsedData.mc) count += parsedData.mc.length;
-          if (parsedData.tf) count += parsedData.tf.length;
-          if (parsedData.sa) count += parsedData.sa.length;
-          if (parsedData.rc) parsedData.rc.forEach(q => count += q.subQuestions.length);
-          return count;
-      }, [parsedData]);
-
-      const sections = useMemo(() => [
-        { id: 'mc', title: 'Phần I: Trắc Nghiệm', data: (parsedData.mc || []).map((q, i) => ({...q, originalIndex: i + 1})) },
-        { id: 'tf', title: 'Phần II: Đúng/Sai', data: (parsedData.tf || []).map((q, i) => ({...q, originalIndex: i + 1})) },
-        { id: 'sa', title: 'Phần III: Trả lời ngắn', data: (parsedData.sa || []).map((q, i) => ({...q, originalIndex: i + 1})) },
-        { id: 'rc', title: 'Phần IV: Đọc hiểu / Nhóm', data: (parsedData.rc || []).map((q, i) => ({...q, originalIndex: i + 1})) }
-      ], [parsedData]);
-
-      const questionTypeOptions = [
-          { id: 'mc', label: 'I. Trắc nghiệm' },
-          { id: 'tf', label: 'II. Đúng / Sai' },
-          { id: 'sa', label: 'III. Trả lời ngắn' },
-          { id: 'rc', label: 'IV. Đọc hiểu / Nhóm' }
-      ];
-
-      const filteredSections = useMemo(() => {
-          return sections.map(sec => ({
-              ...sec,
-              data: sec.data.filter((q) => {
-                  if (!q) return false;
-                  const term = qSearchTerm.toLowerCase().trim();
-                  const qIndexStr = q.originalIndex.toString();
-                  const qIndexFullStr = `câu ${q.originalIndex}`;
-                  
-                  const textMatch = (q.text || '').toLowerCase().includes(term);
-                  const indexMatch = qIndexStr === term || qIndexFullStr.includes(term) || qIndexStr.includes(term);
-                  const optionsMatch = q.options && q.options.some(opt => opt && (opt.text || '').toLowerCase().includes(term));
-                  const subQuestionsMatch = q.subQuestions && q.subQuestions.some(sq => 
-                      sq && (
-                          (sq.text || '').toLowerCase().includes(term) || 
-                          (sq.options && sq.options.some(opt => opt && (opt.text || '').toLowerCase().includes(term)))
-                      )
-                  );
-                  
-                  return textMatch || indexMatch || optionsMatch || subQuestionsMatch;
-              })
-          })).filter(sec => sec.data.length > 0);
-      }, [sections, qSearchTerm]);
-
-      // Logic tải ảnh cho từng phương án
-      const handleOptImageUpload = async (file, optId, isSubQ = false, subQId = null) => {
-          if (!file) return;
-          if (file.size > 32 * 1024 * 1024) return showMessage("Ảnh quá lớn! Vui lòng chọn ảnh < 32MB.", "error");
-          showMessage("Đang tải ảnh phương án lên...", "success");
-          try {
-              const formData = new FormData();
-              formData.append('image', file);
-              const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                  method: 'POST', body: formData
-              });
-              const data = await response.json();
-              if (data.success) {
-                  const imageUrl = data.data.url;
-                  let newOpts = isSubQ ? [...editingQ.data.subQuestions.find(sq => sq.id === subQId).options] : [...editingQ.data.options];
-                  const optIndex = newOpts.findIndex(o => o.id === optId);
-                  if (optIndex > -1) newOpts[optIndex].image = imageUrl;
-
-                  if (isSubQ) {
-                      const newSqs = [...editingQ.data.subQuestions];
-                      const sqIndex = newSqs.findIndex(sq => sq.id === subQId);
-                      newSqs[sqIndex].options = newOpts;
-                      setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                  } else {
-                      setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                  }
-                  showMessage("Tải ảnh phương án thành công!", "success");
-              } else showMessage("Lỗi tải ảnh!", "error");
-          } catch (e) { showMessage("Lỗi kết nối!", "error"); }
-      };
-
-      const removeOptImage = (optId, isSubQ = false, subQId = null) => {
-          let newOpts = isSubQ ? [...editingQ.data.subQuestions.find(sq => sq.id === subQId).options] : [...editingQ.data.options];
-          const optIndex = newOpts.findIndex(o => o.id === optId);
-          if (optIndex > -1) newOpts[optIndex].image = null;
-
-          if (isSubQ) {
-              const newSqs = [...editingQ.data.subQuestions];
-              const sqIndex = newSqs.findIndex(sq => sq.id === subQId);
-              newSqs[sqIndex].options = newOpts;
-              setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-          } else {
-              setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-          }
-      };
-
-      return (
-        <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
-          <Notification />
-          <CustomConfirmModal />
-          {editingQ && (
-            <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-start pt-10 px-4 overflow-y-auto pb-10">
-              <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-2xl shadow-2xl animate-fade-in border dark:border-slate-700">
-                <h3 className="text-2xl font-black mb-4 dark:text-white">{editingQ.isNew ? 'Thêm câu hỏi' : 'Sửa câu hỏi'}</h3>
-                <div className="space-y-4">
-                  <div className="relative">
-                    <button 
-                        onClick={() => setShowTypeMenu(!showTypeMenu)} 
-                        className="w-full flex items-center justify-between p-3.5 bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 rounded-xl font-bold border border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 outline-none transition-colors shadow-sm"
-                    >
-                        <span>{questionTypeOptions.find(t => t.id === editingQ.data.type)?.label || 'Chọn loại'}</span>
-                        <div className={`transition-transform duration-200 text-slate-400 ${showTypeMenu ? 'rotate-180' : ''}`}>
-                            <Icons.ChevronDown />
-                        </div>
-                    </button>
-
-                    {showTypeMenu && (
-                        <>
-                            <div className="fixed inset-0 z-[60]" onClick={() => setShowTypeMenu(false)}></div>
-                            <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-[70] overflow-hidden animate-fade-in">
-                                {questionTypeOptions.map(opt => (
-                                    <button 
-                                        key={opt.id} 
-                                        onClick={() => {
-                                            changeQuestionType(opt.id);
-                                            setShowTypeMenu(false);
-                                        }}
-                                        className={`w-full text-left px-5 py-4 font-bold transition-colors ${editingQ.data.type === opt.id ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                  </div>
-                  <div>
-                    <AutoResizingTextarea 
-                        value={editingQ.data.text} 
-                        onChange={val => setEditingQ({...editingQ, data: {...editingQ.data, text: val}})} 
-                        className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
-                        rows="1" 
-                    />
-                  </div>
-                  {editingQ.data.type !== 'rc' && (
-                    <div className="space-y-3">
-                      {editingQ.data.options.map((opt, oIdx) => (
-                        <div key={opt.id} className="flex items-start gap-3">
-                          {editingQ.data.type === 'tf' ? (
-                             <div className="flex gap-1 mt-1 shrink-0 flex-col sm:flex-row">
-                               <button onClick={() => {
-                                 const newOpts = [...editingQ.data.options]; newOpts[oIdx].isCorrect = true;
-                                 setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                               }} className={`px-2.5 py-1.5 text-xs font-bold rounded shadow-sm transition-colors ${opt.isCorrect ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300'}`}>Đúng</button>
-                               <button onClick={() => {
-                                 const newOpts = [...editingQ.data.options]; newOpts[oIdx].isCorrect = false;
-                                 setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                               }} className={`px-2.5 py-1.5 text-xs font-bold rounded shadow-sm transition-colors ${!opt.isCorrect ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300'}`}>Sai</button>
-                             </div>
-                          ) : (
-                             editingQ.data.type !== 'sa' && <input 
-                                type="radio" 
-                                checked={opt.isCorrect} 
-                                onChange={() => {
-                                  const newOpts = editingQ.data.options.map(o => ({...o, isCorrect: o.id === opt.id}));
-                                  setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                                }} 
-                                className="mt-3 w-5 h-5 cursor-pointer text-blue-600" 
-                             />
-                          )}
-                          <div className="flex-1 flex flex-col min-w-0">
-                              <AutoResizingTextarea 
-                                  value={opt.text} 
-                                  onChange={val => {
-                                    const newOpts = [...editingQ.data.options]; newOpts[oIdx].text = val;
-                                    setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                                  }} 
-                                  className="w-full p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
-                                  rows="1" 
-                              />
-                              {opt.image && (
-                                 <div className="relative mt-2 inline-block self-start">
-                                    <img src={opt.image} className="h-24 w-auto object-contain rounded border border-slate-200 dark:border-slate-700" />
-                                    <button onClick={() => removeOptImage(opt.id)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600">×</button>
-                                 </div>
-                              )}
-                          </div>
-                          
-                          <div className="flex flex-col gap-1 shrink-0">
-                              {editingQ.data.type !== 'sa' && (
-                                  <label className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-lg transition cursor-pointer flex items-center justify-center" title="Thêm ảnh cho phương án">
-                                      <Icons.Image />
-                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleOptImageUpload(e.target.files[0], opt.id)} />
-                                  </label>
-                              )}
-                              <button onClick={() => {
-                                  const newOpts = editingQ.data.options.filter(o => o.id !== opt.id);
-                                  setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                              }} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-800/50 rounded-lg transition flex items-center justify-center" title="Xóa phương án này"><Icons.Trash /></button>
-                          </div>
-                        </div>
-                      ))}
-                      <button onClick={() => {
-                        const newOpts = [...editingQ.data.options, {id: generateId(), text: '', isCorrect: editingQ.data.options.length === 0, image: null}];
-                        setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                      }} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold transition">+ Đáp án</button>
-                    </div>
-                  )}
-                  {editingQ.data.type === 'rc' && (
-                    <div className="space-y-4">
-                      {editingQ.data.subQuestions.map((sq, sqIdx) => (
-                        <div key={sq.id} className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border dark:border-slate-700 relative">
-                            <button onClick={() => {
-                              const newSqs = editingQ.data.subQuestions.filter(s => s.id !== sq.id);
-                              setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                          }} className="absolute top-2 right-2 text-red-500 text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded border shadow-sm hover:bg-red-50 transition">Xóa câu phụ</button>
-
-                          <AutoResizingTextarea 
-                              value={sq.text} 
-                              onChange={val => {
-                                  const newSqs = [...editingQ.data.subQuestions]; newSqs[sqIdx].text = val;
-                                  setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                              }} 
-                              className="w-full pr-20 p-2 mb-2 border rounded-lg dark:bg-slate-800 dark:text-white dark:border-slate-600 font-bold outline-none resize-none overflow-hidden" 
-                              rows="1" 
-                          />
-                          {sq.options.map((opt, oIdx) => (
-                            <div key={opt.id} className="flex items-start gap-2 mb-3 pl-2">
-                              <input type="radio" checked={opt.isCorrect} onChange={() => {
-                                  const newSqs = [...editingQ.data.subQuestions];
-                                  newSqs[sqIdx].options = sq.options.map(o => ({...o, isCorrect: o.id === opt.id}));
-                                  setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                              }} className="mt-2 w-4 h-4 text-blue-600 cursor-pointer shrink-0" />
-                              <div className="flex-1 flex flex-col min-w-0">
-                                  <AutoResizingTextarea 
-                                      value={opt.text} 
-                                      onChange={val => {
-                                          const newSqs = [...editingQ.data.subQuestions];
-                                          newSqs[sqIdx].options[oIdx].text = val;
-                                          setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                      }} 
-                                      className="w-full text-sm p-1.5 border rounded dark:bg-slate-800 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
-                                      rows="1" 
-                                  />
-                                  {opt.image && (
-                                     <div className="relative mt-2 inline-block self-start">
-                                        <img src={opt.image} className="h-20 w-auto object-contain rounded border border-slate-200 dark:border-slate-700" />
-                                        <button onClick={() => removeOptImage(opt.id, true, sq.id)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow hover:bg-red-600">×</button>
-                                     </div>
-                                  )}
-                              </div>
-                              <div className="flex flex-col gap-1 shrink-0">
-                                  <label className="p-1.5 text-blue-500 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 rounded transition cursor-pointer flex items-center justify-center" title="Thêm ảnh">
-                                      <Icons.Image />
-                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleOptImageUpload(e.target.files[0], opt.id, true, sq.id)} />
-                                  </label>
-                                  <button onClick={() => {
-                                      const newSqs = [...editingQ.data.subQuestions];
-                                      newSqs[sqIdx].options = newSqs[sqIdx].options.filter(o => o.id !== opt.id);
-                                      setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                  }} className="p-1.5 text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 rounded transition flex items-center justify-center"><Icons.Trash /></button>
-                              </div>
-                            </div>
-                          ))}
-                          <button onClick={() => {
-                              const newSqs = [...editingQ.data.subQuestions];
-                              newSqs[sqIdx].options.push({id: generateId(), text: '', isCorrect: newSqs[sqIdx].options.length === 0, image: null});
-                              setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                          }} className="text-[11px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold ml-6 mt-1">+ Thêm đáp án</button>
-                        </div>
-                      ))}
-                      <button onClick={() => {
-                          const newSqs = [...editingQ.data.subQuestions, {id: generateId(), text: 'Câu phụ mới', options: []}];
-                          setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                      }} className="text-sm bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-lg font-bold w-full transition">+ Câu hỏi phụ</button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3 mt-6 border-t dark:border-slate-700 pt-4">
-                  <button onClick={saveInlineEdit} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl shadow hover:bg-green-700 transition">Lưu Thay Đổi</button>
-                  {!editingQ.isNew && <button onClick={removeInlineQuestion} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl shadow hover:bg-red-700 transition">Xóa Câu Này</button>}
-                  <button onClick={() => setEditingQ(null)} className="w-full sm:flex-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white font-bold py-3 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition">Hủy</button>
-                </div>
-              </div>
-            </div>
-          )}
-          <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 transition-colors">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
-              <div className="flex items-center gap-3 w-full md:w-auto min-w-0">
-                  <button onClick={() => navigate(`Overview/${currentQuizCode}`)} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition shrink-0"><Icons.ArrowLeft /></button>
-                  <div className="min-w-0">
-                      <h2 className="text-xl sm:text-2xl font-black dark:text-white truncate" title={quizTitle}>{quizTitle}</h2>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 font-bold mt-1">Tổng cộng: {totalQuestions} câu hỏi</p>
-                  </div>
-              </div>
-              <div className="flex w-full md:w-auto gap-3 flex-1 md:justify-end">
-                  <div className="relative w-full max-w-sm">
-                      <input type="text" placeholder="Tìm số/tên câu..." value={qSearchTerm} onChange={(e) => setQSearchTerm(e.target.value)} 
-                          className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Search /></div>
-                  </div>
-                  {!isReadOnly && (
-                  <>
-                  {currentUser?.isGuest && (
-                      <button onClick={() => setShowGuestSaveModal(true)} className="flex items-center justify-center gap-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
-                          <Icons.User /> <span className="hidden sm:inline">Lưu vào TK</span>
-                      </button>
-                  )}
-                  <button onClick={() => {
-                      if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
-                          db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: parsedData })
-                          .then(() => showMessage("Đã lưu đề thi thành công!", "success"))
-                          .catch(() => showMessage("Lỗi khi lưu đề thi!", "error"));
-                      } else {
-                          showMessage("Đề của bạn đang ở trạng thái lưu tạm!", "success");
-                      }
-                  }} className="flex items-center justify-center gap-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
-                      <Icons.Check /> <span className="hidden sm:inline">Lưu</span>
-                  </button>
-                  <button onClick={() => setShowAddSectionSelector(true)} className="flex items-center justify-center gap-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition px-4 py-2.5 rounded-xl font-bold text-sm shrink-0">
-                      <Icons.Plus /> <span className="hidden sm:inline">Thêm</span>
-                  </button>
-                  </>
-                  )}
-              </div>
-            </div>
-            {filteredSections.length === 0 ? <div className="text-center text-slate-400 py-10">Không tìm thấy câu hỏi nào.</div> : filteredSections.map(section => (
-              <div key={section.id} className="mb-10 min-w-0">
-                <h3 className="font-bold text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 px-4 py-2 rounded-lg mb-4 inline-block truncate max-w-full">{section.title}</h3>
-                <div className="space-y-4">
-                  {section.data.map((q, idx) => (
-                    <div key={q.id} className="border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 flex flex-col md:flex-row gap-4 bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-600 transition-colors relative min-w-0">
-                      {!isReadOnly && <button onClick={() => setEditingQ({ sectionId: section.id, data: JSON.parse(JSON.stringify(q)), isNew: false, oldSectionId: section.id })} className="absolute top-4 right-4 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 transition px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><Icons.Edit /> Sửa</button>}
-                      <div className="flex-1 pr-16 md:pr-20 min-w-0">
-                        <div className="font-black text-slate-700 dark:text-slate-300 mb-1">Câu {q.originalIndex}:</div>
-                        <div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium break-words">{q.text}</div>
-                        {(q.type === 'mc' || q.type === 'tf') && (
-                            <div className="mt-3 space-y-2 pl-2 sm:pl-3 border-l-2 border-slate-100 dark:border-slate-700">
-                                {q.options.map(opt => (
-                                    <div key={opt.id} className={`text-sm flex flex-col items-start gap-1 ${opt.isCorrect ? 'text-green-600 dark:text-green-400 font-bold' : 'text-slate-500 dark:text-slate-400'}`}>
-                                       <div className="flex items-start gap-2">
-                                          <span className="shrink-0 pt-0.5">{opt.isCorrect ? '✓' : '○'}</span>
-                                          <span className="break-words whitespace-pre-wrap">{opt.text}</span>
-                                       </div>
-                                       {opt.image && <img src={opt.image} className="h-20 w-auto ml-5 rounded object-contain border border-slate-200 dark:border-slate-700" />}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {!isReadOnly && q.type === 'sa' && <div className="text-sm text-green-700 dark:text-green-400 mt-2 font-bold bg-green-50 dark:bg-green-900/30 p-2 rounded inline-block break-words border border-green-100 dark:border-green-800 whitespace-pre-wrap">Đ.án: {q.options[0]?.text || '(Chưa nhập)'}</div>}
-                        {q.type === 'rc' && (
-                          <div className="mt-4 space-y-4 pl-4 border-l-4 border-slate-200 dark:border-slate-600 min-w-0">
-                            {q.subQuestions.map((sq, sIdx) => (
-                              <div key={sq.id} className="min-w-0">
-                                <div className="font-bold text-slate-600 dark:text-slate-400 break-words whitespace-pre-wrap">#{sIdx + 1}: {sq.text}</div>
-                                <div className="mt-2 space-y-2 pl-2">
-                                    {!isReadOnly && sq.options.filter(o=>o.isCorrect).map(o => (
-                                       <div key={o.id} className="text-sm flex flex-col items-start gap-1 text-green-600 dark:text-green-400 font-bold">
-                                          <div className="break-words whitespace-pre-wrap">Đ.án: {o.text}</div>
-                                          {o.image && <img src={o.image} className="h-16 w-auto rounded object-contain border border-green-200 dark:border-green-800" />}
-                                       </div>
-                                    ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="w-full md:w-auto shrink-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600">
-                        {q.image ? (
-                            <div className="relative inline-block">
-                              <img src={q.image} loading="lazy" className="h-28 w-auto object-contain rounded" />
-                              {!isReadOnly && <button onClick={() => { const newData = {...parsedData}; newData[section.id].find(x => x.id === q.id).image = null; setParsedData(newData); if (currentUser && currentQuizCode && db) db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow hover:bg-red-600 shrink-0">×</button>}
-                            </div>
-                        ) : (
-                            !isReadOnly ? (
-                            <label className="cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold text-sm py-4 px-6 flex flex-col items-center gap-1 transition whitespace-nowrap">
-                              <Icons.Image /> Ảnh câu hỏi
-                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(q.id, section.id, e.target.files[0])} />
-                            </label>
-                          ) : <span className="text-slate-400 text-sm px-4 whitespace-nowrap">Không ảnh</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          {showAddSectionSelector && (
-            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl w-full max-w-sm border dark:border-slate-700 animate-bounce-in">
-                  <h3 className="text-xl font-black mb-4 text-center dark:text-white">Thêm vào phần nào?</h3>
-                  <div className="space-y-3">
-                      {sections.map(s => <button key={s.id} onClick={() => { handleAddNewQuestion(s.id); setShowAddSectionSelector(false); }} className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl font-bold dark:text-white border dark:border-slate-700 transition">{s.title}</button>)}
-                  </div>
-                  <button onClick={() => setShowAddSectionSelector(false)} className="w-full mt-4 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition font-bold rounded-xl dark:text-white">Hủy</button>
-                </div>
-            </div>
-          )}
-        </div>
-      );
-    });
-
-    const QuizScreen = React.memo(({ ThemeToggleBtn, Notification, CustomConfirmModal, activeQuiz, answers, setAnswers, currentIndex, setCurrentIndex, isSubmitted, setIsSubmitted, singleQuestionConfirmed, setSingleQuestionConfirmed, score, setScore, endRemark, setEndRemark, navigate, currentQuizCode, currentUser, config, checkQuestionCorrect, generateRandomRemark, showMessage, timeLimit, setCustomAlert, setIncorrectData }) => {
-      const isModeSingle = config.mode === 'single';
-      const totalQ = score.total;
-      const mcLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-      
-      const initialTime = parseInt(timeLimit) || 0;
-
-      const evaluateIncorrect = useCallback(() => {
-          let data = { mc: [], tf: [], sa: [], rc: [] };
-          activeQuiz.mc.forEach(q => { if (!checkQuestionCorrect('mc', q, answers[q.id])) data.mc.push(q); });
-          activeQuiz.tf.forEach(q => { if (!checkQuestionCorrect('tf', q, answers[q.id])) data.tf.push(q); });
-          activeQuiz.sa.forEach(q => { if (!checkQuestionCorrect('sa', q, answers[q.id])) data.sa.push(q); });
-          activeQuiz.rc.forEach(q => {
-              const failedSubQs = q.subQuestions.filter(sq => !checkQuestionCorrect('rc', sq, answers[sq.id]));
-              if (failedSubQs.length > 0) {
-                  data.rc.push({ ...q, subQuestions: failedSubQs });
-              }
-          });
-          setIncorrectData(data);
-      }, [activeQuiz, answers, checkQuestionCorrect, setIncorrectData]);
-
-      const handleTimeUp = useCallback(() => {
-        showMessage('Hết thời gian làm bài!', 'warning');
-        let correct = 0;
-        activeQuiz.flat.forEach(q => {
-          if(q.type === 'rc') {
-            q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) correct++; })
-          } else {
-            if(checkQuestionCorrect(q.type, q, answers[q.id])) correct++;
-          }
-        });
-        setScore({ correct, total: totalQ });
-        evaluateIncorrect();
-        setEndRemark(generateRandomRemark(correct, totalQ));
-        setIsSubmitted(true);
-        setSingleQuestionConfirmed(true);
-        if (isModeSingle) {
-           navigate(`Overview/${currentQuizCode || 'draft'}/Result`);
-        } else {
-           window.scrollTo(0,0);
-        }
-      }, [activeQuiz, answers, totalQ, isModeSingle, navigate, currentQuizCode, checkQuestionCorrect, generateRandomRemark, showMessage, setScore, setEndRemark, setIsSubmitted, setSingleQuestionConfirmed, evaluateIncorrect]);
-
-      // Trả về class bao quanh cho từng lựa chọn trong MC và RC
-      const getOptClass = (opt, isSelected, showResult) => {
-        if (!showResult) return isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 dark:border-blue-500 text-blue-800 dark:text-blue-200 shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 text-slate-800 dark:text-slate-200';
-        if (opt.isCorrect && isSelected) return 'bg-green-100 dark:bg-green-900/40 border-green-500 text-green-800 dark:text-green-300 shadow-sm';
-        if (opt.isCorrect && !isSelected) return 'bg-white dark:bg-slate-800 border-green-500 border-dashed text-green-700 dark:text-green-400';
-        if (!opt.isCorrect && isSelected) return 'bg-red-100 dark:bg-red-900/40 border-red-500 text-red-800 dark:text-red-300 shadow-sm';
-        return 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-50 text-slate-800 dark:text-slate-200';
-      };
-
-      const renderOptions = (type, qObj, isConfirming) => {
-          if (type === 'sa') {
-            return (
-              <div className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl min-w-0 transition-colors">
-                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 uppercase truncate">Nhập đáp án:</p>
-                <ShortAnswerInput value={answers[qObj.id] || ''} onChange={(v) => !isConfirming && setAnswers({...answers, [qObj.id]: v})} readOnly={isConfirming} showResult={isConfirming} isCorrect={isConfirming ? checkQuestionCorrect('sa', qObj, answers[qObj.id]) : null} />
-                {isConfirming && !checkQuestionCorrect('sa', qObj, answers[qObj.id]) && <div className="mt-4 p-2 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 font-bold rounded-lg text-sm border border-green-200 dark:border-green-800 break-words whitespace-pre-wrap">Đáp án đúng: {qObj.options[0]?.text || '(Chưa có đáp án)'}</div>}
-              </div>
-            );
-          }
-
-          if (type === 'tf') {
-              return (
-                 <div className="grid gap-3 min-w-0">
-                   {qObj.options.map((opt, oIdx) => {
-                      const ansObj = answers[qObj.id] || {};
-                      const selectedVal = ansObj[opt.id]; 
-                      
-                      const getBtnClass = (btnType) => {
-                         if (!isConfirming) return selectedVal === btnType ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500';
-                         if (opt.isCorrect === btnType) return 'bg-green-500 border-green-500 text-white shadow-md';
-                         if (selectedVal === btnType && selectedVal !== opt.isCorrect) return 'bg-red-500 border-red-500 text-white shadow-md';
-                         return 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 opacity-50 text-slate-400';
-                      };
-
-                      return (
-                        <div key={opt.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 border-2 border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 min-w-0 transition-colors">
-                           <div className="flex-1 font-medium text-lg whitespace-pre-wrap break-words min-w-0">
-                              <span className="font-bold mr-2 text-indigo-600 dark:text-indigo-400">{String.fromCharCode(97+oIdx)})</span>
-                              {opt.text}
-                              {opt.image && <img src={opt.image} className="mt-3 max-h-40 rounded-lg object-contain shadow-sm border border-slate-200 dark:border-slate-700" />}
-                           </div>
-                           <div className="flex gap-2 shrink-0">
-                              <button onClick={() => !isConfirming && setAnswers({...answers, [qObj.id]: {...ansObj, [opt.id]: true}})} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl font-bold transition-all border-2 ${getBtnClass(true)}`}>Đúng</button>
-                              <button onClick={() => !isConfirming && setAnswers({...answers, [qObj.id]: {...ansObj, [opt.id]: false}})} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl font-bold transition-all border-2 ${getBtnClass(false)}`}>Sai</button>
-                           </div>
-                        </div>
-                      )
-                   })}
-                 </div>
-              );
-          }
-
-          // Giao diện vòng tròn A B C D cho dạng Trắc nghiệm và Đọc hiểu
-          return (
-            <div className="grid gap-3 min-w-0">
-              {qObj.options.map((opt, oIdx) => {
-                const isSelected = (answers[qObj.id] || []).includes(opt.id);
-                
-                let circleClass = 'border-slate-300 dark:border-slate-500 text-slate-600 dark:text-slate-300 group-hover:border-blue-400 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30';
-                if (!isConfirming) {
-                    if (isSelected) circleClass = 'bg-blue-600 border-blue-600 text-white';
-                } else {
-                    if (opt.isCorrect) circleClass = 'bg-green-500 border-green-500 text-white';
-                    else if (isSelected) circleClass = 'bg-red-500 border-red-500 text-white';
-                    else circleClass = 'border-slate-300 dark:border-slate-600 text-slate-400 opacity-50';
-                }
-
-                return (
-                  <label key={opt.id} className={`flex items-start p-4 border-2 rounded-xl transition cursor-pointer min-w-0 group ${getOptClass(opt, isSelected, isConfirming)}`} 
-                    onClick={() => {
-                      if (isConfirming) return;
-                      setAnswers({...answers, [qObj.id]: [opt.id]});
-                    }}>
-                    <input type="radio" className="hidden" checked={isSelected} readOnly />
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 mt-0.5 transition-colors border-2 shadow-sm ${circleClass}`}>
-                       {mcLetters[oIdx]}
-                    </div>
-                    <div className="ml-3 font-medium text-lg whitespace-pre-wrap break-words min-w-0 pt-0.5 flex-1">
-                       {opt.text}
-                       {opt.image && <img src={opt.image} className="mt-3 max-h-40 rounded-lg object-contain shadow-sm border border-slate-200 dark:border-slate-700" />}
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
-          );
-      }
-
-      const confirmSingle = () => {
-        const q = activeQuiz.flat[currentIndex];
-        let isCorrectThisTime = 0;
-        if (q.type === 'rc') {
-          for (let sq of q.subQuestions) if (!answers[sq.id] || answers[sq.id].length === 0) return showMessage('Vui lòng làm hết các câu phụ!');
-          q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) isCorrectThisTime++; });
-          setScore(p => ({ ...p, correct: p.correct + isCorrectThisTime }));
-        } else if (q.type === 'tf') {
-          const ansObj = answers[q.id] || {};
-          if (Object.keys(ansObj).length !== q.options.length) return showMessage('Vui lòng chọn Đúng/Sai cho tất cả các mệnh đề!');
-          if (checkQuestionCorrect('tf', q, ansObj)) { isCorrectThisTime = 1; setScore(p => ({ ...p, correct: p.correct + 1 })); }
-        } else {
-          const ans = answers[q.id];
-          if (!ans || (Array.isArray(ans) && ans.length===0) || (typeof ans==='string' && !ans.trim())) return showMessage('Chưa chọn đáp án!');
-          if (checkQuestionCorrect(q.type, q, ans)) { isCorrectThisTime = 1; setScore(p => ({ ...p, correct: p.correct + 1 })); }
-        }
-        setSingleQuestionConfirmed(true);
-        if (currentIndex === activeQuiz.flat.length - 1) setEndRemark(generateRandomRemark(score.correct + isCorrectThisTime, totalQ));
-      };
-
-      const submitAll = () => {
-        let hasUnanswered = false;
-        activeQuiz.flat.forEach(q => {
-          if(q.type === 'rc') { 
-              q.subQuestions.forEach(sq => { if(!answers[sq.id] || answers[sq.id].length===0) hasUnanswered = true; }) 
-          } else if (q.type === 'tf') {
-              const ansObj = answers[q.id] || {};
-              if (Object.keys(ansObj).length !== q.options.length) hasUnanswered = true;
-          } else { 
-              const ans = answers[q.id]; 
-              if(!ans || (Array.isArray(ans)&&ans.length===0) || (typeof ans==='string'&&!ans.trim())) hasUnanswered = true; 
-          }
-        });
-        if (hasUnanswered) return showMessage('Bạn còn câu chưa làm!');
-        let correct = 0;
-        activeQuiz.flat.forEach(q => {
-          if(q.type === 'rc') { q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) correct++; }) }
-          else { if(checkQuestionCorrect(q.type, q, answers[q.id])) correct++; }
-        });
-        setScore({ correct, total: totalQ });
-        evaluateIncorrect();
-        setEndRemark(generateRandomRemark(correct, totalQ));
-        setIsSubmitted(true);
-        window.scrollTo(0,0);
-      };
-
-      let answeredCount = 0;
-      if (isModeSingle) {
-          let rcCountBefore = 0;
-          for(let i=0; i<currentIndex; i++) {
-              if(activeQuiz.flat[i].type === 'rc') rcCountBefore += activeQuiz.flat[i].subQuestions.length;
-              else rcCountBefore++;
-          }
-          let currentQWeight = activeQuiz.flat[currentIndex]?.type === 'rc' ? activeQuiz.flat[currentIndex].subQuestions.length : 1;
-          answeredCount = rcCountBefore + (singleQuestionConfirmed ? currentQWeight : 0);
-      } else {
-          let count = 0;
-          activeQuiz.flat.forEach(q => {
-            if (q.type === 'rc') { 
-                q.subQuestions.forEach(sq => { if (answers[sq.id] && answers[sq.id].length > 0) count++; }); 
-            } else if (q.type === 'tf') {
-                const ansObj = answers[q.id] || {};
-                if (Object.keys(ansObj).length === q.options.length) count++;
-            } else { 
-                const ans = answers[q.id]; 
-                if (ans && ((Array.isArray(ans) && ans.length > 0) || (typeof ans === 'string' && ans.trim()))) count++; 
-            }
-          });
-          answeredCount = count;
-      }
-      const progressPercent = totalQ > 0 ? (answeredCount / totalQ) * 100 : 0;
-      const displayOrder = (config.selectedSections && config.selectedSections.length > 0) ? config.selectedSections : ['mc', 'tf', 'sa', 'rc'];
-
-      return (
-        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-20 animate-fade-in transition-colors">
-          <Notification />
-          <CustomConfirmModal />
-          <div className="sticky top-0 z-40 bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-sm border-b border-slate-200 dark:border-slate-700 transition-colors">
-            <div className="max-w-4xl mx-auto flex items-center justify-between p-4 min-w-0 gap-2">
-              <div className="font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors text-sm md:text-base whitespace-nowrap truncate min-w-0">Tiến độ: <span className="text-blue-600 dark:text-blue-400">{answeredCount}</span> / {totalQ}</div>
-              
-              <CountdownTimer initialTime={initialTime} isSubmitted={isSubmitted} handleTimeUp={handleTimeUp} />
-
-              <div className="flex items-center gap-3 shrink-0">
-                <ThemeToggleBtn />
-                <button onClick={() => { setCustomAlert({ isOpen: true, title: "CẢNH BÁO", message: "Thoát sẽ mất kết quả?", type: 'warning', confirmText: 'Vẫn thoát', cancelText: 'Hủy', onConfirm: () => navigate(`Overview/${currentQuizCode || ''}`) }); }} className="font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800/50 hover:text-red-700 px-4 py-2 rounded-lg transition-colors whitespace-nowrap">Thoát</button>
-              </div>
-            </div>
-            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700"><div className="h-full bg-blue-600 dark:bg-blue-500 transition-all duration-500" style={{ width: `${progressPercent}%` }}></div></div>
-          </div>
-          <div className="max-w-3xl mx-auto mt-8 px-4 min-w-0">
-            {isModeSingle ? (() => {
-              const q = activeQuiz.flat[currentIndex];
-              if (!q) return (
-                  <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-10 text-center animate-fade-in border border-slate-200 dark:border-slate-700 transition-colors">
-                      <p className="text-xl font-bold text-slate-500 dark:text-slate-400 mb-4">Đề thi chưa có câu hỏi nào.</p>
-                      <button onClick={() => navigate(`Overview/${currentQuizCode || ''}`)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition">Quay lại</button>
-                  </div>
-              );
-              return (
-                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 md:p-10 animate-fade-in border border-slate-200 dark:border-slate-700 transition-colors min-w-0">
-                  <span className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-black px-3 py-1 rounded-full uppercase mb-4 inline-block whitespace-nowrap truncate min-w-0">Câu {currentIndex+1}</span>
-                  <div className="text-xl font-medium text-slate-800 dark:text-white mb-6 whitespace-pre-wrap break-words min-w-0">{q.text}</div>
-                  {q.image && <img src={q.image} loading="lazy" className="max-w-full rounded-xl mb-6 shadow" />}
-                  {q.type !== 'rc' ? renderOptions(q.type, q, singleQuestionConfirmed) : (
-                    <div className="space-y-6 min-w-0">
-                      {q.subQuestions.map((sq, idx) => (
-                        <div key={sq.id} className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors min-w-0">
-                          <p className="font-bold mb-4 text-slate-800 dark:text-slate-200 break-words whitespace-pre-wrap">#{idx+1}: {sq.text}</p>
-                          {renderOptions('rc', sq, singleQuestionConfirmed)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex justify-end pt-6 mt-6 border-t border-slate-100 dark:border-slate-700 min-w-0">
-                    {!singleQuestionConfirmed ? (
-                      <button onClick={confirmSingle} className="bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto transform hover:-translate-y-1 transition truncate min-w-0">XÁC NHẬN</button>
-                    ) : (
-                      <button onClick={() => {
-                          if (currentIndex < activeQuiz.flat.length - 1) {
-                              setCurrentIndex(p=>p+1);
-                              setSingleQuestionConfirmed(false);
-                          } else {
-                              evaluateIncorrect();
-                              navigate(`Overview/${currentQuizCode || 'draft'}/Result`);
-                          }
-                      }} className="bg-green-600 hover:bg-green-700 text-white font-black py-3.5 px-8 rounded-xl shadow-lg w-full md:w-auto flex items-center justify-center gap-2 transition truncate min-w-0">
-                        {currentIndex < activeQuiz.flat.length - 1 ? 'CÂU TIẾP THEO' : 'XEM KẾT QUẢ'} <Icons.Check />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })() : (
-              <div className="space-y-8 pb-10 min-w-0">
-                {isSubmitted && (
-                  <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border-4 border-green-500 p-8 text-center animate-fade-in relative overflow-hidden transition-colors min-w-0">
-                    <div className="absolute top-0 left-0 w-full bg-green-500 text-white font-bold py-1 text-sm uppercase whitespace-nowrap min-w-0 truncate">Hoàn thành</div>
-                    <h2 className="text-3xl font-black text-slate-800 dark:text-white mt-4 mb-2 truncate min-w-0">ĐIỂM CỦA BẠN</h2>
-                    <div className="text-7xl font-black text-green-600 dark:text-green-400 mb-6 truncate min-w-0">{score.correct} <span className="text-4xl text-slate-300 dark:text-slate-600">/ {totalQ}</span></div>
-                    <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/30 rounded-xl border border-amber-200 dark:border-amber-800/50 inline-block max-w-full min-w-0">
-                       <p className="text-lg font-bold text-amber-800 dark:text-amber-400 italic break-words">"{endRemark}"</p>
-                    </div>
-                    <br/>
-                    <button onClick={() => navigate(currentUser ? 'Home' : 'Login')} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl transition shadow truncate min-w-0">Về Trang Chủ</button>
-                  </div>
-                )}
-                {displayOrder.map(type => {
-                  const data = activeQuiz[type]; if(!data || data.length === 0) return null;
-                  const typeName = type === 'mc' ? 'I. Trắc Nghiệm' : type === 'tf' ? 'II. Đúng / Sai' : type === 'sa' ? 'III. Trả Lời Ngắn' : 'IV. Đọc Hiểu';
-                  return (
-                    <div key={type} className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg overflow-hidden border border-slate-200 dark:border-slate-700 transition-colors min-w-0">
-                      <div className="bg-indigo-600 dark:bg-indigo-700 p-4 min-w-0"><h2 className="text-xl font-black text-white truncate min-w-0">{typeName}</h2></div>
-                      <div className="p-6 md:p-8 space-y-10 min-w-0">
-                        {data.map((q, idx) => (
-                          <div key={q.id} className="border-b-2 border-dashed border-slate-200 dark:border-slate-700 last:border-0 pb-10 last:pb-0 min-w-0">
-                            <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-4 whitespace-pre-wrap break-words min-w-0"><span className="font-black mr-2 text-indigo-600 dark:text-indigo-400">Câu {idx + 1}.</span> {q.text}</h3>
-                            {q.image && <img src={q.image} loading="lazy" className="max-w-full rounded-xl mb-6 shadow" />}
-                            {type !== 'rc' ? renderOptions(type, q, isSubmitted) : (
-                              <div className="space-y-6 min-w-0">
-                                {q.subQuestions.map((sq, sIdx) => (
-                                  <div key={sq.id} className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors min-w-0">
-                                    <p className="font-bold text-slate-800 dark:text-slate-200 mb-4 break-words whitespace-pre-wrap">#{sIdx+1}: {sq.text}</p>
-                                    {renderOptions('rc', sq, isSubmitted)}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-                {!isSubmitted && <button onClick={submitAll} className="w-full bg-green-600 hover:bg-green-700 text-white text-2xl font-black py-5 rounded-2xl shadow-xl transform hover:-translate-y-1 transition truncate min-w-0">NỘP BÀI</button>}
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    });
-
-    const ResultScreen = React.memo(({ ThemeToggleBtn, score, prepareQuiz, navigate, currentUser, endRemark, incorrectData, prepareRedoIncorrectQuiz }) => {
-      const hasIncorrect = incorrectData && (
-          (incorrectData.mc && incorrectData.mc.length > 0) ||
-          (incorrectData.tf && incorrectData.tf.length > 0) ||
-          (incorrectData.sa && incorrectData.sa.length > 0) ||
-          (incorrectData.rc && incorrectData.rc.length > 0)
-      );
-
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 dark:bg-slate-900 transition-colors">
-          <div className="absolute top-4 right-4"><ThemeToggleBtn /></div>
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 md:p-10 max-w-sm w-full text-center border-t-8 border-green-500 transition-colors min-w-0">
-            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner shrink-0"><Icons.Check /></div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white mb-2 truncate min-w-0">Xong!</h1>
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 mb-4 border border-slate-200 dark:border-slate-700 mt-4 shadow-inner transition-colors min-w-0">
-              <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 truncate min-w-0">ĐIỂM CỦA BẠN</p>
-              <div className="text-6xl font-black text-blue-600 dark:text-blue-400 truncate min-w-0">{score.correct} <span className="text-3xl text-slate-300 dark:text-slate-600">/ {score.total}</span></div>
-            </div>
-            {endRemark && (
-               <div className="mb-6 px-4 py-3 bg-amber-50 dark:bg-amber-900/30 rounded-xl border border-amber-200 dark:border-amber-800/50 min-w-0">
-                  <p className="text-md font-bold text-amber-800 dark:text-amber-400 italic break-words min-w-0">"{endRemark}"</p>
-               </div>
-            )}
-            <div className="space-y-3 min-w-0">
-              {hasIncorrect && (
-                 <button onClick={prepareRedoIncorrectQuiz} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-md transition whitespace-nowrap truncate min-w-0 px-2">Làm lại những câu sai</button>
-              )}
-              <button onClick={prepareQuiz} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition whitespace-nowrap truncate min-w-0 px-2">Làm lại toàn bộ</button>
-              <button onClick={() => navigate(currentUser ? 'Home' : 'Login')} className="w-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-colors whitespace-nowrap truncate min-w-0 px-2">Thoát</button>
-            </div>
-          </div>
-        </div>
-      );
-    });
-
-    // ================= MAIN APP CỐT LÕI =================
-
-    function MainApp() {
-      const [isGlobalLoading, setIsGlobalLoading] = useState(true);
-      const [isFetchingQuiz, setIsFetchingQuiz] = useState(false);
-      const [cloneCooldown, setCloneCooldown] = useState(0);
-
-      useEffect(() => {
-          if (cloneCooldown > 0) {
-              const timer = setTimeout(() => setCloneCooldown(c => c - 1), 1000);
-              return () => clearTimeout(timer);
-          }
-      }, [cloneCooldown]);
-
-      const [hash, setHash] = useState(() => {
-          const initialHash = window.location.hash.replace(/^#\/?/, '');
-          if (!initialHash || initialHash.toLowerCase() === 'login') {
-              try {
-                  if (localStorage.getItem('quiz_current_user')) return 'Home';
-              } catch(e) {}
-              return 'Login';
-          }
-          return initialHash;
-      });
-      
-      useEffect(() => {
-        const handleHashChange = () => setHash(window.location.hash.replace(/^#\/?/, '') || 'Login');
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-      }, []);
-
-      const navigate = useCallback((path) => {
-        window.location.hash = `/${path}`;
-        setHash(path);
-      }, []);
-
-      const hashParts = hash.split('/');
-      const currentRoute = hashParts[0] ? hashParts[0].toLowerCase() : 'login';
-      let urlCode = null;
-      let urlAction = null;
-      
-      if (currentRoute === 'overview' && hashParts[1]) {
-         urlCode = hashParts[1];
-         if (hashParts[2]) urlAction = hashParts[2].toLowerCase();
-      }
-
-      let activeScreen = 'login';
-      if (currentRoute === 'login' || currentRoute === '') activeScreen = 'login';
-      else if (currentRoute === 'home') activeScreen = 'dashboard';
-      else if (currentRoute === 'create') activeScreen = 'input';
-      else if (currentRoute === 'overview') {
-          if (!urlAction) activeScreen = 'overview';
-          else if (urlAction === 'test') activeScreen = 'quiz';
-          else if (urlAction === 'edittext') activeScreen = 'input';
-          else if (urlAction === 'editquestion') activeScreen = 'settings';
-          else if (urlAction === 'result') activeScreen = 'result';
-      }
-
-      const [fbUser, setFbUser] = useState(null);
-      const [currentUser, setCurrentUser] = useState(() => {
-          try {
-              const saved = localStorage.getItem('quiz_current_user');
-              return saved ? JSON.parse(saved) : null;
-          } catch(e) { return null; }
-      }); 
-      
-      const [recentQuizzes, setRecentQuizzes] = useState([]);
-      const [localCreatedQuizzes, setLocalCreatedQuizzes] = useState([]);
-      const [incorrectData, setIncorrectData] = useState(null);
-
-      // ĐỒNG BỘ TRẠNG THÁI VIP TỪ FIREBASE
-      useEffect(() => {
-          if (!currentUser || !db || currentUser.isGuest) return;
-          const usernameLower = currentUser.username.toLowerCase();
-          const unsub = db.doc(`${usersPath}/${usernameLower}`).onSnapshot(snap => {
-              if (snap.exists) {
-                  const data = snap.data();
-                  if (currentUser.isVip !== !!data.isVip) {
-                      setCurrentUser(prev => ({...prev, isVip: !!data.isVip}));
-                  }
-              }
-          });
-          return () => unsub();
-      }, [currentUser?.username, currentUser?.isGuest, db]);
-
-      useEffect(() => {
-          if (currentUser) localStorage.setItem('quiz_current_user', JSON.stringify(currentUser));
-          else localStorage.removeItem('quiz_current_user');
-      }, [currentUser]);
-
-      // LOAD VÀ LỌC ĐỀ GẦN ĐÂY VÀ ĐỀ ĐÃ TẠO TẠM LƯU
-      useEffect(() => {
-          try {
-              const savedRecents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
-              const validRecents = savedRecents.filter(r => (Date.now() - r.savedAt) < 86400000);
-              if (validRecents.length !== savedRecents.length) {
-                  localStorage.setItem('quiz_recent_history', JSON.stringify(validRecents));
-              }
-              setRecentQuizzes(validRecents);
-
-              const savedLocals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-              const validLocals = savedLocals.filter(q => q.expiresAt > Date.now());
-              if (validLocals.length !== savedLocals.length) {
-                  localStorage.setItem('quiz_local_created', JSON.stringify(validLocals));
-              }
-              setLocalCreatedQuizzes(validLocals);
-          } catch(e) {}
-      }, [activeScreen]);
-
-      const saveToRecentHistory = useCallback((quizCode, title, data, timeStr) => {
-          if (!quizCode || quizCode === 'draft') return;
-          try {
-              let recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
-              recents = recents.filter(r => r.code !== quizCode && (Date.now() - r.savedAt < 86400000));
-              recents.unshift({ code: quizCode, title: title || 'Đề thi', parsedData: data, timeLimit: timeStr, savedAt: Date.now() });
-              if (recents.length > 5) recents.pop();
-              localStorage.setItem('quiz_recent_history', JSON.stringify(recents));
-              setRecentQuizzes(recents);
-          } catch(e) {}
-      }, []);
-
-      useEffect(() => {
-          if (currentUser && currentRoute === 'login') {
-              navigate('Home');
-          }
-      }, [currentUser, currentRoute, navigate]);
-      
-      const [globalMessage, setGlobalMessage] = useState({ text: '', type: 'error' });
-      const [theme, setTheme] = useState(localStorage.getItem('quiz_theme') || 'light');
-      
-      const [myQuizzes, setMyQuizzes] = useState([]);
-      const [rawTexts, setRawTexts] = useState({ mc: '', tf: '', sa: '', rc: '', file: '' });
-
-      const [quizTitle, setQuizTitle] = useState(''); 
-      const [timeLimit, setTimeLimit] = useState(''); 
-      const [isReadOnly, setIsReadOnly] = useState(false);
-      const [currentQuizCode, setCurrentQuizCode] = useState(null);
-      const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [], rc: [] });
-      const [editingQ, setEditingQ] = useState(null); 
-      
-      const [customAlert, setCustomAlert] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: null, confirmText: 'Đồng ý', cancelText: 'Hủy' });
-      const [showGuestSaveModal, setShowGuestSaveModal] = useState(false);
-
-      const [saveCooldown, setSaveCooldown] = useState(0);
-      const [isSaving, setIsSaving] = useState(false);
-
-      const [config, setConfig] = useState({ mode: 'single', shuffle: 'none', selectedSections: [] });
-      const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], rc: [], flat: [] });
-      const [answers, setAnswers] = useState({}); 
-      const [currentIndex, setCurrentIndex] = useState(0); 
-      const [isSubmitted, setIsSubmitted] = useState(false); 
-      const [singleQuestionConfirmed, setSingleQuestionConfirmed] = useState(false); 
-      const [score, setScore] = useState({ correct: 0, total: 0 });
-      const [endRemark, setEndRemark] = useState('');
-
-      const displayQuizzes = useMemo(() => {
-          const map = new Map();
-          localCreatedQuizzes.forEach(q => map.set(q.code, {...q, isLocal: true}));
-          if (currentUser && !currentUser.isGuest) {
-              myQuizzes.forEach(q => map.set(q.code, {...q, isLocal: false}));
-          }
-          return Array.from(map.values()).sort((a,b) => b.createdAt - a.createdAt);
-      }, [myQuizzes, localCreatedQuizzes, currentUser]);
-
-      useEffect(() => {
-        if (theme === 'dark') document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
-        localStorage.setItem('quiz_theme', theme);
-      }, [theme]);
-      const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
-
-      useEffect(() => {
-         if (currentRoute === 'overview' && isReadOnly) {
-            if (activeScreen === 'input' || activeScreen === 'settings') {
-               navigate(`Overview/${urlCode}`);
-            }
-         }
-      }, [currentRoute, activeScreen, isReadOnly, urlCode, navigate]);
-
-      useEffect(() => {
-         if (currentRoute === 'create' || currentRoute === 'overview') {
-            localStorage.setItem('quiz_draft_raw', JSON.stringify(rawTexts));
-            localStorage.setItem('quiz_draft_parsed', JSON.stringify(parsedData));
-            localStorage.setItem('quiz_draft_title', quizTitle);
-            localStorage.setItem('quiz_draft_time', timeLimit);
-            localStorage.setItem('quiz_draft_code', currentQuizCode || '');
-         }
-      }, [rawTexts, parsedData, quizTitle, timeLimit, currentQuizCode, currentRoute]);
-
-      useEffect(() => {
-         try {
-           const savedRaw = localStorage.getItem('quiz_draft_raw');
-           if (savedRaw) setRawTexts(JSON.parse(savedRaw));
-           const savedParsed = localStorage.getItem('quiz_draft_parsed');
-           if (savedParsed) setParsedData(JSON.parse(savedParsed));
-           setQuizTitle(localStorage.getItem('quiz_draft_title') || '');
-           setTimeLimit(localStorage.getItem('quiz_draft_time') || '');
-           setCurrentQuizCode(localStorage.getItem('quiz_draft_code') || null);
-         } catch(e) {}
-      }, []);
-
-      useEffect(() => {
-          if (!fbUser) return;
-          if (currentRoute === 'overview' && urlCode && urlCode !== 'draft' && urlCode !== currentQuizCode) {
-              if (db) {
-                  setIsFetchingQuiz(true);
-                  db.doc(`${quizzesPath}/${urlCode}`).get().then(snap => {
-                      if (snap.exists) {
-                          const data = snap.data();
-                          if (data.expiresAt > Date.now()) {
-                              setParsedData({ mc: [], tf: [], sa: [], rc: [], ...data.parsedData });
-                              if (data.rawTexts) setRawTexts(data.rawTexts);
-                              setQuizTitle(data.title || '');
-                              setTimeLimit(data.timeLimit || '');
-                              setCurrentQuizCode(urlCode);
-                              const isOwner = currentUser && !currentUser.isGuest && currentUser.username.toLowerCase() === data.owner;
-                              setIsReadOnly(!isOwner);
-                          } else {
-                              throw new Error("EXPIRED");
-                          }
-                      } else {
-                          throw new Error("NOT_FOUND");
-                      }
-                      setIsFetchingQuiz(false);
-                  }).catch((err) => {
-                      // Kiểm tra xem có trong Đã tạo (Local) không
-                      const locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-                      const foundLocalCreated = locals.find(q => q.code === urlCode && q.expiresAt > Date.now());
-                      
-                      if (foundLocalCreated) {
-                          setParsedData(foundLocalCreated.parsedData);
-                          if (foundLocalCreated.rawTexts) setRawTexts(foundLocalCreated.rawTexts);
-                          setQuizTitle(foundLocalCreated.title);
-                          setTimeLimit(foundLocalCreated.timeLimit);
-                          setCurrentQuizCode(urlCode);
-                          setIsReadOnly(false);
-                          showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
-                      } else {
-                          // FALLBACK: KIỂM TRA ĐỀ GẦN ĐÂY
-                          const recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
-                          const foundLocal = recents.find(r => r.code === urlCode && (Date.now() - r.savedAt < 86400000));
-                          
-                          if (foundLocal) {
-                              setParsedData(foundLocal.parsedData);
-                              if (foundLocal.rawTexts) setRawTexts(foundLocal.rawTexts);
-                              setQuizTitle(foundLocal.title);
-                              setTimeLimit(foundLocal.timeLimit);
-                              setCurrentQuizCode(urlCode);
-                              setIsReadOnly(true);
-                              showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
-                          } else {
-                              showMessage(err.message === "EXPIRED" ? "Đề thi đã hết hạn!" : "Không tìm thấy mã đề hoặc đã bị xóa!");
-                              navigate('Login');
-                          }
-                      }
-                      setIsFetchingQuiz(false);
-                  });
-              }
-          }
-      }, [urlCode, currentRoute, db, currentUser, currentQuizCode, navigate, fbUser]);
-
-      useEffect(() => {
-        if (currentRoute === 'create' && !currentQuizCode) {
-            setSaveCooldown(5);
-            const timerId = setInterval(() => {
-                setSaveCooldown((prev) => {
-                    if (prev <= 1) { clearInterval(timerId); return 0; }
-                    return prev - 1;
-                });
-            }, 1000);
-            return () => clearInterval(timerId);
-        } else {
-            setSaveCooldown(0);
-        }
-      }, [currentRoute, currentQuizCode]);
-
-      useEffect(() => {
-        if (!auth) return;
-        const initAuth = async () => { 
-            try { 
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await auth.signInWithCustomToken(__initial_auth_token);
-                } else {
-                    await auth.signInAnonymously(); 
-                }
-            } catch (error) {
-                console.error("Lỗi xác thực:", error);
-            } 
-        };
-        initAuth();
-        const unsub = auth.onAuthStateChanged((u) => {
-            setFbUser(u);
-            setIsGlobalLoading(false);
-        });
-        return () => unsub();
-      }, []);
-
-      useEffect(() => {
-        if (!fbUser || !currentUser || currentUser.isGuest || !db) return;
+    const [fbUser, setFbUser] = useState(null);
+    const [currentUser, setCurrentUser] = useState(() => {
+        try {
+            const saved = localStorage.getItem('quiz_current_user');
+            return saved ? JSON.parse(saved) : null;
+        } catch(e) { return null; }
+    }); 
+    
+    const [recentQuizzes, setRecentQuizzes] = useState([]);
+    const [localCreatedQuizzes, setLocalCreatedQuizzes] = useState([]);
+    const [incorrectData, setIncorrectData] = useState(null);
+
+    useEffect(() => {
+        if (!currentUser || !db || currentUser.isGuest) return;
         const usernameLower = currentUser.username.toLowerCase();
-        const unsub = db.collection(quizzesPath)
-          .where("owner", "==", usernameLower)
-          .onSnapshot((snap) => {
-            const list = [];
-            const now = Date.now();
-            snap.forEach(docSnap => {
-               const data = docSnap.data();
-               const currentExpires = data.expiresAt || (data.createdAt + 30 * 24 * 60 * 60 * 1000);
-               if (currentExpires > now) {
-                   list.push({ id: docSnap.id, ...data, expiresAt: currentExpires });
-               } else {
-                   db.doc(`${quizzesPath}/${docSnap.id}`).delete().catch(e => {});
-               }
-            });
-            setMyQuizzes(list.sort((a,b) => b.createdAt - a.createdAt));
-          }, (error) => {
-              console.error("Lỗi snapshot đề thi:", error);
-          });
+        const unsub = db.doc(`${usersPath}/${usernameLower}`).onSnapshot(snap => {
+            if (snap.exists) {
+                const data = snap.data();
+                if (currentUser.isVip !== !!data.isVip) {
+                    setCurrentUser(prev => ({...prev, isVip: !!data.isVip}));
+                }
+            }
+        });
         return () => unsub();
-      }, [fbUser, currentUser, db]);
+    }, [currentUser?.username, currentUser?.isGuest]);
 
-      const showMessage = useCallback((text, type = 'error') => {
+    useEffect(() => {
+        if (currentUser) localStorage.setItem('quiz_current_user', JSON.stringify(currentUser));
+        else localStorage.removeItem('quiz_current_user');
+    }, [currentUser]);
+
+    useEffect(() => {
+        try {
+            const savedRecents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+            const validRecents = savedRecents.filter(r => (Date.now() - r.savedAt) < 86400000);
+            if (validRecents.length !== savedRecents.length) {
+                localStorage.setItem('quiz_recent_history', JSON.stringify(validRecents));
+            }
+            setRecentQuizzes(validRecents);
+
+            const savedLocals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+            const validLocals = savedLocals.filter(q => q.expiresAt > Date.now());
+            if (validLocals.length !== savedLocals.length) {
+                localStorage.setItem('quiz_local_created', JSON.stringify(validLocals));
+            }
+            setLocalCreatedQuizzes(validLocals);
+        } catch(e) {}
+    }, [activeScreen]);
+
+    const saveToRecentHistory = useCallback((quizCode, title, data, timeStr) => {
+        if (!quizCode || quizCode === 'draft') return;
+        try {
+            let recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+            recents = recents.filter(r => r.code !== quizCode && (Date.now() - r.savedAt < 86400000));
+            recents.unshift({ code: quizCode, title: title || 'Đề thi', parsedData: data, timeLimit: timeStr, savedAt: Date.now() });
+            if (recents.length > 5) recents.pop();
+            localStorage.setItem('quiz_recent_history', JSON.stringify(recents));
+            setRecentQuizzes(recents);
+        } catch(e) {}
+    }, []);
+
+    useEffect(() => {
+        if (currentUser && currentRoute === 'login') {
+            navigate('Home');
+        }
+    }, [currentUser, currentRoute, navigate]);
+    
+    const [globalMessage, setGlobalMessage] = useState({ text: '', type: 'error' });
+    const [theme, setTheme] = useState(localStorage.getItem('quiz_theme') || 'light');
+    
+    const [myQuizzes, setMyQuizzes] = useState([]);
+    const [rawTexts, setRawTexts] = useState({ mc: '', tf: '', sa: '', rc: '', file: '' });
+
+    const [quizTitle, setQuizTitle] = useState(''); 
+    const [timeLimit, setTimeLimit] = useState(''); 
+    const [isReadOnly, setIsReadOnly] = useState(false);
+    const [currentQuizCode, setCurrentQuizCode] = useState(null);
+    const [parsedData, setParsedData] = useState({ mc: [], tf: [], sa: [], rc: [] });
+    const [editingQ, setEditingQ] = useState(null); 
+    
+    const [customAlert, setCustomAlert] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: null, confirmText: 'Đồng ý', cancelText: 'Hủy' });
+    const [showGuestSaveModal, setShowGuestSaveModal] = useState(false);
+
+    const [saveCooldown, setSaveCooldown] = useState(0);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const [config, setConfig] = useState({ mode: 'single', shuffle: 'none', selectedSections: [] });
+    const [activeQuiz, setActiveQuiz] = useState({ mc: [], tf: [], sa: [], rc: [], flat: [] });
+    const [answers, setAnswers] = useState({}); 
+    const [currentIndex, setCurrentIndex] = useState(0); 
+    const [isSubmitted, setIsSubmitted] = useState(false); 
+    const [singleQuestionConfirmed, setSingleQuestionConfirmed] = useState(false); 
+    const [score, setScore] = useState({ correct: 0, total: 0 });
+    const [endRemark, setEndRemark] = useState('');
+
+    const displayQuizzes = useMemo(() => {
+        const map = new Map();
+        localCreatedQuizzes.forEach(q => map.set(q.code, {...q, isLocal: true}));
+        if (currentUser && !currentUser.isGuest) {
+            myQuizzes.forEach(q => map.set(q.code, {...q, isLocal: false}));
+        }
+        return Array.from(map.values()).sort((a,b) => b.createdAt - a.createdAt);
+    }, [myQuizzes, localCreatedQuizzes, currentUser]);
+
+    useEffect(() => {
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+    localStorage.setItem('quiz_theme', theme);
+    }, [theme]);
+    const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+
+    useEffect(() => {
+        if (currentRoute === 'overview' && isReadOnly) {
+        if (activeScreen === 'input' || activeScreen === 'settings') {
+            navigate(`Overview/${urlCode}`);
+        }
+        }
+    }, [currentRoute, activeScreen, isReadOnly, urlCode, navigate]);
+
+    useEffect(() => {
+        if (currentRoute === 'create' || currentRoute === 'overview') {
+        localStorage.setItem('quiz_draft_raw', JSON.stringify(rawTexts));
+        localStorage.setItem('quiz_draft_parsed', JSON.stringify(parsedData));
+        localStorage.setItem('quiz_draft_title', quizTitle);
+        localStorage.setItem('quiz_draft_time', timeLimit);
+        localStorage.setItem('quiz_draft_code', currentQuizCode || '');
+        }
+    }, [rawTexts, parsedData, quizTitle, timeLimit, currentQuizCode, currentRoute]);
+
+    useEffect(() => {
+        try {
+        const savedRaw = localStorage.getItem('quiz_draft_raw');
+        if (savedRaw) setRawTexts(JSON.parse(savedRaw));
+        const savedParsed = localStorage.getItem('quiz_draft_parsed');
+        if (savedParsed) setParsedData(JSON.parse(savedParsed));
+        setQuizTitle(localStorage.getItem('quiz_draft_title') || '');
+        setTimeLimit(localStorage.getItem('quiz_draft_time') || '');
+        setCurrentQuizCode(localStorage.getItem('quiz_draft_code') || null);
+        } catch(e) {}
+    }, []);
+
+    // AUTO-SAVE QUÍZ STATE (Lưu trạng thái bài thi mỗi khi thay đổi)
+    useEffect(() => {
+        if (activeScreen === 'quiz' && currentQuizCode && activeQuiz.flat.length > 0) {
+            const sessionData = { activeQuiz, answers, currentIndex, isSubmitted, singleQuestionConfirmed, score };
+            localStorage.setItem(`quiz_session_${currentQuizCode}`, JSON.stringify(sessionData));
+        }
+    }, [activeQuiz, answers, currentIndex, isSubmitted, singleQuestionConfirmed, score, activeScreen, currentQuizCode]);
+
+    const showMessage = useCallback((text, type = 'error') => {
         setGlobalMessage({ text, type });
         setTimeout(() => setGlobalMessage({ text: '', type: 'error' }), 3500);
-      }, []);
+    }, []);
 
-      const copyToClipboard = async (text, codeToShow = '') => {
-        const successMsg = codeToShow ? `ĐÃ COPY: ${codeToShow}` : `Đã copy: ${text}`;
-        try {
-          if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-            showMessage(successMsg, "success"); return;
-          }
-        } catch (err) {}
-        const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        try { document.execCommand('copy'); showMessage(successMsg, "success"); } 
-        catch (err) { showMessage("Bôi đen để copy nhé.", "error"); }
-        document.body.removeChild(ta);
-      };
-
-      const handleLogin = async (e) => {
-        e.preventDefault();
-        const rawUname = e.target.username.value;
-        const uname = rawUname.replace(/\s+/g, '');
-        const pwd = e.target.password.value;
-        if (!uname || !pwd) return showMessage("Vui lòng nhập đủ thông tin.");
-        const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
-        try {
-          const userSnap = await userRef.get();
-          if (userSnap.exists) {
-            if (userSnap.data().password === pwd) {
-              setCurrentUser({ username: userSnap.data().username, isVip: !!userSnap.data().isVip }); navigate('Home');
-            } else showMessage("Sai mật khẩu!");
-          } else {
-            await userRef.set({ username: uname, password: pwd, isVip: false });
-            setCurrentUser({ username: uname, isVip: false }); navigate('Home');
-            showMessage("Tạo tài khoản thành công!", "success");
-          }
-        } catch (error) { 
-            showMessage("Kết nối không ổn định. Vui lòng kiểm tra mạng và thử lại!", "error"); 
-        }
-      };
-
-      const handleGuestLogin = () => {
-          setCurrentUser({ username: 'Khách', isVip: false, isGuest: true });
-          navigate('Home');
-          showMessage("Đã vào bằng chế độ Khách!", "success");
-      };
-
-      const handleDeleteAccount = () => {
-        const target = currentUser.username;
-        setCustomAlert({
-            isOpen: true, title: "CẢNH BÁO", message: `Bạn chắc chắn muốn xóa tài khoản "${target}" chứ? Toàn bộ đề thi của bạn sẽ mất.`,
-            type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy',
-            onConfirm: async () => {
+    // AUTO-RESTORE QUIZ STATE (Khôi phục bài thi nếu lỡ F5)
+    useEffect(() => {
+        if (activeScreen === 'quiz' && activeQuiz.flat.length === 0 && currentQuizCode) {
+            const savedSession = localStorage.getItem(`quiz_session_${currentQuizCode}`);
+            if (savedSession) {
                 try {
-                  const usernameLower = target.toLowerCase();
-                  for (const q of myQuizzes) await db.doc(`${quizzesPath}/${q.id}`).delete();
-                  await db.doc(`${usersPath}/${usernameLower}`).delete();
-                  showMessage("Đã dọn dẹp dữ liệu tài khoản!", "success");
-                  setCurrentUser(null); navigate('Login');
-                } catch (error) { showMessage("Lỗi khi thực hiện!"); }
-            }
-        });
-      };
-
-      const handleChangePassword = async (e) => {
-        e.preventDefault();
-        const oldPwd = e.target.oldPassword.value;
-        const newPwd = e.target.newPassword.value;
-        const userRef = db.doc(`${usersPath}/${currentUser.username.toLowerCase()}`);
-        try {
-          const snap = await userRef.get();
-          if (snap.data().password === oldPwd) {
-            await userRef.update({ password: newPwd });
-            showMessage("Đổi mật khẩu thành công!", "success");
-          } else showMessage("Mật khẩu cũ không đúng!");
-        } catch (err) { showMessage("Lỗi đổi mật khẩu!"); }
-      };
-
-      const handleDeleteQuiz = (q) => {
-          if (q.isLocal) {
-              let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-              locals = locals.filter(item => item.id !== q.id);
-              localStorage.setItem('quiz_local_created', JSON.stringify(locals));
-              setLocalCreatedQuizzes(locals);
-              showMessage("Đã xóa đề lưu tạm trên máy!", "success");
-              
-              if (currentQuizCode === q.code) {
-                  resetQuiz();
-              }
-          } else {
-              db.doc(`${quizzesPath}/${q.id}`).delete().then(() => {
-                  showMessage("Đã xóa!", "success");
-                  if (currentQuizCode === q.code) resetQuiz();
-              }).catch(() => showMessage("Lỗi xóa đề!", "error"));
-          }
-      };
-
-      const handleExtendQuiz = (q) => {
-          const newExpiry = Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000);
-          if (q.isLocal) {
-              let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-              const idx = locals.findIndex(item => item.id === q.id);
-              if (idx >= 0) {
-                  locals[idx].expiresAt = newExpiry;
-                  localStorage.setItem('quiz_local_created', JSON.stringify(locals));
-                  setLocalCreatedQuizzes(locals);
-                  showMessage("Đã gia hạn đề lưu trên máy!", "success");
-              }
-          } else {
-              db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: newExpiry }).then(() => showMessage("Đã gia hạn!", "success")).catch(() => showMessage("Lỗi gia hạn!", "error"));
-          }
-      };
-
-      const handleCodeInputChange = (e) => {
-          let val = e.target.value;
-          const urlMatch = val.match(/([a-zA-Z0-9]{6})\/?$/);
-          if (val.includes('http') && urlMatch) {
-              e.target.value = urlMatch[1].toUpperCase();
-          } else {
-              e.target.value = val.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase();
-          }
-      };
-
-      const handleGuestJoin = async (e) => {
-        e.preventDefault();
-        const code = e.target.shareCode.value.toUpperCase();
-        if (code.length !== 6) return showMessage("Mã đề phải gồm 6 ký tự (ví dụ: ABCDEF).");
-        if (!db) return showMessage("Đang tải CSDL, vui lòng thử lại!");
-
-        try {
-            const qDoc = await db.doc(`${quizzesPath}/${code}`).get();
-            if (qDoc.exists) {
-                const data = qDoc.data();
-                if (data.expiresAt > Date.now()) {
-                    const safeParsed = { mc: [], tf: [], sa: [], rc: [], ...data.parsedData };
-                    setParsedData(safeParsed); setIsReadOnly(true); setCurrentQuizCode(code); navigate(`Overview/${code}`);
-                } else {
-                    showMessage("Đề thi đã hết hạn!");
+                    const parsed = JSON.parse(savedSession);
+                    setActiveQuiz(parsed.activeQuiz);
+                    setAnswers(parsed.answers);
+                    setCurrentIndex(parsed.currentIndex);
+                    setIsSubmitted(parsed.isSubmitted);
+                    setSingleQuestionConfirmed(parsed.singleQuestionConfirmed);
+                    setScore(parsed.score);
+                    showMessage("Đã khôi phục trạng thái làm bài!", "success");
+                } catch(e) {
+                    navigate(`Overview/${currentQuizCode}`);
                 }
             } else {
-                throw new Error("NOT_FOUND");
+                navigate(`Overview/${currentQuizCode}`);
+            }
+        }
+    }, [activeScreen, currentQuizCode, activeQuiz.flat.length, navigate, showMessage]);
+
+    const clearQuizSession = useCallback(() => {
+        if (currentQuizCode) {
+            localStorage.removeItem(`quiz_session_${currentQuizCode}`);
+            localStorage.removeItem(`quiz_timer_${currentQuizCode}`);
+        }
+    }, [currentQuizCode]);
+
+    useEffect(() => {
+        if (!fbUser) return;
+        if (currentRoute === 'overview' && urlCode && urlCode !== 'draft' && urlCode !== currentQuizCode) {
+            if (db) {
+                setIsFetchingQuiz(true);
+                db.doc(`${quizzesPath}/${urlCode}`).get().then(snap => {
+                    if (snap.exists) {
+                        const data = snap.data();
+                        if (data.expiresAt > Date.now()) {
+                            setParsedData({ mc: [], tf: [], sa: [], rc: [], ...data.parsedData });
+                            if (data.rawTexts) setRawTexts(data.rawTexts);
+                            setQuizTitle(data.title || '');
+                            setTimeLimit(data.timeLimit || '');
+                            setCurrentQuizCode(urlCode);
+                            const isOwner = currentUser && !currentUser.isGuest && currentUser.username.toLowerCase() === data.owner;
+                            setIsReadOnly(!isOwner);
+                        } else {
+                            throw new Error("EXPIRED");
+                        }
+                    } else {
+                        throw new Error("NOT_FOUND");
+                    }
+                    setIsFetchingQuiz(false);
+                }).catch((err) => {
+                    const locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                    const foundLocalCreated = locals.find(q => q.code === urlCode && q.expiresAt > Date.now());
+                    
+                    if (foundLocalCreated) {
+                        setParsedData(foundLocalCreated.parsedData);
+                        if (foundLocalCreated.rawTexts) setRawTexts(foundLocalCreated.rawTexts);
+                        setQuizTitle(foundLocalCreated.title);
+                        setTimeLimit(foundLocalCreated.timeLimit);
+                        setCurrentQuizCode(urlCode);
+                        setIsReadOnly(false);
+                        showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+                    } else {
+                        const recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+                        const foundLocal = recents.find(r => r.code === urlCode && (Date.now() - r.savedAt < 86400000));
+                        
+                        if (foundLocal) {
+                            setParsedData(foundLocal.parsedData);
+                            if (foundLocal.rawTexts) setRawTexts(foundLocal.rawTexts);
+                            setQuizTitle(foundLocal.title);
+                            setTimeLimit(foundLocal.timeLimit);
+                            setCurrentQuizCode(urlCode);
+                            setIsReadOnly(true);
+                            showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+                        } else {
+                            showMessage(err.message === "EXPIRED" ? "Đề thi đã hết hạn!" : "Không tìm thấy mã đề hoặc đã bị xóa!");
+                            navigate('Login');
+                        }
+                    }
+                    setIsFetchingQuiz(false);
+                });
+            }
+        }
+    }, [urlCode, currentRoute, currentUser, currentQuizCode, navigate, fbUser]);
+
+    useEffect(() => {
+    if (currentRoute === 'create' && !currentQuizCode) {
+        setSaveCooldown(5);
+        const timerId = setInterval(() => {
+            setSaveCooldown((prev) => {
+                if (prev <= 1) { clearInterval(timerId); return 0; }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timerId);
+    } else {
+        setSaveCooldown(0);
+    }
+    }, [currentRoute, currentQuizCode]);
+
+    useEffect(() => {
+    if (!auth) return;
+    const initAuth = async () => { 
+        try { 
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await auth.signInWithCustomToken(__initial_auth_token);
+            } else {
+                await auth.signInAnonymously(); 
             }
         } catch (error) {
-            // Check in local created
-            const locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-            const foundLocalCreated = locals.find(q => q.code === code && q.expiresAt > Date.now());
-            if (foundLocalCreated) {
-                setParsedData(foundLocalCreated.parsedData);
-                if (foundLocalCreated.rawTexts) setRawTexts(foundLocalCreated.rawTexts);
-                setQuizTitle(foundLocalCreated.title);
-                setTimeLimit(foundLocalCreated.timeLimit);
-                setCurrentQuizCode(code);
-                setIsReadOnly(false);
-                navigate(`Overview/${code}`);
-                showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
-                return;
-            }
+            console.error("Lỗi xác thực:", error);
+        } 
+    };
+    initAuth();
+    const unsub = auth.onAuthStateChanged((u) => {
+        setFbUser(u);
+        setIsGlobalLoading(false);
+    });
+    return () => unsub();
+    }, []);
 
-            // Fallback to recent history
-            const recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
-            const foundLocal = recents.find(r => r.code === code && (Date.now() - r.savedAt < 86400000));
-            if (foundLocal) {
-                setParsedData(foundLocal.parsedData);
-                if (foundLocal.rawTexts) setRawTexts(foundLocal.rawTexts);
-                setQuizTitle(foundLocal.title);
-                setTimeLimit(foundLocal.timeLimit);
-                setCurrentQuizCode(code);
-                setIsReadOnly(true);
-                navigate(`Overview/${code}`);
-                showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+    useEffect(() => {
+    if (!fbUser || !currentUser || currentUser.isGuest || !db) return;
+    const usernameLower = currentUser.username.toLowerCase();
+    const unsub = db.collection(quizzesPath)
+        .where("owner", "==", usernameLower)
+        .onSnapshot((snap) => {
+        const list = [];
+        const now = Date.now();
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            const currentExpires = data.expiresAt || (data.createdAt + 30 * 24 * 60 * 60 * 1000);
+            if (currentExpires > now) {
+                list.push({ id: docSnap.id, ...data, expiresAt: currentExpires });
             } else {
-                showMessage(error.message === "NOT_FOUND" ? "Mã không đúng hoặc đề không tồn tại!" : "Lỗi kết nối máy chủ!");
+                db.doc(`${quizzesPath}/${docSnap.id}`).delete().catch(e => {});
+            }
+        });
+        setMyQuizzes(list.sort((a,b) => b.createdAt - a.createdAt));
+        }, (error) => {
+            console.error("Lỗi snapshot đề thi:", error);
+        });
+    return () => unsub();
+    }, [fbUser, currentUser]);
+
+    const copyToClipboard = async (text, codeToShow = '') => {
+    const successMsg = codeToShow ? `ĐÃ COPY: ${codeToShow}` : `Đã copy: ${text}`;
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        showMessage(successMsg, "success"); return;
+        }
+    } catch (err) {}
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); showMessage(successMsg, "success"); } 
+    catch (err) { showMessage("Bôi đen để copy nhé.", "error"); }
+    document.body.removeChild(ta);
+    };
+
+    const handleLogin = async (e) => {
+    e.preventDefault();
+    const rawUname = e.target.username.value;
+    const uname = rawUname.replace(/\s+/g, '');
+    const pwd = e.target.password.value;
+    if (!uname || !pwd) return showMessage("Vui lòng nhập đủ thông tin.");
+    const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
+    try {
+        const userSnap = await userRef.get();
+        if (userSnap.exists) {
+        if (userSnap.data().password === pwd) {
+            setCurrentUser({ username: userSnap.data().username, isVip: !!userSnap.data().isVip }); navigate('Home');
+        } else showMessage("Sai mật khẩu!");
+        } else {
+        await userRef.set({ username: uname, password: pwd, isVip: false });
+        setCurrentUser({ username: uname, isVip: false }); navigate('Home');
+        showMessage("Tạo tài khoản thành công!", "success");
+        }
+    } catch (error) { 
+        showMessage("Kết nối không ổn định. Vui lòng kiểm tra mạng và thử lại!", "error"); 
+    }
+    };
+
+    const handleGuestLogin = () => {
+        setCurrentUser({ username: 'Khách', isVip: false, isGuest: true });
+        navigate('Home');
+        showMessage("Đã vào bằng chế độ Khách!", "success");
+    };
+
+    const handleDeleteAccount = () => {
+    const target = currentUser.username;
+    setCustomAlert({
+        isOpen: true, title: "CẢNH BÁO", message: `Bạn chắc chắn muốn xóa tài khoản "${target}" chứ? Toàn bộ đề thi của bạn sẽ mất.`,
+        type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy',
+        onConfirm: async () => {
+            try {
+                const usernameLower = target.toLowerCase();
+                for (const q of myQuizzes) await db.doc(`${quizzesPath}/${q.id}`).delete();
+                await db.doc(`${usersPath}/${usernameLower}`).delete();
+                showMessage("Đã dọn dẹp dữ liệu tài khoản!", "success");
+                setCurrentUser(null); navigate('Login');
+            } catch (error) { showMessage("Lỗi khi thực hiện!"); }
+        }
+    });
+    };
+
+    const handleChangePassword = async (e) => {
+    e.preventDefault();
+    const oldPwd = e.target.oldPassword.value;
+    const newPwd = e.target.newPassword.value;
+    const userRef = db.doc(`${usersPath}/${currentUser.username.toLowerCase()}`);
+    try {
+        const snap = await userRef.get();
+        if (snap.data().password === oldPwd) {
+        await userRef.update({ password: newPwd });
+        showMessage("Đổi mật khẩu thành công!", "success");
+        } else showMessage("Mật khẩu cũ không đúng!");
+    } catch (err) { showMessage("Lỗi đổi mật khẩu!"); }
+    };
+
+    const handleDeleteQuiz = (q) => {
+        if (q.isLocal) {
+            let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+            locals = locals.filter(item => item.id !== q.id);
+            localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+            setLocalCreatedQuizzes(locals);
+            showMessage("Đã xóa đề lưu tạm trên máy!", "success");
+            
+            if (currentQuizCode === q.code) {
+                resetQuiz();
+            }
+        } else {
+            db.doc(`${quizzesPath}/${q.id}`).delete().then(() => {
+                showMessage("Đã xóa!", "success");
+                if (currentQuizCode === q.code) resetQuiz();
+            }).catch(() => showMessage("Lỗi xóa đề!", "error"));
+        }
+    };
+
+    const handleExtendQuiz = (q) => {
+        const newExpiry = Math.min(q.expiresAt + 7*86400000, q.createdAt + 50*86400000);
+        if (q.isLocal) {
+            let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+            const idx = locals.findIndex(item => item.id === q.id);
+            if (idx >= 0) {
+                locals[idx].expiresAt = newExpiry;
+                localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                setLocalCreatedQuizzes(locals);
+                showMessage("Đã gia hạn đề lưu trên máy!", "success");
+            }
+        } else {
+            db.doc(`${quizzesPath}/${q.id}`).update({ expiresAt: newExpiry }).then(() => showMessage("Đã gia hạn!", "success")).catch(() => showMessage("Lỗi gia hạn!", "error"));
+        }
+    };
+
+    const handleCodeInputChange = (e) => {
+        let val = e.target.value;
+        const urlMatch = val.match(/([a-zA-Z0-9]{6})\/?$/);
+        if (val.includes('http') && urlMatch) {
+            e.target.value = urlMatch[1].toUpperCase();
+        } else {
+            e.target.value = val.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase();
+        }
+    };
+
+    const handleGuestJoin = async (e) => {
+    e.preventDefault();
+    const code = e.target.shareCode.value.toUpperCase();
+    if (code.length !== 6) return showMessage("Mã đề phải gồm 6 ký tự (ví dụ: ABCDEF).");
+    if (!db) return showMessage("Đang tải CSDL, vui lòng thử lại!");
+
+    try {
+        const qDoc = await db.doc(`${quizzesPath}/${code}`).get();
+        if (qDoc.exists) {
+            const data = qDoc.data();
+            if (data.expiresAt > Date.now()) {
+                const safeParsed = { mc: [], tf: [], sa: [], rc: [], ...data.parsedData };
+                setParsedData(safeParsed); setIsReadOnly(true); setCurrentQuizCode(code); navigate(`Overview/${code}`);
+            } else {
+                showMessage("Đề thi đã hết hạn!");
+            }
+        } else {
+            throw new Error("NOT_FOUND");
+        }
+    } catch (error) {
+        const locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+        const foundLocalCreated = locals.find(q => q.code === code && q.expiresAt > Date.now());
+        if (foundLocalCreated) {
+            setParsedData(foundLocalCreated.parsedData);
+            if (foundLocalCreated.rawTexts) setRawTexts(foundLocalCreated.rawTexts);
+            setQuizTitle(foundLocalCreated.title);
+            setTimeLimit(foundLocalCreated.timeLimit);
+            setCurrentQuizCode(code);
+            setIsReadOnly(false);
+            navigate(`Overview/${code}`);
+            showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+            return;
+        }
+
+        const recents = JSON.parse(localStorage.getItem('quiz_recent_history') || '[]');
+        const foundLocal = recents.find(r => r.code === code && (Date.now() - r.savedAt < 86400000));
+        if (foundLocal) {
+            setParsedData(foundLocal.parsedData);
+            if (foundLocal.rawTexts) setRawTexts(foundLocal.rawTexts);
+            setQuizTitle(foundLocal.title);
+            setTimeLimit(foundLocal.timeLimit);
+            setCurrentQuizCode(code);
+            setIsReadOnly(true);
+            navigate(`Overview/${code}`);
+            showMessage("Đang xem bản lưu tạm cục bộ.", "warning");
+        } else {
+            showMessage(error.message === "NOT_FOUND" ? "Mã không đúng hoặc đề không tồn tại!" : "Lỗi kết nối máy chủ!");
+        }
+    }
+    };
+
+    const cloneQuizAdmin = async (customParsed, customTitle, customRaw) => {
+        if (cloneCooldown > 0) {
+            showMessage(`Vui lòng đợi ${cloneCooldown}s để tiếp tục Copy!`, "warning");
+            return;
+        }
+        if (!db || !currentUser || currentUser.isGuest) {
+            showMessage("Hãy đăng nhập tài khoản để copy đề!", "warning");
+            return;
+        }
+        
+        const newCode = generateShareCode();
+        const usernameLower = currentUser.username.toLowerCase();
+        const clonedTitle = `${customTitle || quizTitle || 'Đề thi'} (Copy)`;
+        let trimmedTitle = clonedTitle.length > 15 ? clonedTitle.substring(0, 15) : clonedTitle;
+        const dataToClone = customParsed || parsedData;
+        const rawToClone = customRaw || rawTexts;
+        
+        setCloneCooldown(15); 
+        
+        try {
+            await db.doc(`${quizzesPath}/${newCode}`).set({
+                code: newCode, owner: usernameLower, title: trimmedTitle, parsedData: dataToClone, rawTexts: rawToClone,
+                createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, timeLimit: timeLimit
+            });
+            showMessage("Nhân bản thành công!", "success");
+            if (!customParsed) {
+                setCurrentQuizCode(newCode); setIsReadOnly(false); setQuizTitle(trimmedTitle);
+                navigate(`Overview/${newCode}`);
+            }
+        } catch(e) { showMessage("Lỗi nhân bản!"); setCloneCooldown(0); }
+    };
+
+    const parseTextEngine = (text, forcedType) => {
+    let result = []; let currentQ = null, currentSubQ = null; let currentSectionType = forcedType; 
+    const lines = (text || '').split('\n');
+    for (let rawLine of lines) {
+        let line = rawLine.replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim();
+        if (!line) continue;
+        if (forcedType === 'mixed') {
+            const secMatch = line.match(/^[Pp]hần\s+([IVX]+|[1-4])/i);
+            if (secMatch) {
+                const secNum = secMatch[1].toUpperCase();
+                if (secNum === 'I' || secNum === '1') currentSectionType = 'mc';
+                else if (secNum === 'II' || secNum === '2') currentSectionType = 'tf';
+                else if (secNum === 'III' || secNum === '3') currentSectionType = 'sa';
+                else if (secNum === 'IV' || secNum === '4') currentSectionType = 'rc';
+                continue; 
             }
         }
-      };
-
-      const cloneQuizAdmin = async (customParsed, customTitle, customRaw) => {
-          if (cloneCooldown > 0) {
-              showMessage(`Vui lòng đợi ${cloneCooldown}s để tiếp tục Copy!`, "warning");
-              return;
-          }
-          if (!db || !currentUser || currentUser.isGuest) {
-              showMessage("Hãy đăng nhập tài khoản để copy đề!", "warning");
-              return;
-          }
-          
-          const newCode = generateShareCode();
-          const usernameLower = currentUser.username.toLowerCase();
-          const clonedTitle = `${customTitle || quizTitle || 'Đề thi'} (Copy)`;
-          let trimmedTitle = clonedTitle.length > 15 ? clonedTitle.substring(0, 15) : clonedTitle;
-          const dataToClone = customParsed || parsedData;
-          const rawToClone = customRaw || rawTexts;
-          
-          setCloneCooldown(15); 
-          
-          try {
-              await db.doc(`${quizzesPath}/${newCode}`).set({
-                  code: newCode, owner: usernameLower, title: trimmedTitle, parsedData: dataToClone, rawTexts: rawToClone,
-                  createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, timeLimit: timeLimit
-              });
-              showMessage("Nhân bản thành công!", "success");
-              if (!customParsed) {
-                  setCurrentQuizCode(newCode); setIsReadOnly(false); setQuizTitle(trimmedTitle);
-                  navigate(`Overview/${newCode}`);
-              }
-          } catch(e) { showMessage("Lỗi nhân bản!"); setCloneCooldown(0); }
-      };
-
-      const parseTextEngine = (text, forcedType) => {
-        let result = []; let currentQ = null, currentSubQ = null; let currentSectionType = forcedType; 
-        const lines = (text || '').split('\n');
-        for (let rawLine of lines) {
-          let line = rawLine.replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim();
-          if (!line) continue;
-          if (forcedType === 'mixed') {
-              const secMatch = line.match(/^[Pp]hần\s+([IVX]+|[1-4])/i);
-              if (secMatch) {
-                  const secNum = secMatch[1].toUpperCase();
-                  if (secNum === 'I' || secNum === '1') currentSectionType = 'mc';
-                  else if (secNum === 'II' || secNum === '2') currentSectionType = 'tf';
-                  else if (secNum === 'III' || secNum === '3') currentSectionType = 'sa';
-                  else if (secNum === 'IV' || secNum === '4') currentSectionType = 'rc';
-                  continue; 
-              }
-          }
-          const activeType = currentSectionType === 'mixed' ? 'mc' : currentSectionType;
-          const qMatch = line.match(/^[Cc][âa]u\s*\d+[\.\:\)]\s*(.*)/);
-          if (qMatch) {
-            if (currentQ) result.push(currentQ);
-            currentQ = { id: generateId(), text: qMatch[1] || "", type: activeType, options: [], subQuestions: [], image: null };
-            currentSubQ = null; continue;
-          }
-          const subQMatch = line.match(/^#\d+[\.\:\)]\s*(.*)/);
-          if (subQMatch && currentQ) {
-            currentQ.type = 'rc'; currentSubQ = { id: generateId(), text: subQMatch[1] || "", options: [] };
-            currentQ.subQuestions.push(currentSubQ); continue;
-          }
-          const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\)]\s*(.*)/);
-          if (optMatch) {
-            const optObj = { id: generateId(), text: optMatch[3], isCorrect: optMatch[1] === '*', image: null };
-            if (currentSubQ) currentSubQ.options.push(optObj);
-            else if (currentQ) { currentQ.options.push(optObj); if (!currentQ.type) currentQ.type = 'mc'; }
-            continue;
-          }
-          const saMatch = line.match(/^\*\s*(.+?)\s*\*$/);
-          if (saMatch && currentQ && !currentSubQ && currentQ.options.length === 0) {
-            currentQ.type = 'sa'; currentQ.options.push({ id: generateId(), text: saMatch[1], isCorrect: true, image: null }); continue;
-          }
-          if (currentSubQ) {
-            if (currentSubQ.options.length === 0) currentSubQ.text += '\n' + line;
-            else currentSubQ.options[currentSubQ.options.length - 1].text += '\n' + line;
-          } else if (currentQ) {
-            if (currentQ.options.length === 0) currentQ.text += '\n' + line;
-            else currentQ.options[currentQ.options.length - 1].text += '\n' + line;
-          }
-        }
+        const activeType = currentSectionType === 'mixed' ? 'mc' : currentSectionType;
+        const qMatch = line.match(/^[Cc][âa]u\s*\d+[\.\:\)]\s*(.*)/);
+        if (qMatch) {
         if (currentQ) result.push(currentQ);
-        result.forEach(q => {
-            q.text = q.text.trim(); q.options.forEach(o => o.text = o.text.trim());
-            if (q.subQuestions) q.subQuestions.forEach(sq => { sq.text = sq.text.trim(); sq.options.forEach(o => o.text = o.text.trim()); });
+        currentQ = { id: generateId(), text: qMatch[1] || "", type: activeType, options: [], subQuestions: [], image: null };
+        currentSubQ = null; continue;
+        }
+        const subQMatch = line.match(/^#\d+[\.\:\)]\s*(.*)/);
+        if (subQMatch && currentQ) {
+        currentQ.type = 'rc'; currentSubQ = { id: generateId(), text: subQMatch[1] || "", options: [] };
+        currentQ.subQuestions.push(currentSubQ); continue;
+        }
+        const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\)]\s*(.*)/);
+        if (optMatch) {
+        const optObj = { id: generateId(), text: optMatch[3], isCorrect: optMatch[1] === '*', image: null };
+        if (currentSubQ) currentSubQ.options.push(optObj);
+        else if (currentQ) { currentQ.options.push(optObj); if (!currentQ.type) currentQ.type = 'mc'; }
+        continue;
+        }
+        const saMatch = line.match(/^\*\s*(.+?)\s*\*$/);
+        if (saMatch && currentQ && !currentSubQ && currentQ.options.length === 0) {
+        currentQ.type = 'sa'; currentQ.options.push({ id: generateId(), text: saMatch[1], isCorrect: true, image: null }); continue;
+        }
+        if (currentSubQ) {
+        if (currentSubQ.options.length === 0) currentSubQ.text += '\n' + line;
+        else currentSubQ.options[currentSubQ.options.length - 1].text += '\n' + line;
+        } else if (currentQ) {
+        if (currentQ.options.length === 0) currentQ.text += '\n' + line;
+        else currentQ.options[currentQ.options.length - 1].text += '\n' + line;
+        }
+    }
+    if (currentQ) result.push(currentQ);
+    result.forEach(q => {
+        q.text = q.text.trim(); q.options.forEach(o => o.text = o.text.trim());
+        if (q.subQuestions) q.subQuestions.forEach(sq => { sq.text = sq.text.trim(); sq.options.forEach(o => o.text = o.text.trim()); });
+    });
+    return result;
+    };
+
+    const processAndSaveQuizzes = async (overrideUser = null) => {
+    if(saveCooldown > 0 || isSaving) return; 
+    setIsSaving(true); 
+    const activeUser = overrideUser || currentUser;
+
+    let allMC = [], allTF = [], allSA = [], allRC = [];
+    if (rawTexts.file) { 
+        const mixedItems = parseTextEngine(rawTexts.file, 'mixed');
+        mixedItems.forEach(item => {
+            if (item.type === 'mc') allMC.push(item); else if (item.type === 'tf') allTF.push(item);
+            else if (item.type === 'sa') allSA.push(item); else if (item.type === 'rc') allRC.push(item);
         });
-        return result;
-      };
-
-      const processAndSaveQuizzes = async (overrideUser = null) => {
-        if(saveCooldown > 0 || isSaving) return; 
-        setIsSaving(true); 
-        const activeUser = overrideUser || currentUser;
-
-        let allMC = [], allTF = [], allSA = [], allRC = [];
-        if (rawTexts.file) { 
-            const mixedItems = parseTextEngine(rawTexts.file, 'mixed');
-            mixedItems.forEach(item => {
-              if (item.type === 'mc') allMC.push(item); else if (item.type === 'tf') allTF.push(item);
-              else if (item.type === 'sa') allSA.push(item); else if (item.type === 'rc') allRC.push(item);
-            });
-        } else {
-            allMC.push(...parseTextEngine(rawTexts.mc, 'mc')); allTF.push(...parseTextEngine(rawTexts.tf, 'tf'));
-            allSA.push(...parseTextEngine(rawTexts.sa, 'sa')); allRC.push(...parseTextEngine(rawTexts.rc, 'rc'));
-        }
-        
-        // Cập nhật lại hình ảnh cũ nếu có trong parsedData (khi parseTextEngine sẽ làm mất các key ảnh nếu không mapping lại)
-        const restoreImages = (newArr, oldArr) => {
-            newArr.forEach(newQ => {
-                const oldQ = oldArr.find(oq => oq.text === newQ.text); // Cách đơn giản để đối chiếu text
-                if (oldQ) {
-                    newQ.image = oldQ.image;
-                    newQ.options.forEach((nOpt, idx) => {
-                        if (oldQ.options[idx]) nOpt.image = oldQ.options[idx].image;
+    } else {
+        allMC.push(...parseTextEngine(rawTexts.mc, 'mc')); allTF.push(...parseTextEngine(rawTexts.tf, 'tf'));
+        allSA.push(...parseTextEngine(rawTexts.sa, 'sa')); allRC.push(...parseTextEngine(rawTexts.rc, 'rc'));
+    }
+    
+    const restoreImages = (newArr, oldArr) => {
+        newArr.forEach(newQ => {
+            const oldQ = oldArr.find(oq => oq.text === newQ.text);
+            if (oldQ) {
+                newQ.image = oldQ.image;
+                newQ.options.forEach((nOpt, idx) => {
+                    if (oldQ.options[idx]) nOpt.image = oldQ.options[idx].image;
+                });
+                if (newQ.type === 'rc') {
+                    newQ.subQuestions.forEach((nSq, sqIdx) => {
+                        if (oldQ.subQuestions[sqIdx]) {
+                            nSq.options.forEach((nOpt, oIdx) => {
+                                if (oldQ.subQuestions[sqIdx].options[oIdx]) nOpt.image = oldQ.subQuestions[sqIdx].options[oIdx].image;
+                            });
+                        }
                     });
-                    if (newQ.type === 'rc') {
-                        newQ.subQuestions.forEach((nSq, sqIdx) => {
-                            if (oldQ.subQuestions[sqIdx]) {
-                                nSq.options.forEach((nOpt, oIdx) => {
-                                    if (oldQ.subQuestions[sqIdx].options[oIdx]) nOpt.image = oldQ.subQuestions[sqIdx].options[oIdx].image;
-                                });
-                            }
-                        });
-                    }
                 }
-            });
-        };
+            }
+        });
+    };
+    
+    restoreImages(allMC, parsedData.mc || []);
+    restoreImages(allTF, parsedData.tf || []);
+    restoreImages(allSA, parsedData.sa || []);
+    restoreImages(allRC, parsedData.rc || []);
+
+    const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
+    setParsedData(newParsedData);
+    let finalCode = currentQuizCode || generateShareCode();
+    let isSavedToCloud = false;
+
+    let finalTitle = quizTitle.trim();
+    if (!finalTitle) {
+        const targetText = rawTexts.file ? rawTexts.file : (rawTexts.mc || rawTexts.tf || rawTexts.sa || rawTexts.rc);
+        const firstLine = (targetText || "").split('\n').find(l => l.trim().length > 0);
+        if(firstLine) finalTitle = firstLine.length > 15 ? firstLine.substring(0, 15) : firstLine;
+        else finalTitle = "Đề thi mới";
+        setQuizTitle(finalTitle);
+    }
+
+    const parsedTimeLimit = parseInt(timeLimit) || 0;
+
+    if (activeUser && !activeUser.isGuest && db && !isReadOnly) {
+        const usernameLower = activeUser.username.toLowerCase();
+        const isAdmin = usernameLower === ADMIN_USERNAME;
+        const isVip = activeUser.isVip || false;
         
-        restoreImages(allMC, parsedData.mc || []);
-        restoreImages(allTF, parsedData.tf || []);
-        restoreImages(allSA, parsedData.sa || []);
-        restoreImages(allRC, parsedData.rc || []);
-
-        const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
-        setParsedData(newParsedData);
-        let finalCode = currentQuizCode || generateShareCode();
-        let isSavedToCloud = false;
-
-        let finalTitle = quizTitle.trim();
-        if (!finalTitle) {
-            const targetText = rawTexts.file ? rawTexts.file : (rawTexts.mc || rawTexts.tf || rawTexts.sa || rawTexts.rc);
-            const firstLine = (targetText || "").split('\n').find(l => l.trim().length > 0);
-            if(firstLine) finalTitle = firstLine.length > 15 ? firstLine.substring(0, 15) : firstLine;
-            else finalTitle = "Đề thi mới";
-            setQuizTitle(finalTitle);
-        }
-
-        const parsedTimeLimit = parseInt(timeLimit) || 0;
-
-        if (activeUser && !activeUser.isGuest && db && !isReadOnly) {
-            const usernameLower = activeUser.username.toLowerCase();
-            const isAdmin = usernameLower === ADMIN_USERNAME;
-            const isVip = activeUser.isVip || false;
-            
-            if (!isAdmin && !currentQuizCode) {
-              const userQuizzesCount = myQuizzes.length; 
-              const currentLimit = isVip ? MAX_QUIZZES_PER_VIP : MAX_QUIZZES_PER_USER;
-              if (userQuizzesCount >= currentLimit) {
-                showMessage(`Đạt giới hạn ${currentLimit} đề. Đề thi sẽ được lưu tạm.`, "error");
-              } else {
-                  isSavedToCloud = true;
-              }
+        if (!isAdmin && !currentQuizCode) {
+            const userQuizzesCount = myQuizzes.length; 
+            const currentLimit = isVip ? MAX_QUIZZES_PER_VIP : MAX_QUIZZES_PER_USER;
+            if (userQuizzesCount >= currentLimit) {
+            showMessage(`Đạt giới hạn ${currentLimit} đề. Đề thi sẽ được lưu tạm.`, "error");
             } else {
                 isSavedToCloud = true;
             }
-
-            if (isSavedToCloud) {
-                try {
-                  const savePromise = db.doc(`${quizzesPath}/${finalCode}`).set({ 
-                      code: finalCode, owner: usernameLower, title: finalTitle, parsedData: newParsedData, rawTexts, 
-                      createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-                      timeLimit: parsedTimeLimit
-                  }, {merge: true});
-    
-                  const timeoutPromise = new Promise((_, reject) => {
-                      setTimeout(() => reject(new Error("TIMEOUT_ERROR")), 15000); 
-                  });
-    
-                  await Promise.race([savePromise, timeoutPromise]);
-                  showMessage("Đã lưu vào Kho đám mây!", "success");
-                  
-                  // Xóa khỏi local created nếu nó từng nằm ở đó
-                  let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-                  locals = locals.filter(item => item.code !== finalCode);
-                  localStorage.setItem('quiz_local_created', JSON.stringify(locals));
-                  setLocalCreatedQuizzes(locals);
-                } catch (e) {
-                    console.error("Lỗi khi lưu lên Firestore:", e);
-                    isSavedToCloud = false;
-                }
-            }
+        } else {
+            isSavedToCloud = true;
         }
-        
-        if (!isSavedToCloud && !isReadOnly) {
+
+        if (isSavedToCloud) {
             try {
+                const savePromise = db.doc(`${quizzesPath}/${finalCode}`).set({ 
+                    code: finalCode, owner: usernameLower, title: finalTitle, parsedData: newParsedData, rawTexts, 
+                    createdAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+                    timeLimit: parsedTimeLimit
+                }, {merge: true});
+
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error("TIMEOUT_ERROR")), 15000); 
+                });
+
+                await Promise.race([savePromise, timeoutPromise]);
+                showMessage("Đã lưu vào Kho đám mây!", "success");
+                
                 let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-                const existingIdx = locals.findIndex(q => q.code === finalCode);
-                const localQuizObj = {
-                    id: finalCode, code: finalCode, owner: 'Khách', title: finalTitle,
-                    parsedData: newParsedData, rawTexts, createdAt: Date.now(),
-                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, timeLimit: parsedTimeLimit
-                };
-                if (existingIdx >= 0) locals[existingIdx] = localQuizObj;
-                else locals.unshift(localQuizObj);
+                locals = locals.filter(item => item.code !== finalCode);
                 localStorage.setItem('quiz_local_created', JSON.stringify(locals));
                 setLocalCreatedQuizzes(locals);
-                showMessage("Đề đã được lưu tạm, hãy Lưu vào TK để không bị mất dữ liệu.", "warning");
-            } catch(e) {}
+            } catch (e) {
+                console.error("Lỗi khi lưu lên Firestore:", e);
+                isSavedToCloud = false;
+            }
         }
-
-        setIsSaving(false); 
-        setCurrentQuizCode(finalCode);
-        navigate(`Overview/${finalCode}`); 
-      };
-
-      const handleParseAndSave = () => {
-        if (saveCooldown > 0 || isSaving) return;
-        if (currentRoute === 'overview' && urlAction === 'edittext') {
-           setCustomAlert({
-               isOpen: true, title: "Bạn có muốn lưu text này không?", message: "Tất cả hình ảnh đã tải lên và các thay đổi trong phần \"Sửa câu hỏi\" sẽ bị mất",
-               type: 'warning', confirmText: 'Vẫn Lưu', cancelText: 'Hủy bỏ', onConfirm: () => processAndSaveQuizzes(null)
-           });
-        } else {
-           processAndSaveQuizzes(null);
-        }
-      };
-
-      const handleImageUpload = async (qId, sectionId, file) => {
-        if (!file) return;
-        if (!currentQuizCode) {
-            showMessage("Vui lòng Bấm Lưu đề thi 1 lần trước khi thêm ảnh!", "error");
-            return;
-        }
-        if (file.size > 32 * 1024 * 1024) {
-            showMessage("Ảnh quá lớn! Vui lòng chọn ảnh < 32MB.", "error");
-            return;
-        }
-
-        if (IMGBB_API_KEY === "THAY_MA_API_IMGBB_CUA_BAN_VAO_DAY") {
-            showMessage("Bạn chưa cấu hình API Key của ImgBB trong mã nguồn!", "error");
-            return;
-        }
-        
-        showMessage("Đang tải ảnh lên máy chủ...", "success");
-
+    }
+    
+    if (!isSavedToCloud && !isReadOnly) {
         try {
-            const formData = new FormData();
-            formData.append('image', file);
+            let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+            const existingIdx = locals.findIndex(q => q.code === finalCode);
+            const localQuizObj = {
+                id: finalCode, code: finalCode, owner: 'Khách', title: finalTitle,
+                parsedData: newParsedData, rawTexts, createdAt: Date.now(),
+                expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, timeLimit: parsedTimeLimit
+            };
+            if (existingIdx >= 0) locals[existingIdx] = localQuizObj;
+            else locals.unshift(localQuizObj);
+            localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+            setLocalCreatedQuizzes(locals);
+            showMessage("Đề đã được lưu tạm, hãy Lưu vào TK để không bị mất dữ liệu.", "warning");
+        } catch(e) {}
+    }
 
-            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
+    setIsSaving(false); 
+    setCurrentQuizCode(finalCode);
+    navigate(`Overview/${finalCode}`); 
+    };
 
-            if (data.success) {
-                const imageUrl = data.data.url;
-                const newData = { ...parsedData };
-                const q = newData[sectionId].find(x => x.id === qId);
-                if (q) {
-                    q.image = imageUrl;
-                    setParsedData(newData);
-                    
-                    const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
-                    
-                    if (isLocalCreated) {
-                        let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-                        const idx = locals.findIndex(item => item.code === currentQuizCode);
-                        if (idx >= 0) {
-                            locals[idx].parsedData = newData;
-                            localStorage.setItem('quiz_local_created', JSON.stringify(locals));
-                            setLocalCreatedQuizzes(locals);
-                            showMessage("Tải ảnh và lưu tạm thành công!", "success");
-                        }
-                    } else if (currentUser && !currentUser.isGuest && db) {
-                        try {
-                            await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
-                            showMessage("Tải ảnh và lưu thành công!", "success");
-                        } catch (err) {
-                            showMessage("Lỗi lưu ảnh vào dữ liệu.", "error");
-                        }
+    const handleParseAndSave = () => {
+    if (saveCooldown > 0 || isSaving) return;
+    if (currentRoute === 'overview' && urlAction === 'edittext') {
+        setCustomAlert({
+            isOpen: true, title: "Bạn có muốn lưu text này không?", message: "Tất cả hình ảnh đã tải lên và các thay đổi trong phần \"Sửa câu hỏi\" sẽ bị mất",
+            type: 'warning', confirmText: 'Vẫn Lưu', cancelText: 'Hủy bỏ', onConfirm: () => processAndSaveQuizzes(null)
+        });
+    } else {
+        processAndSaveQuizzes(null);
+    }
+    };
+
+    const handleImageUpload = async (qId, sectionId, file) => {
+    if (!file) return;
+    if (!currentQuizCode) {
+        showMessage("Vui lòng Bấm Lưu đề thi 1 lần trước khi thêm ảnh!", "error");
+        return;
+    }
+    if (file.size > 32 * 1024 * 1024) {
+        showMessage("Ảnh quá lớn! Vui lòng chọn ảnh < 32MB.", "error");
+        return;
+    }
+    
+    showMessage("Đang tải ảnh lên máy chủ...", "success");
+
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            const imageUrl = data.data.url;
+            const newData = { ...parsedData };
+            const q = newData[sectionId].find(x => x.id === qId);
+            if (q) {
+                q.image = imageUrl;
+                setParsedData(newData);
+                
+                const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
+                
+                if (isLocalCreated) {
+                    let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                    const idx = locals.findIndex(item => item.code === currentQuizCode);
+                    if (idx >= 0) {
+                        locals[idx].parsedData = newData;
+                        localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                        setLocalCreatedQuizzes(locals);
+                        showMessage("Tải ảnh và lưu tạm thành công!", "success");
+                    }
+                } else if (currentUser && !currentUser.isGuest && db) {
+                    try {
+                        await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData });
+                        showMessage("Tải ảnh và lưu thành công!", "success");
+                    } catch (err) {
+                        showMessage("Lỗi lưu ảnh vào dữ liệu.", "error");
                     }
                 }
-            } else {
-                showMessage("Lỗi upload từ ImgBB: " + (data.error?.message || "Không xác định"), "error");
             }
-        } catch (error) {
-            console.error("Lỗi upload ảnh:", error);
-            showMessage("Không thể kết nối máy chủ ảnh!", "error");
+        } else {
+            showMessage("Lỗi upload từ ImgBB: " + (data.error?.message || "Không xác định"), "error");
         }
-      };
+    } catch (error) {
+        console.error("Lỗi upload ảnh:", error);
+        showMessage("Không thể kết nối máy chủ ảnh!", "error");
+    }
+    };
 
-      const changeQuestionType = (newType) => {
-          const currentType = editingQ.data.type;
-          if (currentType === newType) return;
-          let newData = { ...editingQ.data, type: newType };
-          if (newType === 'rc' && currentType !== 'rc') {
-              newData.subQuestions = [{ id: generateId(), text: '#1. Câu hỏi phụ', options: newData.options || [] }];
-              newData.options = [];
-          } else if (currentType === 'rc' && newType !== 'rc') {
-              newData.options = newData.subQuestions[0]?.options || [];
-              newData.subQuestions = [];
-          }
-          if (newType === 'sa' && newData.options.length === 0) newData.options = [{id: generateId(), text: '', isCorrect: true, image: null}];
-          
-          if (newType === 'tf') {
-              // Cập nhật lại format đúng sai
-              if (newData.options.length === 0) newData.options = [
-                  {id: generateId(), text: 'Mệnh đề a', isCorrect: true, image: null},
-                  {id: generateId(), text: 'Mệnh đề b', isCorrect: false, image: null}
-              ];
-          }
-          
-          setEditingQ({ ...editingQ, data: newData, oldSectionId: editingQ.oldSectionId || editingQ.sectionId, sectionId: newType });
-      };
-
-      const saveInlineEdit = async () => {
-         const newData = {...parsedData};
-         const targetSection = editingQ.data.type;
-         const originalSection = editingQ.oldSectionId || editingQ.sectionId;
-         if (editingQ.isNew) newData[targetSection].push(editingQ.data);
-         else {
-             if (originalSection !== targetSection) {
-                 newData[originalSection] = newData[originalSection].filter(q => q.id !== editingQ.data.id);
-                 newData[targetSection].push(editingQ.data);
-             } else {
-                 const index = newData[targetSection].findIndex(q => q.id === editingQ.data.id);
-                 if (index !== -1) newData[targetSection][index] = editingQ.data;
-             }
-         }
-         setParsedData(newData); setEditingQ(null);
-         
-         const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
-         
-         if (isLocalCreated) {
-             let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-             const idx = locals.findIndex(item => item.code === currentQuizCode);
-             if (idx >= 0) {
-                 locals[idx].parsedData = newData;
-                 localStorage.setItem('quiz_local_created', JSON.stringify(locals));
-                 setLocalCreatedQuizzes(locals);
-                 showMessage("Đã lưu tạm thành công!", "success");
-             }
-         } else if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
-            try { await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); showMessage("Đã lưu thành công!", "success"); } catch(e) {}
-         }
-      };
-
-      const removeInlineQuestion = () => {
-         setCustomAlert({
-             isOpen: true, title: "Xóa câu hỏi", message: "Xác nhận XÓA HOÀN TOÀN câu hỏi này?", type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy',
-             onConfirm: async () => {
-                 const newData = {...parsedData};
-                 newData[editingQ.sectionId] = newData[editingQ.sectionId].filter(q => q.id !== editingQ.data.id);
-                 setParsedData(newData); setEditingQ(null);
-                 
-                 const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
-                 
-                 if (isLocalCreated) {
-                     let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
-                     const idx = locals.findIndex(item => item.code === currentQuizCode);
-                     if (idx >= 0) {
-                         locals[idx].parsedData = newData;
-                         localStorage.setItem('quiz_local_created', JSON.stringify(locals));
-                         setLocalCreatedQuizzes(locals);
-                         showMessage("Đã xóa!", "success");
-                     }
-                 } else if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
-                    try { await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); showMessage("Đã xóa!", "success"); } catch(e) {}
-                 }
-             }
-         });
-      };
-
-      const handleAddNewQuestion = (sectionId) => {
-        let defaultOptions = [];
-        if (sectionId === 'tf') {
-            // Dạng Đúng/Sai thường có 4 mệnh đề để đánh giá
-            defaultOptions = [
+    const changeQuestionType = (newType) => {
+        const currentType = editingQ.data.type;
+        if (currentType === newType) return;
+        let newData = { ...editingQ.data, type: newType };
+        if (newType === 'rc' && currentType !== 'rc') {
+            newData.subQuestions = [{ id: generateId(), text: '#1. Câu hỏi phụ', options: newData.options || [] }];
+            newData.options = [];
+        } else if (currentType === 'rc' && newType !== 'rc') {
+            newData.options = newData.subQuestions[0]?.options || [];
+            newData.subQuestions = [];
+        }
+        if (newType === 'sa' && newData.options.length === 0) newData.options = [{id: generateId(), text: '', isCorrect: true, image: null}];
+        
+        if (newType === 'tf') {
+            if (newData.options.length === 0) newData.options = [
                 {id: generateId(), text: 'Mệnh đề a', isCorrect: true, image: null},
-                {id: generateId(), text: 'Mệnh đề b', isCorrect: false, image: null},
-                {id: generateId(), text: 'Mệnh đề c', isCorrect: false, image: null},
-                {id: generateId(), text: 'Mệnh đề d', isCorrect: false, image: null}
-            ];
-        } else if (sectionId !== 'rc') {
-            // Dạng trắc nghiệm
-            defaultOptions = [
-                {id: generateId(), text: 'Đáp án A', isCorrect: true, image: null},
-                {id: generateId(), text: 'Đáp án B', isCorrect: false, image: null},
-                {id: generateId(), text: 'Đáp án C', isCorrect: false, image: null},
-                {id: generateId(), text: 'Đáp án D', isCorrect: false, image: null}
+                {id: generateId(), text: 'Mệnh đề b', isCorrect: false, image: null}
             ];
         }
+        
+        setEditingQ({ ...editingQ, data: newData, oldSectionId: editingQ.oldSectionId || editingQ.sectionId, sectionId: newType });
+    };
 
-        const newQ = { 
-            id: generateId(), 
-            text: "Câu hỏi mới...", 
-            type: sectionId, 
-            options: defaultOptions, 
-            subQuestions: sectionId === 'rc' ? [{id: generateId(), text: '#1. Câu hỏi phụ mới', options: [{id: generateId(), text: 'Đáp án 1', isCorrect: true, image: null}]}] : [], 
-            image: null 
-        };
-        setEditingQ({ sectionId: sectionId, data: newQ, isNew: true });
-      };
+    const saveInlineEdit = async () => {
+        const newData = {...parsedData};
+        const targetSection = editingQ.data.type;
+        const originalSection = editingQ.oldSectionId || editingQ.sectionId;
+        if (editingQ.isNew) newData[targetSection].push(editingQ.data);
+        else {
+            if (originalSection !== targetSection) {
+                newData[originalSection] = newData[originalSection].filter(q => q.id !== editingQ.data.id);
+                newData[targetSection].push(editingQ.data);
+            } else {
+                const index = newData[targetSection].findIndex(q => q.id === editingQ.data.id);
+                if (index !== -1) newData[targetSection][index] = editingQ.data;
+            }
+        }
+        setParsedData(newData); setEditingQ(null);
+        
+        const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
+        
+        if (isLocalCreated) {
+            let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+            const idx = locals.findIndex(item => item.code === currentQuizCode);
+            if (idx >= 0) {
+                locals[idx].parsedData = newData;
+                localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                setLocalCreatedQuizzes(locals);
+                showMessage("Đã lưu tạm thành công!", "success");
+            }
+        } else if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
+        try { await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); showMessage("Đã lưu thành công!", "success"); } catch(e) {}
+        }
+    };
 
-      const prepareQuiz = () => {
+    const removeInlineQuestion = () => {
+        setCustomAlert({
+            isOpen: true, title: "Xóa câu hỏi", message: "Xác nhận XÓA HOÀN TOÀN câu hỏi này?", type: 'danger', confirmText: 'Xóa ngay', cancelText: 'Hủy',
+            onConfirm: async () => {
+                const newData = {...parsedData};
+                newData[editingQ.sectionId] = newData[editingQ.sectionId].filter(q => q.id !== editingQ.data.id);
+                setParsedData(newData); setEditingQ(null);
+                
+                const isLocalCreated = localCreatedQuizzes.find(item => item.code === currentQuizCode);
+                
+                if (isLocalCreated) {
+                    let locals = JSON.parse(localStorage.getItem('quiz_local_created') || '[]');
+                    const idx = locals.findIndex(item => item.code === currentQuizCode);
+                    if (idx >= 0) {
+                        locals[idx].parsedData = newData;
+                        localStorage.setItem('quiz_local_created', JSON.stringify(locals));
+                        setLocalCreatedQuizzes(locals);
+                        showMessage("Đã xóa!", "success");
+                    }
+                } else if (currentUser && !currentUser.isGuest && currentQuizCode && db) {
+                try { await db.doc(`${quizzesPath}/${currentQuizCode}`).update({ parsedData: newData }); showMessage("Đã xóa!", "success"); } catch(e) {}
+                }
+            }
+        });
+    };
+
+    const handleAddNewQuestion = (sectionId) => {
+    let defaultOptions = [];
+    if (sectionId === 'tf') {
+        defaultOptions = [
+            {id: generateId(), text: 'Mệnh đề a', isCorrect: true, image: null},
+            {id: generateId(), text: 'Mệnh đề b', isCorrect: false, image: null},
+            {id: generateId(), text: 'Mệnh đề c', isCorrect: false, image: null},
+            {id: generateId(), text: 'Mệnh đề d', isCorrect: false, image: null}
+        ];
+    } else if (sectionId !== 'rc') {
+        defaultOptions = [
+            {id: generateId(), text: 'Đáp án A', isCorrect: true, image: null},
+            {id: generateId(), text: 'Đáp án B', isCorrect: false, image: null},
+            {id: generateId(), text: 'Đáp án C', isCorrect: false, image: null},
+            {id: generateId(), text: 'Đáp án D', isCorrect: false, image: null}
+        ];
+    }
+
+    const newQ = { 
+        id: generateId(), 
+        text: "Câu hỏi mới...", 
+        type: sectionId, 
+        options: defaultOptions, 
+        subQuestions: sectionId === 'rc' ? [{id: generateId(), text: '#1. Câu hỏi phụ mới', options: [{id: generateId(), text: 'Đáp án 1', isCorrect: true, image: null}]}] : [], 
+        image: null 
+    };
+    setEditingQ({ sectionId: sectionId, data: newQ, isNew: true });
+    };
+
+    const prepareQuiz = () => {
+        clearQuizSession(); // Xóa session cũ trước khi bắt đầu bài mới
         let finalMc = [...parsedData.mc], finalTf = [...parsedData.tf], finalSa = [...parsedData.sa], finalRc = [...(parsedData.rc || [])];
         const shuffleOpts = config.shuffle === 'options' || config.shuffle === 'both';
         const shuffleQ = config.shuffle === 'questions' || config.shuffle === 'both';
         
         if (shuffleQ) { finalMc = shuffleArray(finalMc); finalTf = shuffleArray(finalTf); finalSa = shuffleArray(finalSa); finalRc = shuffleArray(finalRc); }
         if (shuffleOpts) {
-          finalMc.forEach(q => { q.options = shuffleArray(q.options); }); finalTf.forEach(q => { q.options = shuffleArray(q.options); });
-          finalRc.forEach(q => { q.subQuestions.forEach(sq => { sq.options = shuffleArray(sq.options); }) });
+        finalMc.forEach(q => { q.options = shuffleArray(q.options); }); finalTf.forEach(q => { q.options = shuffleArray(q.options); });
+        finalRc.forEach(q => { q.subQuestions.forEach(sq => { sq.options = shuffleArray(sq.options); }) });
         }
 
         const selectedOrder = (config.selectedSections && config.selectedSections.length > 0) ? config.selectedSections : ['mc', 'tf', 'sa', 'rc'];
@@ -2524,173 +951,170 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
         let rcQCount = newFinalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
         setScore({ correct: 0, total: newFinalMc.length + newFinalTf.length + newFinalSa.length + rcQCount });
         
-        // Lưu vào bộ nhớ cục bộ để làm lại sau
         saveToRecentHistory(currentQuizCode, quizTitle, parsedData, timeLimit);
+        navigate(`Overview/${currentQuizCode || 'draft'}/Test`);
+    };
+
+    const prepareRedoIncorrectQuiz = useCallback(() => {
+        clearQuizSession();
+        if (!incorrectData) return;
+        const finalMc = incorrectData.mc || [];
+        const finalTf = incorrectData.tf || [];
+        const finalSa = incorrectData.sa || [];
+        const finalRc = incorrectData.rc || [];
+
+        const flatArray = [];
+        const selectedOrder = (config.selectedSections && config.selectedSections.length > 0) ? config.selectedSections : ['mc', 'tf', 'sa', 'rc'];
+
+        selectedOrder.forEach(type => {
+            if (type === 'mc') flatArray.push(...finalMc);
+            if (type === 'tf') flatArray.push(...finalTf);
+            if (type === 'sa') flatArray.push(...finalSa);
+            if (type === 'rc') flatArray.push(...finalRc);
+        });
+
+        setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, rc: finalRc, flat: flatArray });
+        setAnswers({});
+        setCurrentIndex(0);
+        setIsSubmitted(false);
+        setSingleQuestionConfirmed(false);
+        setEndRemark('');
+
+        let rcQCount = finalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
+        setScore({ correct: 0, total: finalMc.length + finalTf.length + finalSa.length + rcQCount });
 
         navigate(`Overview/${currentQuizCode || 'draft'}/Test`);
-      };
+    }, [incorrectData, config.selectedSections, currentQuizCode, navigate, clearQuizSession]);
 
-      const prepareRedoIncorrectQuiz = useCallback(() => {
-          if (!incorrectData) return;
-          const finalMc = incorrectData.mc || [];
-          const finalTf = incorrectData.tf || [];
-          const finalSa = incorrectData.sa || [];
-          const finalRc = incorrectData.rc || [];
-
-          const flatArray = [];
-          const selectedOrder = (config.selectedSections && config.selectedSections.length > 0) ? config.selectedSections : ['mc', 'tf', 'sa', 'rc'];
-
-          selectedOrder.forEach(type => {
-              if (type === 'mc') flatArray.push(...finalMc);
-              if (type === 'tf') flatArray.push(...finalTf);
-              if (type === 'sa') flatArray.push(...finalSa);
-              if (type === 'rc') flatArray.push(...finalRc);
-          });
-
-          setActiveQuiz({ mc: finalMc, tf: finalTf, sa: finalSa, rc: finalRc, flat: flatArray });
-          setAnswers({});
-          setCurrentIndex(0);
-          setIsSubmitted(false);
-          setSingleQuestionConfirmed(false);
-          setEndRemark('');
-
-          let rcQCount = finalRc.reduce((acc, q) => acc + q.subQuestions.length, 0);
-          setScore({ correct: 0, total: finalMc.length + finalTf.length + finalSa.length + rcQCount });
-
-          navigate(`Overview/${currentQuizCode || 'draft'}/Test`);
-      }, [incorrectData, config.selectedSections, currentQuizCode, navigate]);
-
-      const checkQuestionCorrect = useCallback((type, qObj, userAns) => {
-        if (type === 'mc' || type === 'rc') {
-          const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
-          return Array.isArray(userAns) && userAns.length > 0 && correctIds.includes(userAns[0]);
-        } else if (type === 'tf') {
-          const ans = userAns || {};
-          // Kiểm tra tương thích dữ liệu cũ
-          if (Array.isArray(ans)) {
-              const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
-              return ans.length === correctIds.length && ans.every(id => correctIds.includes(id));
-          }
-          // Dữ liệu mới từ nút chọn Đúng/Sai
-          if (Object.keys(ans).length !== qObj.options.length) return false;
-          return qObj.options.every(o => !!ans[o.id] === !!o.isCorrect);
-        } else if (type === 'sa') {
-          if (typeof userAns !== 'string' || !userAns.trim()) return false;
-          if (!qObj.options || qObj.options.length === 0) return false; 
-          const cleanUser = userAns.trim().replace(',', '.'); const cleanCorrect = qObj.options[0].text.trim().replace(',', '.');
-          if (!isNaN(parseFloat(cleanUser)) && !isNaN(parseFloat(cleanCorrect))) return parseFloat(cleanUser) === parseFloat(cleanCorrect);
-          return cleanUser.toLowerCase() === cleanCorrect.toLowerCase();
+    const checkQuestionCorrect = useCallback((type, qObj, userAns) => {
+    if (type === 'mc' || type === 'rc') {
+        const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
+        return Array.isArray(userAns) && userAns.length > 0 && correctIds.includes(userAns[0]);
+    } else if (type === 'tf') {
+        const ans = userAns || {};
+        if (Array.isArray(ans)) {
+            const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
+            return ans.length === correctIds.length && ans.every(id => correctIds.includes(id));
         }
-        return false;
-      }, []);
+        if (Object.keys(ans).length !== qObj.options.length) return false;
+        return qObj.options.every(o => !!ans[o.id] === !!o.isCorrect);
+    } else if (type === 'sa') {
+        if (typeof userAns !== 'string' || !userAns.trim()) return false;
+        if (!qObj.options || qObj.options.length === 0) return false; 
+        const cleanUser = userAns.trim().replace(',', '.'); const cleanCorrect = qObj.options[0].text.trim().replace(',', '.');
+        if (!isNaN(parseFloat(cleanUser)) && !isNaN(parseFloat(cleanCorrect))) return parseFloat(cleanUser) === parseFloat(cleanCorrect);
+        return cleanUser.toLowerCase() === cleanCorrect.toLowerCase();
+    }
+    return false;
+    }, []);
 
-      const generateRandomRemark = useCallback((correct, total) => {
-          if (total === 0) return '';
-          const percent = (correct / total) * 100;
-          let category = 'bad'; if (percent >= 85) category = 'good'; else if (percent >= 50) category = 'average';
-          const array = RESULT_REMARKS[category]; return array[Math.floor(Math.random() * array.length)];
-      }, []);
+    const generateRandomRemark = useCallback((correct, total) => {
+        if (total === 0) return '';
+        const percent = (correct / total) * 100;
+        let category = 'bad'; if (percent >= 85) category = 'good'; else if (percent >= 50) category = 'average';
+        const array = RESULT_REMARKS[category]; return array[Math.floor(Math.random() * array.length)];
+    }, []);
 
-      const Notification = () => (
-        globalMessage.text && (
-          <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'warning' ? 'bg-amber-500' : (globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600')}`}>
-            {globalMessage.text}
-          </div>
-        )
-      );
+    const Notification = () => (
+    globalMessage.text && (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-lg font-bold text-white text-center animate-fade-in ${globalMessage.type === 'warning' ? 'bg-amber-500' : (globalMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600')}`}>
+        {globalMessage.text}
+        </div>
+    )
+    );
 
-      const CustomConfirmModal = () => {
-        if (!customAlert.isOpen) return null;
-        return (
-          <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 animate-fade-in">
-             <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center animate-bounce-in border border-slate-200 dark:border-slate-700">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shrink-0 ${customAlert.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-500' : 'bg-red-100 dark:bg-red-900/40 text-red-500'}`}>
-                   <Icons.Alert />
-                </div>
-                <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">{customAlert.title}</h3>
-                <p className={`mb-8 font-medium break-words ${customAlert.type === 'warning' ? 'text-amber-600 dark:text-amber-500 text-sm' : 'text-slate-600 dark:text-slate-400'}`}>{customAlert.message}</p>
-                <div className="flex gap-3">
-                   <button onClick={() => { customAlert.onConfirm(); setCustomAlert({isOpen: false}); }} className={`flex-1 text-white font-bold py-3 rounded-xl shadow-md transition whitespace-nowrap ${customAlert.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-600 hover:bg-red-700'}`}>{customAlert.confirmText}</button>
-                   <button onClick={() => setCustomAlert({isOpen: false})} className="flex-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold py-3 rounded-xl transition whitespace-nowrap">{customAlert.cancelText}</button>
-                </div>
-             </div>
-          </div>
-        );
-      };
+    const CustomConfirmModal = () => {
+    if (!customAlert.isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center animate-bounce-in border border-slate-200 dark:border-slate-700">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shrink-0 ${customAlert.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-500' : 'bg-red-100 dark:bg-red-900/40 text-red-500'}`}>
+                <Icons.Alert />
+            </div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">{customAlert.title}</h3>
+            <p className={`mb-8 font-medium break-words ${customAlert.type === 'warning' ? 'text-amber-600 dark:text-amber-500 text-sm' : 'text-slate-600 dark:text-slate-400'}`}>{customAlert.message}</p>
+            <div className="flex gap-3">
+                <button onClick={() => { customAlert.onConfirm(); setCustomAlert({isOpen: false}); }} className={`flex-1 text-white font-bold py-3 rounded-xl shadow-md transition whitespace-nowrap ${customAlert.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-600 hover:bg-red-700'}`}>{customAlert.confirmText}</button>
+                <button onClick={() => setCustomAlert({isOpen: false})} className="flex-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold py-3 rounded-xl transition whitespace-nowrap">{customAlert.cancelText}</button>
+            </div>
+            </div>
+        </div>
+    );
+    };
 
-      const ThemeToggleBtn = () => (
-        <button onClick={toggleTheme} className="p-2 sm:p-2.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center justify-center shrink-0" title="Đổi giao diện">
-          {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
-        </button>
-      );
+    const ThemeToggleBtn = () => (
+    <button onClick={toggleTheme} className="p-2 sm:p-2.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center justify-center shrink-0" title="Đổi giao diện">
+        {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
+    </button>
+    );
 
-      const resetQuiz = useCallback(() => {
-          setRawTexts({ mc:'', tf:'', sa:'', rc:'', file:'' }); 
-          setParsedData({mc:[], tf:[], sa:[], rc:[]});
-          setQuizTitle('');
-          setTimeLimit('');
-          setCurrentQuizCode(null);
-          setIsReadOnly(false);
-          navigate('Create');
-      }, [navigate]);
+    const resetQuiz = useCallback(() => {
+        setRawTexts({ mc:'', tf:'', sa:'', rc:'', file:'' }); 
+        setParsedData({mc:[], tf:[], sa:[], rc:[]});
+        setQuizTitle('');
+        setTimeLimit('');
+        setCurrentQuizCode(null);
+        setIsReadOnly(false);
+        navigate('Create');
+    }, [navigate]);
 
-      let ActiveScreenComponent = null;
+    let ActiveScreenComponent = null;
 
-      if (isSetupNeeded) ActiveScreenComponent = <SetupScreen />;
-      else if (isGlobalLoading || isFetchingQuiz) ActiveScreenComponent = <LoadingScreen />;
-      else if (activeScreen === 'login') ActiveScreenComponent = <LoginScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleLogin={handleLogin} handleGuestLogin={handleGuestLogin} />;
-      else if (activeScreen === 'dashboard') ActiveScreenComponent = <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={displayQuizzes} recentQuizzes={recentQuizzes} setRecentQuizzes={setRecentQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} setCustomAlert={setCustomAlert} handleDeleteQuiz={handleExtendQuiz} handleExtendQuiz={handleExtendQuiz} />;
-      else if (activeScreen === 'input') ActiveScreenComponent = <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} setShowGuestSaveModal={setShowGuestSaveModal} currentUser={currentUser} />;
-      else if (activeScreen === 'overview') ActiveScreenComponent = <OverviewScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} quizTitle={quizTitle} timeLimit={timeLimit} setTimeLimit={setTimeLimit} currentQuizCode={currentQuizCode} copyToClipboard={copyToClipboard} config={config} setConfig={setConfig} prepareQuiz={prepareQuiz} isReadOnly={isReadOnly} navigate={navigate} cloneQuizAdmin={cloneQuizAdmin} cloneCooldown={cloneCooldown} currentUser={currentUser} parsedData={parsedData} />;
-      else if (activeScreen === 'settings') ActiveScreenComponent = <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={removeInlineQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} quizTitle={quizTitle} setShowGuestSaveModal={setShowGuestSaveModal} />;
-      else if (activeScreen === 'quiz') ActiveScreenComponent = <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} setIncorrectData={setIncorrectData} />;
-      else if (activeScreen === 'result') ActiveScreenComponent = <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} incorrectData={incorrectData} prepareRedoIncorrectQuiz={prepareRedoIncorrectQuiz} />;
+    if (isSetupNeeded) ActiveScreenComponent = <SetupScreen />;
+    else if (isGlobalLoading || isFetchingQuiz) ActiveScreenComponent = <LoadingScreen />;
+    else if (activeScreen === 'login') ActiveScreenComponent = <LoginScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleLogin={handleLogin} handleGuestLogin={handleGuestLogin} />;
+    else if (activeScreen === 'dashboard') ActiveScreenComponent = <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={displayQuizzes} recentQuizzes={recentQuizzes} setRecentQuizzes={setRecentQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} setCustomAlert={setCustomAlert} handleDeleteQuiz={handleDeleteQuiz} handleExtendQuiz={handleExtendQuiz} />;
+    else if (activeScreen === 'input') ActiveScreenComponent = <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} setShowGuestSaveModal={setShowGuestSaveModal} currentUser={currentUser} />;
+    else if (activeScreen === 'overview') ActiveScreenComponent = <OverviewScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} quizTitle={quizTitle} timeLimit={timeLimit} setTimeLimit={setTimeLimit} currentQuizCode={currentQuizCode} copyToClipboard={copyToClipboard} config={config} setConfig={setConfig} prepareQuiz={prepareQuiz} isReadOnly={isReadOnly} navigate={navigate} cloneQuizAdmin={cloneQuizAdmin} cloneCooldown={cloneCooldown} currentUser={currentUser} parsedData={parsedData} />;
+    else if (activeScreen === 'settings') ActiveScreenComponent = <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={removeInlineQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} quizTitle={quizTitle} setShowGuestSaveModal={setShowGuestSaveModal} />;
+    else if (activeScreen === 'quiz') ActiveScreenComponent = <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} setIncorrectData={setIncorrectData} clearQuizSession={clearQuizSession} />;
+    else if (activeScreen === 'result') ActiveScreenComponent = <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} incorrectData={incorrectData} prepareRedoIncorrectQuiz={prepareRedoIncorrectQuiz} />;
 
-      return (
-        <>
-            {ActiveScreenComponent}
-            {showGuestSaveModal && (
-                <div className="fixed inset-0 bg-black/70 z-[999] flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative animate-bounce-in border border-slate-200 dark:border-slate-700">
-                        <button onClick={() => setShowGuestSaveModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"><Icons.UserX /></button>
-                        <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Lưu vào Tài Khoản</h3>
-                        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm font-medium">Đăng nhập để đồng bộ đề thi này lên máy chủ.</p>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const uname = e.target.username.value.replace(/\s+/g, '');
-                            const pwd = e.target.password.value;
-                            if (!uname || !pwd) return showMessage("Vui lòng nhập đủ thông tin.");
-                            const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
-                            try {
-                                const userSnap = await userRef.get();
-                                if (userSnap.exists) {
-                                    if (userSnap.data().password === pwd) {
-                                        const loggedInUser = { username: userSnap.data().username, isVip: !!userSnap.data().isVip };
-                                        setCurrentUser(loggedInUser);
-                                        setShowGuestSaveModal(false);
-                                        setTimeout(() => processAndSaveQuizzes(loggedInUser), 100);
-                                    } else showMessage("Sai mật khẩu!");
-                                } else {
-                                    const newUser = { username: uname, password: pwd, isVip: false };
-                                    await userRef.set(newUser);
-                                    const loggedInUser = { username: uname, isVip: false };
+    return (
+    <>
+        {ActiveScreenComponent}
+        {showGuestSaveModal && (
+            <div className="fixed inset-0 bg-black/70 z-[999] flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative animate-bounce-in border border-slate-200 dark:border-slate-700">
+                    <button onClick={() => setShowGuestSaveModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"><Icons.UserX /></button>
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Lưu vào Tài Khoản</h3>
+                    <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm font-medium">Đăng nhập để đồng bộ đề thi này lên máy chủ.</p>
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const uname = e.target.username.value.replace(/\s+/g, '');
+                        const pwd = e.target.password.value;
+                        if (!uname || !pwd) return showMessage("Vui lòng nhập đủ thông tin.");
+                        const userRef = db.doc(`${usersPath}/${uname.toLowerCase()}`);
+                        try {
+                            const userSnap = await userRef.get();
+                            if (userSnap.exists) {
+                                if (userSnap.data().password === pwd) {
+                                    const loggedInUser = { username: userSnap.data().username, isVip: !!userSnap.data().isVip };
                                     setCurrentUser(loggedInUser);
                                     setShowGuestSaveModal(false);
-                                    showMessage("Tạo tài khoản và lưu thành công!", "success");
                                     setTimeout(() => processAndSaveQuizzes(loggedInUser), 100);
-                                }
-                            } catch (error) { showMessage("Lỗi kết nối máy chủ!"); }
-                        }} className="space-y-4">
-                            <input type="text" name="username" placeholder="Tên đăng nhập" maxLength={15} required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
-                            <input type="password" name="password" placeholder="Mật khẩu" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
-                            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition shadow">Đăng Nhập & Lưu</button>
-                        </form>
-                    </div>
+                                } else showMessage("Sai mật khẩu!");
+                            } else {
+                                const newUser = { username: uname, password: pwd, isVip: false };
+                                await userRef.set(newUser);
+                                const loggedInUser = { username: uname, isVip: false };
+                                setCurrentUser(loggedInUser);
+                                setShowGuestSaveModal(false);
+                                showMessage("Tạo tài khoản và lưu thành công!", "success");
+                                setTimeout(() => processAndSaveQuizzes(loggedInUser), 100);
+                            }
+                        } catch (error) { showMessage("Lỗi kết nối máy chủ!"); }
+                    }} className="space-y-4">
+                        <input type="text" name="username" placeholder="Tên đăng nhập" maxLength={15} required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
+                        <input type="password" name="password" placeholder="Mật khẩu" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-medium dark:text-white transition-colors" />
+                        <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition shadow">Đăng Nhập & Lưu</button>
+                    </form>
                 </div>
-            )}
-        </>
-      );
-    }
+            </div>
+        )}
+    </>
+    );
+}
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<MainApp />);
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<window.MainApp />);
