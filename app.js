@@ -892,6 +892,52 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
           })).filter(sec => sec.data.length > 0);
       }, [sections, qSearchTerm]);
 
+      // Logic tải ảnh cho từng phương án
+      const handleOptImageUpload = async (file, optId, isSubQ = false, subQId = null) => {
+          if (!file) return;
+          if (file.size > 32 * 1024 * 1024) return showMessage("Ảnh quá lớn! Vui lòng chọn ảnh < 32MB.", "error");
+          showMessage("Đang tải ảnh phương án lên...", "success");
+          try {
+              const formData = new FormData();
+              formData.append('image', file);
+              const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                  method: 'POST', body: formData
+              });
+              const data = await response.json();
+              if (data.success) {
+                  const imageUrl = data.data.url;
+                  let newOpts = isSubQ ? [...editingQ.data.subQuestions.find(sq => sq.id === subQId).options] : [...editingQ.data.options];
+                  const optIndex = newOpts.findIndex(o => o.id === optId);
+                  if (optIndex > -1) newOpts[optIndex].image = imageUrl;
+
+                  if (isSubQ) {
+                      const newSqs = [...editingQ.data.subQuestions];
+                      const sqIndex = newSqs.findIndex(sq => sq.id === subQId);
+                      newSqs[sqIndex].options = newOpts;
+                      setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
+                  } else {
+                      setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                  }
+                  showMessage("Tải ảnh phương án thành công!", "success");
+              } else showMessage("Lỗi tải ảnh!", "error");
+          } catch (e) { showMessage("Lỗi kết nối!", "error"); }
+      };
+
+      const removeOptImage = (optId, isSubQ = false, subQId = null) => {
+          let newOpts = isSubQ ? [...editingQ.data.subQuestions.find(sq => sq.id === subQId).options] : [...editingQ.data.options];
+          const optIndex = newOpts.findIndex(o => o.id === optId);
+          if (optIndex > -1) newOpts[optIndex].image = null;
+
+          if (isSubQ) {
+              const newSqs = [...editingQ.data.subQuestions];
+              const sqIndex = newSqs.findIndex(sq => sq.id === subQId);
+              newSqs[sqIndex].options = newOpts;
+              setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
+          } else {
+              setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+          }
+      };
+
       return (
         <div className="min-h-screen p-4 md:p-8 animate-fade-in bg-slate-100 dark:bg-slate-900 transition-colors">
           <Notification />
@@ -941,43 +987,65 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
                     />
                   </div>
                   {editingQ.data.type !== 'rc' && (
-                    <div>
+                    <div className="space-y-3">
                       {editingQ.data.options.map((opt, oIdx) => (
-                        <div key={opt.id} className="flex items-start gap-3 mb-2">
-                          {editingQ.data.type !== 'sa' && <input 
-  type={editingQ.data.type === 'tf' ? "checkbox" : "radio"} 
-  checked={opt.isCorrect} 
-  onChange={() => {
-    const newOpts = editingQ.data.options.map(o => {
-      if (editingQ.data.type === 'tf') {
-        // Đúng/Sai: Cho phép chọn/bỏ chọn độc lập nhiều mệnh đề đúng
-        return o.id === opt.id ? {...o, isCorrect: !o.isCorrect} : o;
-      } else {
-        // Trắc nghiệm: Chỉ cho phép 1 đáp án đúng
-        return {...o, isCorrect: o.id === opt.id};
-      }
-    });
-    setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-  }} 
-  className={`mt-3 w-5 h-5 cursor-pointer ${editingQ.data.type === 'tf' ? 'text-indigo-600 rounded' : 'text-blue-600'}`} 
-/>}
-                          <AutoResizingTextarea 
-                              value={opt.text} 
-                              onChange={val => {
-                                const newOpts = [...editingQ.data.options]; newOpts[oIdx].text = val;
-                                setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                              }} 
-                              className="flex-1 p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
-                              rows="1" 
-                          />
-                          <button onClick={() => {
-                              const newOpts = editingQ.data.options.filter(o => o.id !== opt.id);
-                              setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
-                          }} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"><Icons.Trash /></button>
+                        <div key={opt.id} className="flex items-start gap-3">
+                          {editingQ.data.type === 'tf' ? (
+                             <div className="flex gap-1 mt-1 shrink-0 flex-col sm:flex-row">
+                               <button onClick={() => {
+                                 const newOpts = [...editingQ.data.options]; newOpts[oIdx].isCorrect = true;
+                                 setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                               }} className={`px-2.5 py-1.5 text-xs font-bold rounded shadow-sm transition-colors ${opt.isCorrect ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300'}`}>Đúng</button>
+                               <button onClick={() => {
+                                 const newOpts = [...editingQ.data.options]; newOpts[oIdx].isCorrect = false;
+                                 setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                               }} className={`px-2.5 py-1.5 text-xs font-bold rounded shadow-sm transition-colors ${!opt.isCorrect ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300'}`}>Sai</button>
+                             </div>
+                          ) : (
+                             editingQ.data.type !== 'sa' && <input 
+                                type="radio" 
+                                checked={opt.isCorrect} 
+                                onChange={() => {
+                                  const newOpts = editingQ.data.options.map(o => ({...o, isCorrect: o.id === opt.id}));
+                                  setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                                }} 
+                                className="mt-3 w-5 h-5 cursor-pointer text-blue-600" 
+                             />
+                          )}
+                          <div className="flex-1 flex flex-col min-w-0">
+                              <AutoResizingTextarea 
+                                  value={opt.text} 
+                                  onChange={val => {
+                                    const newOpts = [...editingQ.data.options]; newOpts[oIdx].text = val;
+                                    setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                                  }} 
+                                  className="w-full p-2 border rounded-lg dark:bg-slate-900 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
+                                  rows="1" 
+                              />
+                              {opt.image && (
+                                 <div className="relative mt-2 inline-block self-start">
+                                    <img src={opt.image} className="h-24 w-auto object-contain rounded border border-slate-200 dark:border-slate-700" />
+                                    <button onClick={() => removeOptImage(opt.id)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600">×</button>
+                                 </div>
+                              )}
+                          </div>
+                          
+                          <div className="flex flex-col gap-1 shrink-0">
+                              {editingQ.data.type !== 'sa' && (
+                                  <label className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-lg transition cursor-pointer flex items-center justify-center" title="Thêm ảnh cho phương án">
+                                      <Icons.Image />
+                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleOptImageUpload(e.target.files[0], opt.id)} />
+                                  </label>
+                              )}
+                              <button onClick={() => {
+                                  const newOpts = editingQ.data.options.filter(o => o.id !== opt.id);
+                                  setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
+                              }} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-800/50 rounded-lg transition flex items-center justify-center" title="Xóa phương án này"><Icons.Trash /></button>
+                          </div>
                         </div>
                       ))}
                       <button onClick={() => {
-                        const newOpts = [...editingQ.data.options, {id: generateId(), text: '', isCorrect: editingQ.data.options.length === 0}];
+                        const newOpts = [...editingQ.data.options, {id: generateId(), text: '', isCorrect: editingQ.data.options.length === 0, image: null}];
                         setEditingQ({...editingQ, data: {...editingQ.data, options: newOpts}});
                       }} className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold transition">+ Đáp án</button>
                     </div>
@@ -1001,32 +1069,46 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
                               rows="1" 
                           />
                           {sq.options.map((opt, oIdx) => (
-                            <div key={opt.id} className="flex items-start gap-2 mb-2 pl-2">
+                            <div key={opt.id} className="flex items-start gap-2 mb-3 pl-2">
                               <input type="radio" checked={opt.isCorrect} onChange={() => {
                                   const newSqs = [...editingQ.data.subQuestions];
                                   newSqs[sqIdx].options = sq.options.map(o => ({...o, isCorrect: o.id === opt.id}));
                                   setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                              }} className="mt-1 w-4 h-4 text-blue-600 cursor-pointer" />
-                              <AutoResizingTextarea 
-                                  value={opt.text} 
-                                  onChange={val => {
+                              }} className="mt-2 w-4 h-4 text-blue-600 cursor-pointer shrink-0" />
+                              <div className="flex-1 flex flex-col min-w-0">
+                                  <AutoResizingTextarea 
+                                      value={opt.text} 
+                                      onChange={val => {
+                                          const newSqs = [...editingQ.data.subQuestions];
+                                          newSqs[sqIdx].options[oIdx].text = val;
+                                          setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
+                                      }} 
+                                      className="w-full text-sm p-1.5 border rounded dark:bg-slate-800 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
+                                      rows="1" 
+                                  />
+                                  {opt.image && (
+                                     <div className="relative mt-2 inline-block self-start">
+                                        <img src={opt.image} className="h-20 w-auto object-contain rounded border border-slate-200 dark:border-slate-700" />
+                                        <button onClick={() => removeOptImage(opt.id, true, sq.id)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow hover:bg-red-600">×</button>
+                                     </div>
+                                  )}
+                              </div>
+                              <div className="flex flex-col gap-1 shrink-0">
+                                  <label className="p-1.5 text-blue-500 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 rounded transition cursor-pointer flex items-center justify-center" title="Thêm ảnh">
+                                      <Icons.Image />
+                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleOptImageUpload(e.target.files[0], opt.id, true, sq.id)} />
+                                  </label>
+                                  <button onClick={() => {
                                       const newSqs = [...editingQ.data.subQuestions];
-                                      newSqs[sqIdx].options[oIdx].text = val;
+                                      newSqs[sqIdx].options = newSqs[sqIdx].options.filter(o => o.id !== opt.id);
                                       setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                                  }} 
-                                  className="flex-1 text-sm p-1.5 border rounded dark:bg-slate-800 dark:text-white dark:border-slate-600 outline-none resize-none overflow-hidden" 
-                                  rows="1" 
-                              />
-                                <button onClick={() => {
-                                  const newSqs = [...editingQ.data.subQuestions];
-                                  newSqs[sqIdx].options = newSqs[sqIdx].options.filter(o => o.id !== opt.id);
-                                  setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
-                              }} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded shrink-0"><Icons.Trash /></button>
+                                  }} className="p-1.5 text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 rounded transition flex items-center justify-center"><Icons.Trash /></button>
+                              </div>
                             </div>
                           ))}
                           <button onClick={() => {
                               const newSqs = [...editingQ.data.subQuestions];
-                              newSqs[sqIdx].options.push({id: generateId(), text: '', isCorrect: newSqs[sqIdx].options.length === 0});
+                              newSqs[sqIdx].options.push({id: generateId(), text: '', isCorrect: newSqs[sqIdx].options.length === 0, image: null});
                               setEditingQ({...editingQ, data: {...editingQ.data, subQuestions: newSqs}});
                           }} className="text-[11px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold ml-6 mt-1">+ Thêm đáp án</button>
                         </div>
@@ -1097,17 +1179,32 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
                         <div className="font-black text-slate-700 dark:text-slate-300 mb-1">Câu {q.originalIndex}:</div>
                         <div className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium break-words">{q.text}</div>
                         {(q.type === 'mc' || q.type === 'tf') && (
-                            <div className="mt-3 space-y-1.5 pl-2 sm:pl-3 border-l-2 border-slate-100 dark:border-slate-700">
-                                {q.options.map(opt => <div key={opt.id} className={`text-sm flex items-start gap-2 ${opt.isCorrect ? 'text-green-600 dark:text-green-400 font-bold' : 'text-slate-500 dark:text-slate-400'}`}><span className="shrink-0 pt-0.5">{opt.isCorrect ? '✓' : '○'}</span><span className="break-words whitespace-pre-wrap">{opt.text}</span></div>)}
+                            <div className="mt-3 space-y-2 pl-2 sm:pl-3 border-l-2 border-slate-100 dark:border-slate-700">
+                                {q.options.map(opt => (
+                                    <div key={opt.id} className={`text-sm flex flex-col items-start gap-1 ${opt.isCorrect ? 'text-green-600 dark:text-green-400 font-bold' : 'text-slate-500 dark:text-slate-400'}`}>
+                                       <div className="flex items-start gap-2">
+                                          <span className="shrink-0 pt-0.5">{opt.isCorrect ? '✓' : '○'}</span>
+                                          <span className="break-words whitespace-pre-wrap">{opt.text}</span>
+                                       </div>
+                                       {opt.image && <img src={opt.image} className="h-20 w-auto ml-5 rounded object-contain border border-slate-200 dark:border-slate-700" />}
+                                    </div>
+                                ))}
                             </div>
                         )}
                         {!isReadOnly && q.type === 'sa' && <div className="text-sm text-green-700 dark:text-green-400 mt-2 font-bold bg-green-50 dark:bg-green-900/30 p-2 rounded inline-block break-words border border-green-100 dark:border-green-800 whitespace-pre-wrap">Đ.án: {q.options[0]?.text || '(Chưa nhập)'}</div>}
                         {q.type === 'rc' && (
-                          <div className="mt-4 space-y-3 pl-4 border-l-4 border-slate-200 dark:border-slate-600 min-w-0">
+                          <div className="mt-4 space-y-4 pl-4 border-l-4 border-slate-200 dark:border-slate-600 min-w-0">
                             {q.subQuestions.map((sq, sIdx) => (
                               <div key={sq.id} className="min-w-0">
                                 <div className="font-bold text-slate-600 dark:text-slate-400 break-words whitespace-pre-wrap">#{sIdx + 1}: {sq.text}</div>
-                                {!isReadOnly && sq.options.filter(o=>o.isCorrect).map(o => <div key={o.id} className="text-sm text-green-600 dark:text-green-400 font-medium inline-block mr-2 break-words whitespace-pre-wrap">Đ.án: {o.text}</div>)}
+                                <div className="mt-2 space-y-2 pl-2">
+                                    {!isReadOnly && sq.options.filter(o=>o.isCorrect).map(o => (
+                                       <div key={o.id} className="text-sm flex flex-col items-start gap-1 text-green-600 dark:text-green-400 font-bold">
+                                          <div className="break-words whitespace-pre-wrap">Đ.án: {o.text}</div>
+                                          {o.image && <img src={o.image} className="h-16 w-auto rounded object-contain border border-green-200 dark:border-green-800" />}
+                                       </div>
+                                    ))}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1122,7 +1219,7 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
                         ) : (
                             !isReadOnly ? (
                             <label className="cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold text-sm py-4 px-6 flex flex-col items-center gap-1 transition whitespace-nowrap">
-                              <Icons.Image /> Thêm ảnh
+                              <Icons.Image /> Ảnh câu hỏi
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(q.id, section.id, e.target.files[0])} />
                             </label>
                           ) : <span className="text-slate-400 text-sm px-4 whitespace-nowrap">Không ảnh</span>
@@ -1192,11 +1289,12 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
         }
       }, [activeQuiz, answers, totalQ, isModeSingle, navigate, currentQuizCode, checkQuestionCorrect, generateRandomRemark, showMessage, setScore, setEndRemark, setIsSubmitted, setSingleQuestionConfirmed, evaluateIncorrect]);
 
+      // Trả về class bao quanh cho từng lựa chọn trong MC và RC
       const getOptClass = (opt, isSelected, showResult) => {
-        if (!showResult) return isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 dark:border-blue-500 text-blue-800 dark:text-blue-200' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 text-slate-800 dark:text-slate-200';
-        if (opt.isCorrect && isSelected) return 'bg-green-100 dark:bg-green-900/40 border-green-500 text-green-800 dark:text-green-300';
+        if (!showResult) return isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 dark:border-blue-500 text-blue-800 dark:text-blue-200 shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 text-slate-800 dark:text-slate-200';
+        if (opt.isCorrect && isSelected) return 'bg-green-100 dark:bg-green-900/40 border-green-500 text-green-800 dark:text-green-300 shadow-sm';
         if (opt.isCorrect && !isSelected) return 'bg-white dark:bg-slate-800 border-green-500 border-dashed text-green-700 dark:text-green-400';
-        if (!opt.isCorrect && isSelected) return 'bg-red-100 dark:bg-red-900/40 border-red-500 text-red-800 dark:text-red-300';
+        if (!opt.isCorrect && isSelected) return 'bg-red-100 dark:bg-red-900/40 border-red-500 text-red-800 dark:text-red-300 shadow-sm';
         return 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-50 text-slate-800 dark:text-slate-200';
       };
 
@@ -1210,21 +1308,68 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
               </div>
             );
           }
+
+          if (type === 'tf') {
+              return (
+                 <div className="grid gap-3 min-w-0">
+                   {qObj.options.map((opt, oIdx) => {
+                      const ansObj = answers[qObj.id] || {};
+                      const selectedVal = ansObj[opt.id]; 
+                      
+                      const getBtnClass = (btnType) => {
+                         if (!isConfirming) return selectedVal === btnType ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500';
+                         if (opt.isCorrect === btnType) return 'bg-green-500 border-green-500 text-white shadow-md';
+                         if (selectedVal === btnType && selectedVal !== opt.isCorrect) return 'bg-red-500 border-red-500 text-white shadow-md';
+                         return 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 opacity-50 text-slate-400';
+                      };
+
+                      return (
+                        <div key={opt.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 border-2 border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 min-w-0 transition-colors">
+                           <div className="flex-1 font-medium text-lg whitespace-pre-wrap break-words min-w-0">
+                              <span className="font-bold mr-2 text-indigo-600 dark:text-indigo-400">{String.fromCharCode(97+oIdx)})</span>
+                              {opt.text}
+                              {opt.image && <img src={opt.image} className="mt-3 max-h-40 rounded-lg object-contain shadow-sm border border-slate-200 dark:border-slate-700" />}
+                           </div>
+                           <div className="flex gap-2 shrink-0">
+                              <button onClick={() => !isConfirming && setAnswers({...answers, [qObj.id]: {...ansObj, [opt.id]: true}})} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl font-bold transition-all border-2 ${getBtnClass(true)}`}>Đúng</button>
+                              <button onClick={() => !isConfirming && setAnswers({...answers, [qObj.id]: {...ansObj, [opt.id]: false}})} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl font-bold transition-all border-2 ${getBtnClass(false)}`}>Sai</button>
+                           </div>
+                        </div>
+                      )
+                   })}
+                 </div>
+              );
+          }
+
+          // Giao diện vòng tròn A B C D cho dạng Trắc nghiệm và Đọc hiểu
           return (
             <div className="grid gap-3 min-w-0">
               {qObj.options.map((opt, oIdx) => {
                 const isSelected = (answers[qObj.id] || []).includes(opt.id);
+                
+                let circleClass = 'border-slate-300 dark:border-slate-500 text-slate-600 dark:text-slate-300 group-hover:border-blue-400 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30';
+                if (!isConfirming) {
+                    if (isSelected) circleClass = 'bg-blue-600 border-blue-600 text-white';
+                } else {
+                    if (opt.isCorrect) circleClass = 'bg-green-500 border-green-500 text-white';
+                    else if (isSelected) circleClass = 'bg-red-500 border-red-500 text-white';
+                    else circleClass = 'border-slate-300 dark:border-slate-600 text-slate-400 opacity-50';
+                }
+
                 return (
-                  <label key={opt.id} className={`flex items-start p-4 border-2 rounded-xl transition cursor-pointer min-w-0 ${getOptClass(opt, isSelected, isConfirming)}`} 
+                  <label key={opt.id} className={`flex items-start p-4 border-2 rounded-xl transition cursor-pointer min-w-0 group ${getOptClass(opt, isSelected, isConfirming)}`} 
                     onClick={() => {
                       if (isConfirming) return;
-                      let newSelected = answers[qObj.id] || [];
-                      if (type === 'mc' || type === 'rc') newSelected = [opt.id]; 
-                      else newSelected = newSelected.includes(opt.id) ? newSelected.filter(id => id !== opt.id) : [...newSelected, opt.id]; 
-                      setAnswers({...answers, [qObj.id]: newSelected});
+                      setAnswers({...answers, [qObj.id]: [opt.id]});
                     }}>
-                    <input type={type==='tf'?"checkbox":"radio"} checked={isSelected} readOnly className={`mt-1 w-5 h-5 shrink-0 ${type==='tf'?'rounded text-indigo-600':'text-blue-600'}`} />
-                    <div className="ml-3 font-medium text-lg whitespace-pre-wrap break-words min-w-0"><span className="font-bold mr-2">{type==='tf' ? String.fromCharCode(97+oIdx)+')' : mcLetters[oIdx]+'.'}</span>{opt.text}</div>
+                    <input type="radio" className="hidden" checked={isSelected} readOnly />
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 mt-0.5 transition-colors border-2 shadow-sm ${circleClass}`}>
+                       {mcLetters[oIdx]}
+                    </div>
+                    <div className="ml-3 font-medium text-lg whitespace-pre-wrap break-words min-w-0 pt-0.5 flex-1">
+                       {opt.text}
+                       {opt.image && <img src={opt.image} className="mt-3 max-h-40 rounded-lg object-contain shadow-sm border border-slate-200 dark:border-slate-700" />}
+                    </div>
                   </label>
                 )
               })}
@@ -1236,12 +1381,16 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
         const q = activeQuiz.flat[currentIndex];
         let isCorrectThisTime = 0;
         if (q.type === 'rc') {
-          for (let sq of q.subQuestions) if (!answers[sq.id] || answers[sq.id].length === 0) return showMessage('Vui lòng làm hết!');
+          for (let sq of q.subQuestions) if (!answers[sq.id] || answers[sq.id].length === 0) return showMessage('Vui lòng làm hết các câu phụ!');
           q.subQuestions.forEach(sq => { if(checkQuestionCorrect('rc', sq, answers[sq.id])) isCorrectThisTime++; });
           setScore(p => ({ ...p, correct: p.correct + isCorrectThisTime }));
+        } else if (q.type === 'tf') {
+          const ansObj = answers[q.id] || {};
+          if (Object.keys(ansObj).length !== q.options.length) return showMessage('Vui lòng chọn Đúng/Sai cho tất cả các mệnh đề!');
+          if (checkQuestionCorrect('tf', q, ansObj)) { isCorrectThisTime = 1; setScore(p => ({ ...p, correct: p.correct + 1 })); }
         } else {
           const ans = answers[q.id];
-          if (q.type !== 'tf' && (!ans || (Array.isArray(ans) && ans.length===0) || (typeof ans==='string' && !ans.trim()))) return showMessage('Chưa chọn đáp án!');
+          if (!ans || (Array.isArray(ans) && ans.length===0) || (typeof ans==='string' && !ans.trim())) return showMessage('Chưa chọn đáp án!');
           if (checkQuestionCorrect(q.type, q, ans)) { isCorrectThisTime = 1; setScore(p => ({ ...p, correct: p.correct + 1 })); }
         }
         setSingleQuestionConfirmed(true);
@@ -1251,8 +1400,15 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       const submitAll = () => {
         let hasUnanswered = false;
         activeQuiz.flat.forEach(q => {
-          if(q.type === 'rc') { q.subQuestions.forEach(sq => { if(!answers[sq.id] || answers[sq.id].length===0) hasUnanswered = true; }) }
-          else { const ans = answers[q.id]; if(q.type !== 'tf' && (!ans || (Array.isArray(ans)&&ans.length===0) || (typeof ans==='string'&&!ans.trim()))) hasUnanswered = true; }
+          if(q.type === 'rc') { 
+              q.subQuestions.forEach(sq => { if(!answers[sq.id] || answers[sq.id].length===0) hasUnanswered = true; }) 
+          } else if (q.type === 'tf') {
+              const ansObj = answers[q.id] || {};
+              if (Object.keys(ansObj).length !== q.options.length) hasUnanswered = true;
+          } else { 
+              const ans = answers[q.id]; 
+              if(!ans || (Array.isArray(ans)&&ans.length===0) || (typeof ans==='string'&&!ans.trim())) hasUnanswered = true; 
+          }
         });
         if (hasUnanswered) return showMessage('Bạn còn câu chưa làm!');
         let correct = 0;
@@ -1279,8 +1435,15 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       } else {
           let count = 0;
           activeQuiz.flat.forEach(q => {
-            if (q.type === 'rc') { q.subQuestions.forEach(sq => { if (answers[sq.id] && answers[sq.id].length > 0) count++; }); } 
-            else { const ans = answers[q.id]; if (ans && ((Array.isArray(ans) && ans.length > 0) || (typeof ans === 'string' && ans.trim()))) count++; }
+            if (q.type === 'rc') { 
+                q.subQuestions.forEach(sq => { if (answers[sq.id] && answers[sq.id].length > 0) count++; }); 
+            } else if (q.type === 'tf') {
+                const ansObj = answers[q.id] || {};
+                if (Object.keys(ansObj).length === q.options.length) count++;
+            } else { 
+                const ans = answers[q.id]; 
+                if (ans && ((Array.isArray(ans) && ans.length > 0) || (typeof ans === 'string' && ans.trim()))) count++; 
+            }
           });
           answeredCount = count;
       }
@@ -1993,14 +2156,14 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
           }
           const optMatch = line.match(/^(\*?)\s*([A-Za-zĐđ])[\.\)]\s*(.*)/);
           if (optMatch) {
-            const optObj = { id: generateId(), text: optMatch[3], isCorrect: optMatch[1] === '*' };
+            const optObj = { id: generateId(), text: optMatch[3], isCorrect: optMatch[1] === '*', image: null };
             if (currentSubQ) currentSubQ.options.push(optObj);
             else if (currentQ) { currentQ.options.push(optObj); if (!currentQ.type) currentQ.type = 'mc'; }
             continue;
           }
           const saMatch = line.match(/^\*\s*(.+?)\s*\*$/);
           if (saMatch && currentQ && !currentSubQ && currentQ.options.length === 0) {
-            currentQ.type = 'sa'; currentQ.options.push({ id: generateId(), text: saMatch[1], isCorrect: true }); continue;
+            currentQ.type = 'sa'; currentQ.options.push({ id: generateId(), text: saMatch[1], isCorrect: true, image: null }); continue;
           }
           if (currentSubQ) {
             if (currentSubQ.options.length === 0) currentSubQ.text += '\n' + line;
@@ -2034,6 +2197,34 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
             allMC.push(...parseTextEngine(rawTexts.mc, 'mc')); allTF.push(...parseTextEngine(rawTexts.tf, 'tf'));
             allSA.push(...parseTextEngine(rawTexts.sa, 'sa')); allRC.push(...parseTextEngine(rawTexts.rc, 'rc'));
         }
+        
+        // Cập nhật lại hình ảnh cũ nếu có trong parsedData (khi parseTextEngine sẽ làm mất các key ảnh nếu không mapping lại)
+        const restoreImages = (newArr, oldArr) => {
+            newArr.forEach(newQ => {
+                const oldQ = oldArr.find(oq => oq.text === newQ.text); // Cách đơn giản để đối chiếu text
+                if (oldQ) {
+                    newQ.image = oldQ.image;
+                    newQ.options.forEach((nOpt, idx) => {
+                        if (oldQ.options[idx]) nOpt.image = oldQ.options[idx].image;
+                    });
+                    if (newQ.type === 'rc') {
+                        newQ.subQuestions.forEach((nSq, sqIdx) => {
+                            if (oldQ.subQuestions[sqIdx]) {
+                                nSq.options.forEach((nOpt, oIdx) => {
+                                    if (oldQ.subQuestions[sqIdx].options[oIdx]) nOpt.image = oldQ.subQuestions[sqIdx].options[oIdx].image;
+                                });
+                            }
+                        });
+                    }
+                }
+            });
+        };
+        
+        restoreImages(allMC, parsedData.mc || []);
+        restoreImages(allTF, parsedData.tf || []);
+        restoreImages(allSA, parsedData.sa || []);
+        restoreImages(allRC, parsedData.rc || []);
+
         const newParsedData = { mc: allMC, tf: allTF, sa: allSA, rc: allRC };
         setParsedData(newParsedData);
         let finalCode = currentQuizCode || generateShareCode();
@@ -2120,7 +2311,7 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
         if (saveCooldown > 0 || isSaving) return;
         if (currentRoute === 'overview' && urlAction === 'edittext') {
            setCustomAlert({
-               isOpen: true, title: "Bạn có muốn lưu text này không?", message: "Tất cả những gì bạn đã làm trong phần \"Sửa câu hỏi\" sẽ mất",
+               isOpen: true, title: "Bạn có muốn lưu text này không?", message: "Tất cả hình ảnh đã tải lên và các thay đổi trong phần \"Sửa câu hỏi\" sẽ bị mất",
                type: 'warning', confirmText: 'Vẫn Lưu', cancelText: 'Hủy bỏ', onConfirm: () => processAndSaveQuizzes(null)
            });
         } else {
@@ -2204,7 +2395,16 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
               newData.options = newData.subQuestions[0]?.options || [];
               newData.subQuestions = [];
           }
-          if (newType === 'sa' && newData.options.length === 0) newData.options = [{id: generateId(), text: '', isCorrect: true}];
+          if (newType === 'sa' && newData.options.length === 0) newData.options = [{id: generateId(), text: '', isCorrect: true, image: null}];
+          
+          if (newType === 'tf') {
+              // Cập nhật lại format đúng sai
+              if (newData.options.length === 0) newData.options = [
+                  {id: generateId(), text: 'Mệnh đề a', isCorrect: true, image: null},
+                  {id: generateId(), text: 'Mệnh đề b', isCorrect: false, image: null}
+              ];
+          }
+          
           setEditingQ({ ...editingQ, data: newData, oldSectionId: editingQ.oldSectionId || editingQ.sectionId, sectionId: newType });
       };
 
@@ -2267,35 +2467,35 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       };
 
       const handleAddNewQuestion = (sectionId) => {
-    let defaultOptions = [];
-    if (sectionId === 'tf') {
-        // Dạng Đúng/Sai thường có 4 mệnh đề để đánh giá
-        defaultOptions = [
-            {id: generateId(), text: 'Mệnh đề a', isCorrect: true},
-            {id: generateId(), text: 'Mệnh đề b', isCorrect: false},
-            {id: generateId(), text: 'Mệnh đề c', isCorrect: false},
-            {id: generateId(), text: 'Mệnh đề d', isCorrect: false}
-        ];
-    } else if (sectionId !== 'rc') {
-        // Dạng trắc nghiệm
-        defaultOptions = [
-            {id: generateId(), text: 'Đáp án A', isCorrect: true},
-            {id: generateId(), text: 'Đáp án B', isCorrect: false},
-            {id: generateId(), text: 'Đáp án C', isCorrect: false},
-            {id: generateId(), text: 'Đáp án D', isCorrect: false}
-        ];
-    }
+        let defaultOptions = [];
+        if (sectionId === 'tf') {
+            // Dạng Đúng/Sai thường có 4 mệnh đề để đánh giá
+            defaultOptions = [
+                {id: generateId(), text: 'Mệnh đề a', isCorrect: true, image: null},
+                {id: generateId(), text: 'Mệnh đề b', isCorrect: false, image: null},
+                {id: generateId(), text: 'Mệnh đề c', isCorrect: false, image: null},
+                {id: generateId(), text: 'Mệnh đề d', isCorrect: false, image: null}
+            ];
+        } else if (sectionId !== 'rc') {
+            // Dạng trắc nghiệm
+            defaultOptions = [
+                {id: generateId(), text: 'Đáp án A', isCorrect: true, image: null},
+                {id: generateId(), text: 'Đáp án B', isCorrect: false, image: null},
+                {id: generateId(), text: 'Đáp án C', isCorrect: false, image: null},
+                {id: generateId(), text: 'Đáp án D', isCorrect: false, image: null}
+            ];
+        }
 
-    const newQ = { 
-        id: generateId(), 
-        text: "Câu hỏi mới...", 
-        type: sectionId, 
-        options: defaultOptions, 
-        subQuestions: sectionId === 'rc' ? [{id: generateId(), text: '#1. Câu hỏi phụ mới', options: [{id: generateId(), text: 'Đáp án 1', isCorrect: true}]}] : [], 
-        image: null 
-    };
-    setEditingQ({ sectionId: sectionId, data: newQ, isNew: true });
-};
+        const newQ = { 
+            id: generateId(), 
+            text: "Câu hỏi mới...", 
+            type: sectionId, 
+            options: defaultOptions, 
+            subQuestions: sectionId === 'rc' ? [{id: generateId(), text: '#1. Câu hỏi phụ mới', options: [{id: generateId(), text: 'Đáp án 1', isCorrect: true, image: null}]}] : [], 
+            image: null 
+        };
+        setEditingQ({ sectionId: sectionId, data: newQ, isNew: true });
+      };
 
       const prepareQuiz = () => {
         let finalMc = [...parsedData.mc], finalTf = [...parsedData.tf], finalSa = [...parsedData.sa], finalRc = [...(parsedData.rc || [])];
@@ -2365,9 +2565,15 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
           const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
           return Array.isArray(userAns) && userAns.length > 0 && correctIds.includes(userAns[0]);
         } else if (type === 'tf') {
-          const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
-          const ans = userAns || [];
-          return ans.length === correctIds.length && ans.every(id => correctIds.includes(id));
+          const ans = userAns || {};
+          // Kiểm tra tương thích dữ liệu cũ
+          if (Array.isArray(ans)) {
+              const correctIds = qObj.options.filter(o => o.isCorrect).map(o => o.id);
+              return ans.length === correctIds.length && ans.every(id => correctIds.includes(id));
+          }
+          // Dữ liệu mới từ nút chọn Đúng/Sai
+          if (Object.keys(ans).length !== qObj.options.length) return false;
+          return qObj.options.every(o => !!ans[o.id] === !!o.isCorrect);
         } else if (type === 'sa') {
           if (typeof userAns !== 'string' || !userAns.trim()) return false;
           if (!qObj.options || qObj.options.length === 0) return false; 
@@ -2433,10 +2639,10 @@ const { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } = R
       if (isSetupNeeded) ActiveScreenComponent = <SetupScreen />;
       else if (isGlobalLoading || isFetchingQuiz) ActiveScreenComponent = <LoadingScreen />;
       else if (activeScreen === 'login') ActiveScreenComponent = <LoginScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleLogin={handleLogin} handleGuestLogin={handleGuestLogin} />;
-      else if (activeScreen === 'dashboard') ActiveScreenComponent = <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={displayQuizzes} recentQuizzes={recentQuizzes} setRecentQuizzes={setRecentQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} setCustomAlert={setCustomAlert} handleDeleteQuiz={handleDeleteQuiz} handleExtendQuiz={handleExtendQuiz} />;
+      else if (activeScreen === 'dashboard') ActiveScreenComponent = <DashboardScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} currentUser={currentUser} setCurrentUser={setCurrentUser} navigate={navigate} resetQuiz={resetQuiz} myQuizzes={displayQuizzes} recentQuizzes={recentQuizzes} setRecentQuizzes={setRecentQuizzes} db={db} quizzesPath={quizzesPath} handleGuestJoin={handleGuestJoin} handleCodeInputChange={handleCodeInputChange} handleDeleteAccount={handleDeleteAccount} handleChangePassword={handleChangePassword} copyToClipboard={copyToClipboard} setCustomAlert={setCustomAlert} handleDeleteQuiz={handleExtendQuiz} handleExtendQuiz={handleExtendQuiz} />;
       else if (activeScreen === 'input') ActiveScreenComponent = <InputScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} navigate={navigate} quizTitle={quizTitle} setQuizTitle={setQuizTitle} currentQuizCode={currentQuizCode} rawTexts={rawTexts} setRawTexts={setRawTexts} handleParseAndSave={handleParseAndSave} saveCooldown={saveCooldown} isSaving={isSaving} setShowGuestSaveModal={setShowGuestSaveModal} currentUser={currentUser} />;
       else if (activeScreen === 'overview') ActiveScreenComponent = <OverviewScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} quizTitle={quizTitle} timeLimit={timeLimit} setTimeLimit={setTimeLimit} currentQuizCode={currentQuizCode} copyToClipboard={copyToClipboard} config={config} setConfig={setConfig} prepareQuiz={prepareQuiz} isReadOnly={isReadOnly} navigate={navigate} cloneQuizAdmin={cloneQuizAdmin} cloneCooldown={cloneCooldown} currentUser={currentUser} parsedData={parsedData} />;
-      else if (activeScreen === 'settings') ActiveScreenComponent = <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={handleAddNewQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} quizTitle={quizTitle} setShowGuestSaveModal={setShowGuestSaveModal} />;
+      else if (activeScreen === 'settings') ActiveScreenComponent = <SettingsScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} parsedData={parsedData} setParsedData={setParsedData} editingQ={editingQ} setEditingQ={setEditingQ} navigate={navigate} currentQuizCode={currentQuizCode} isReadOnly={isReadOnly} currentUser={currentUser} db={db} handleImageUpload={handleImageUpload} changeQuestionType={changeQuestionType} saveInlineEdit={saveInlineEdit} removeInlineQuestion={removeInlineQuestion} handleAddNewQuestion={handleAddNewQuestion} showMessage={showMessage} quizzesPath={quizzesPath} quizTitle={quizTitle} setShowGuestSaveModal={setShowGuestSaveModal} />;
       else if (activeScreen === 'quiz') ActiveScreenComponent = <QuizScreen ThemeToggleBtn={ThemeToggleBtn} Notification={Notification} CustomConfirmModal={CustomConfirmModal} activeQuiz={activeQuiz} answers={answers} setAnswers={setAnswers} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} isSubmitted={isSubmitted} setIsSubmitted={setIsSubmitted} singleQuestionConfirmed={singleQuestionConfirmed} setSingleQuestionConfirmed={setSingleQuestionConfirmed} score={score} setScore={setScore} endRemark={endRemark} setEndRemark={setEndRemark} navigate={navigate} currentQuizCode={currentQuizCode} currentUser={currentUser} config={config} checkQuestionCorrect={checkQuestionCorrect} generateRandomRemark={generateRandomRemark} showMessage={showMessage} timeLimit={timeLimit} setCustomAlert={setCustomAlert} setIncorrectData={setIncorrectData} />;
       else if (activeScreen === 'result') ActiveScreenComponent = <ResultScreen ThemeToggleBtn={ThemeToggleBtn} score={score} endRemark={endRemark} prepareQuiz={prepareQuiz} navigate={navigate} currentUser={currentUser} incorrectData={incorrectData} prepareRedoIncorrectQuiz={prepareRedoIncorrectQuiz} />;
 
